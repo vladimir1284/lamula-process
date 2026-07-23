@@ -1,0 +1,19 @@
+Altura
+ 17 0
+  10   0   0 117 
+  10   0 255 255 bajo
+  20   0 204 255 bajo
+  30   0 153 255 bajo
+  40   0 255  66 medio
+  50   0 204  51 medio
+  60  51 153 102 medio
+  70 255 255   0 medio alto
+  80 255 204   0 medio alto
+  90 255 153   0 medio alto
+ 100 255   0   0 alto
+ 110 204   0   0 alto
+ 120 153   0   0 alto
+ 130 204   0 255 muy alto
+ 140 153   0 255 muy alto
+ 150 127  31 170 muy alto
+ 254  90   0  90 

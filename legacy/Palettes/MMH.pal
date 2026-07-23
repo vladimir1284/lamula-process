@@ -1,0 +1,19 @@
+Intensidad de precipitación
+ 17 0
+  30   0   0 117 
+  55   0 255 255 débil
+  75   0 204 255 débil
+  85   0 153 255 moderado
+  95   0 255  66 moderado
+ 105   0 204  51 moderado
+ 115  51 153 102 moderado
+ 130 255 255   0 moderado
+ 140 255 204   0 moderado
+ 150 255 153   0 fuerte
+ 155 255   0   0 fuerte
+ 160 204   0   0 fuerte
+ 170 153   0   0 muy_fuerte
+ 180 204   0 255 muy_fuerte
+ 184 153   0 255 muy_fuerte
+ 185 127  31 170 torrencial
+ 254  90   0  90 

@@ -1,0 +1,94 @@
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; Help Project File for VESTA 
+;
+;  This file is maintained by RoboHELP.  Do not modify this file directly.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+[OPTIONS]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Options section contains the following information:
+;
+; The optional BMROOT=entry sets the directories in which the Help Compiler
+; will look for graphics.
+;
+; The CONTENTS=tells WinHelp which topic contains the contents.
+;
+; The TITLE=is displayed in the Title Bar of WINHELP.EXE
+;
+; The BUILD=setting allows you to create different Help systems from
+; the same source file.
+;
+; The COMPRESS=option tells the Help Compiler how much to compress
+; the Help file.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;BMROOT=E:\MARCO\RADAR\VESTA32\PROCESS\HELP
+TITLE=Vesta Help
+BUILD=WINDOWS
+COMPRESS=0
+NOTES=1
+
+
+OLDKEYPHRASE=NO
+OPTCDROM=0
+REPORT=YES
+ERRORLOG=E:\marco\radar\VESTA32\PROCESS\HELP\VESTA.ERR
+PREFIX=IDHxxx
+[BUILDTAGS]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Build Tags section specifies to the Help Compiler the names
+; of all the valid build tags used in this Help project.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+WINDOWS
+
+
+[CONFIG]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Config section defines macros which will run at startup.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+
+
+[FILES]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Files section specifies the RTF files for a project.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+VESTA.RTF
+[ALIAS]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Alias section sets up aliases for Topic IDs in your Help system.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+[MAP]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Map section specifies the project HH files.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+#include <VESTA.HH>
+[BITMAPS]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Bitmaps section specifies the referenced bitmaps used in
+; your help system.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+[WINDOWS]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Windows section contains all of the information about the windows
+; in a Help project.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;Gloss="Glossary",(100,100,350,350),0,(255,255,255),(255,255,255)
+main=,,29188,,
+(w95sec)=,,20740,(r14745599),(r14745599),f2
+
+
+[BAGGAGE]
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; The Baggage section specifies any additional files.
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+

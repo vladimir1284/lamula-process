@@ -1,0 +1,23 @@
+[General]
+Version=1.0
+ComposerVersion=7.0.4.0
+DateTime=26-OCT-2006  13:32:20
+
+[NewSetup]
+DownloadURL_UPDATE=http://192.168.107.95
+NameOfUpdateFile=Proceso.exe
+SizeOfUpdateFile=7161787
+RunningProcess=<Application Folder>\Process.exe
+VersionNew=1
+ValidVersions=
+Stamp=64760
+RequestConfirmationBeforeDownload=1
+RequestConfirmationBeforeInstall=0
+ShutDownMethod=Issue a Message Box
+BackgroundUpdate=0
+RestartProcess=0
+InformFinish=0
+ProgramName=Vesta Proceso
+
+RemoveStartUpShortcut=1
+

@@ -1,0 +1,140 @@
+Vesta | Proceso
+
+Última revisión 3/Octubre/2011
+Reporte de bugs: wilfre@cmw.insmet.cu    tel: +53 (32) 261103 (ext 101)
+
+Ing. Wilfredo Pozas.
+Centro de Radares. Instituto de Meteorología. Cuba.
+
+Versiones:
+
+5.3.19.1 Cambiadas las paletas de los productos Máximos, Topes y VIL a
+         los valores utlizados por Nexrad.Las paletas anteriores se incluyen y tienen 
+         los nombres: DBZ_Process.pal (Máximos), KM_Process.pal (Topes) y
+         KGM_Process.pal (VIL).
+5.3.19.0 Añadida la opción "Aeronáutica" en la ventana de configuración.
+         Esta opción contiene todas las "Radio Ayudas" aeronáuticas de Cuba.
+         Esto permite mostrar el acimut y la distancia con respecto al punto 
+         seleccionado al mover el mouse sobre un producto. 
+         La opción se añade para facilitar el trabajo de comunicación con los 
+         aviones en las camapañas de lluvia provocada.
+5.3.18.0 Actualizado formato del archivo de datos para el dispositivo NMEA según 
+         especificación rusa para experimento de lluvia provocada 2010.
+5.3.17.4 Configurado Intervalo de tiempo para acumulados por defecto en 5 minutos
+         por requerimiento del programa de lluvia provocada.
+5.3.17.3 Parcheado Rainbow5 Translator, fijados 360 sectores solamente cuando 
+         anglestep < 1 grado, todo lo demás igual que 5.3.17.1. Corregido bug al 
+         ordenar los sectores cuando estos no son 360.
+         Añadido Radar Karum de Venezuela.
+5.3.17.2 Parcheado Rainbow5 Translator, fijados 360 sectores en el ChannelDesc debido a la 
+         falla cuando el anglestep del formato rainbow no es 1 grado.
+5.3.17.1 Corregido Bug al calcular la mediana en el reporte. Bug detectado por Felix Gamboa
+         Cuando la mediana arroja el valor de -80.0 dBZ se coloca como resultado "< Senb" para
+         indicar que el resulatdo es un valor detectado en una zona cuya reflectividad es
+         "Menor que la sensibilidad del radar".
+         El cálculo se realiza tomando los valores por encima de un umbral que está dado por el 
+         primer valor de la escala del producto (el valor utilzado como umbral para ocultar ecos 
+         no deseados), la indicación de "< Senb" puede salir si se coloca el umbral por debajo de 
+         del mínimo posible en algún producto. (-80.0 si se trata de reflectividad).
+5.3.17.0 Cambiada la opción Ver\Frontera a Ver\Capa geográfica. Añadida la posibilida de
+         visualizar un punto geográfico, como por ejemplo una ciudad, en la frontera. El
+         formato de la frontera se amplió para garantizar esto. Añadidas fronteras para 
+         radares Venezolanos.(rios, vías, ciudades, fronteras políticas).
+5.3.16.1 Corregido error al leer los datos en formato rainbow por concepto de un número
+         mayor de sectores en un ppi que el que está configurado en la observación.
+         El estado de la opción piloto automático se conserva.
+         Añadidos los radares Maracaibo, Jeremba y Guasdualito de Venezuela.
+5.3.16.0 Añadida la opción Ver\Dispositivo NMEA\Reconstruir trayectoria con esto se puede
+         modificar la visualización de la tracyectoria del avión o dispositivo NMEA
+         cualquiera, la opción se añade a pteción de los especialista de modificación 
+         artificial del tiempo.(Todavía necesita acabado)
+5.3.15.0 Añadida la opción de ver hasta 10 círculos simultáneamente. En la ventana de
+         editar el circulo se configuran todos. La opción se añade a solucitud de Boris
+         Koloskov para facilitar el trabajo durante el experimento de lluvia provocada.
+5.3.14.0 Añadido el formato Atex 2007 para el dispositivo NMEA, se cambia el formato
+         en la ventana de configuración, Dispositivo NMEA, formato año 2007, el año 2006
+         (formato) es para la versión de ese año.
+5.3.13.1 Corregido bug de no eliminación de speckler con las observaciones Rainbow_5.
+         Bug detectado por Roberto Naranjo.
+5.3.13.0 Se le añadió al piloto automático la opción que mueva las obsevaciones viejas
+         a una carpeta dentro de la carpeta de observaciones, esta carpeta es creada por
+         el proceso y se llama Old, para determinar cuando es vieja una observación se
+         configura en la ventana del piloto automático el número de horas de antiguedad.
+5.3.12.0 Cada producto recuerda bien sus parámetros (nivel inferior, superior, este, 
+         oeste, ...etc). La opción recordar en la ventana de edición del producto está
+         activa por defecto, mejoras en la visualización de los parámetros. Cambiada 
+         etiqueta "predeterminado" a "editar" en el menú de productos (click derecho
+         sobre el producto).
+5.3.11.0 Se pueden eliminar uno o más PPI de una observación. En ventana de observación
+         lengueta exploraciones, clic derecho sobre exploración, Eliminar. Se pueden 
+         eliminar varias exploraciones a la vez si se seleccionan. Al aplicar esta opción 
+         a una observación en formato distinto de '.obs' esta es convertida automáticamente 
+         a este formato. Se recomienda tener cuidado con esta opción pues la eliminación 
+         no es recuperable.
+5.3.10.0 Mejorada visualización de valor de magnitud del producto en la barra de estado 
+         (parte decimal, importante en Intensidad de precipitaciones).
+         Añadida visualización opcional del centro del círculo (Editar/Círculo) y 
+         coordenadas en la barra de estado.
+         Añadido botón el la barra de herramientas para realizar screenshot del programa.        
+5.3.9.0  Incluido parámetro Incluir celdas sin datos en la promediación, deshabilitado
+         por defecto en Configuración/Ecuaciones. Este parámetro decide si en el caso que
+         halla que promediar valores en un celda (zona cercana) las celdas sin datos 
+         aportan o no al promedio, cuando se aumenta el tamaño de la celda se produce con
+         más frecuencia la necesidad de promediar, en análisis de precipitaciones se 
+         recomienda activar, en análisis de topes se recomienda desactivar.
+         Añadido rótulo de anilla de distancia en la parte inferior del anillo.
+         Añadido Ver/Círculo, Editar/Círculo.
+5.3.8.2  Corregido bug de error de desboradamiento de contador en promediación en 
+         distintos tamaños de celda. Bug detectado por Boris Koloskov. 
+         Corregido bug de inclusión de ceros en la promediación de cortes. Mejorada
+         visualización del dispositivo NMEA/ATTEX, añadida otra barra de estado para 
+         esto.
+5.3.8.1  Invertido el posicionamiento de Marcas en el corte, la marca 2 se pone con 
+         doble clic izquierdo (facilita la lógica del análisis de los cortes).
+5.3.8.0  Añadido Ver/Dispositivo NMEA/ATTEX (Rusia), versión reducida para experimento
+         de lluvia provocada.
+         Esta opción visualiza una trayectoria tomada a partir de un GPS utilizando
+         un archivo de texto con sentencias NMEA escrito en un formato propietario de 
+         ATTEX (Rusia), el archivo se elige en Configuración/Valores/Dispositivo NMEA
+         la trayectoria se refresca cada vez que es actualizado el archivo.
+5.3.7.0  Añadida rejilla Latitud Longitud.
+5.3.6.0  Mejorada visualización de productos verticales, añadida rejilla vertical
+         (activa por defecto). Eliminado menú Proceso, elementos incluidos en menú
+         Archivo. Opción Producto/Salvar, cambiada a Producto/Guardar. La opción
+         Imagen/Guardar por defecto pone un .gif en el diálogo. Mejorada herramienta
+         para el cálculo de distancia, velocidad y rumbo, añadidas opciones Ver/Marca 
+         de Distancia 1, Ver/Marca de Distancia 2,las marcas de distancia se pueden 
+         arrastrar, La marca de perfil vertical se puede arrastrar. Corregido Bug
+         en menú Editar/Fronteras, coregido Bug al editar color de frontera. Añadido
+         rótulo a anillas de distancia. Opción Proceso/Créditos convertida en 
+         Ayuda/Sobre Vesta | Proceso.
+5.3.5.0  Eliminada la ventana de preferencias, los parámetros se incluyen
+         en la ventana de configuración. Se produce la asociación de archivos
+         al instalar.
+5.3.4.14 Corregido bug al configurar al algún parámetro con algún producto 
+         abierto. Corregidas las escalas hasta el máximo de saturación 
+         posible.
+5.3.4.13 Corregido bug al cambiar el camino de fronteras y regiones con
+	 algún producto abierto.
+5.3.4.12 Corregida inestabilidad en cortes verticales.
+5.3.4.11 Corregido Bug en escala de colores al suavizar los ecos (Bug 
+         detectado por Felix Gamboa). Reajuste del estimado de ecos en zona 
+         cercana al radar. La opción suavizar aparece en la configuración, se 
+         puede activar o desactivar por defecto. 
+5.3.4.10 Añadido Piloto automático (versión muy redudcida para experimento de
+         lluvia provocada).
+5.3.4.7  Adicionado filtro radial speckler, suaviza por defecto, lee archivos 
+         Rainbow 5.0 (.vol) (gematronik).
+5.3.4.6  Correción de nivel inferior de altura de topes por debajo de umbral 
+	 (Bug detectado por Felix Gamboa). Reajuste del estimado ecos en zona 
+         cercana al radar.
+5.3.4.5  Correción de medida al exportar en NetCDF (Bug detectado por Karel Ávarez).
+
+Información importante:
+
+Los archivos .vol de gematronik (raw data) están en formato xml, por lo tanto
+es necesario que el separador decimal en los regional settings esté en 
+concordancia con el utilizado dentro del xml.
+
+La marca Vesta está registrada en Cuba y amparada por las leyes de 
+protección a la propiedad intelectual.
