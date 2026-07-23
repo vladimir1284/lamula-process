@@ -1,0 +1,47 @@
+site_name: LAMULA-Process
+site_description: Reescritura de Vesta | Proceso (procesamiento y visualización de radar meteorológico) — SvelteKit + Tauri 2
+repo_url: https://github.com/LADETEC-CU/lamula-process
+repo_name: LADETEC-CU/lamula-process
+
+theme:
+  name: material
+  language: es
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Modo oscuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight
+  - toc:
+      permalink: true
+
+nav:
+  - Inicio: index.md
+  - Alcance y prioridades: alcance.md
+  - Formatos soportados: formatos.md
+  - Stack tecnológico: stack.md
+  - Plan de implementación: plan-implementacion.md
+  - Estrategia de pruebas: pruebas.md
+  - CI/CD: ci-cd.md
+  - reference/screenshots: reference/screenshots.md

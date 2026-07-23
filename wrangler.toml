@@ -1,0 +1,12 @@
+# Config del proyecto Pages de la documentación (mkdocs -> site/).
+#
+# El build de la app web (SvelteKit, proyecto separado "lamula-process")
+# todavía no existe -- se agrega su propio wrangler config junto al
+# scaffold. Este archivo es solo para el sitio de docs.
+#
+# Setup una vez (docs/ci-cd.md § "Setup manual pendiente"):
+#   wrangler pages project create lamula-process-docs --production-branch main
+
+name = "lamula-process-docs"
+pages_build_output_dir = "site"
+compatibility_date = "2026-07-01"
