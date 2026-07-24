@@ -33,9 +33,11 @@ flowchart TD
 
 ## Fase 0 — hoy
 
-- [ ] Scaffold SvelteKit + Tauri 2 + pnpm (versiones fijadas en [stack.md](stack.md)).
+- [x] Scaffold SvelteKit + Tauri 2 + pnpm (versiones fijadas en [stack.md](stack.md)). Verificado con build/typecheck/lint/test reales, no solo generado.
 - [x] `docs/` + `mkdocs.yml` + workflow de CI de docs → Cloudflare Pages.
-- [ ] `.github/workflows/ci.yml` de la app — se agrega junto con el scaffold (ver [ci-cd.md](ci-cd.md), referenciar scripts que aún no existen rompería CI en cada push).
+- [x] `.github/workflows/ci.yml` de la app (ver [ci-cd.md](ci-cd.md)).
+- [ ] Setup manual pendiente en Cloudflare (crear los 2 proyectos Pages, secrets del repo) — ver [ci-cd.md](ci-cd.md).
+- [ ] Instalar Rust toolchain en un runner/entorno con capacidad de compilar para poder probar `tauri dev`/`cargo build` — no disponible en este sandbox.
 
 ## Fase 1 — P0 (fundación)
 

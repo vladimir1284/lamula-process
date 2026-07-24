@@ -7,13 +7,13 @@ theme:
   name: material
   language: es
   palette:
-    - media: "(prefers-color-scheme: light)"
+    - media: '(prefers-color-scheme: light)'
       scheme: default
       primary: deep purple
       toggle:
         icon: material/weather-night
         name: Modo oscuro
-    - media: "(prefers-color-scheme: dark)"
+    - media: '(prefers-color-scheme: dark)'
       scheme: slate
       primary: deep purple
       toggle:
