@@ -30,9 +30,18 @@ para el layout de bytes confirmado. Cubren VCP_11/VCP_31 (con y sin
 para probar el modelo Observation/Channel/PPI y el render de PPI sin
 depender de tener listos los parsers de Rainbow5/Level II crudo.
 
-**Pendiente:** muestras crudas pre-conversión (`.vol` Rainbow5, `.ar2`/
-`.ar2.bz2` NEXRAD Level II) — los `.obs` ya están post-traducidos, no
-prueban el parser de formato crudo en sí.
+**Recibido y verificado (2026-07-23):** `test-fixtures/observations/nexrad-l2/`
+— 3 observaciones reales del radar KMLB en NEXRAD Level II (`.gz`, wrapper
+NCDC), más el ICD oficial NOAA/ROC y material de referencia (simulador
+Python 2013, decoder C de NOAA sin compilar standalone). Decodificados los
+3 con `l2_probe_py3.py`, 0 frames corruptos, momentos REF/VEL/SW/ZDR/PHI/RHO
+en rango físico plausible — ver
+[formatos.md](formatos.md#formato-2-nexrad-level-ii-archive-ii) para el
+layout confirmado.
+
+**Pendiente:** muestras crudas de Rainbow5 (`.vol`) — sin recibir todavía.
+Volumen Level II parcial/corrupto para probar manejo de error (los 3 que
+tenemos son casos felices completos).
 
 ## Capturas de referencia del original
 

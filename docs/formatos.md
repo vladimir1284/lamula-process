@@ -22,17 +22,57 @@ Implementación contra especificación pública de cada formato.
 - Sensible a locale (separador decimal) — bug documentado en el original,
   no reintroducirlo.
 
-## Formato 2 — NEXRAD Level II (Archive II / ORPG)
+## Formato 2 — NEXRAD Level II (Archive II)
 
-- Extensión `.ar2` / `.ar2.bz2` (bzip2).
 - **Ya presente en el original**, no es feature nueva: `Shell_Process.pas`
   importa `Nexrad_File`/`tsqBZip2`, comentario `Nexrad .ar2.bz2 -> vcp 11`,
   instancia `TNexradMessage.Create(Obs, MS)`, nombres de sitio reales
   (`KMLB`, `CCMW`/Camagüey, `CCSB`).
-- Doc: ICD público NOAA/ROC "Interface Control Document for the Archive
-  II/User".
 - Desconocido si el original soporta también Level III/NIDS — sin
   evidencia ninguna forma.
+
+**Material recibido** en `test-fixtures/observations/nexrad-l2/`: el ICD
+oficial NOAA/ROC (`RDA_RPG_2620002P.pdf`, "Interface Control Document for
+the RDA/RPG"), el decoder de referencia en C de NOAA ROC (`libL2_decoder.zip`
+— depende de headers del SDK ORPG que no están incluidos, no compila
+standalone, pero sus structs comentados sirven de referencia), un set de
+módulos Python 2 escritos por el usuario en 2013 (`MSG_Header.py`,
+`Digital_Radar_Data.py`, `VCP_Data.py`, `CODE_messages.py`, etc. — **no son
+un decoder**, son un simulador RDA que arma mensajes Level II sintéticos
+para probar el path de ingesta de Vesta, hardcodeado a `RDA_Id='CCMW'` y
+lat/long de Camagüey; sus `struct.pack('>...')` sí son oro porque citan
+tabla/página exacta del ICD), y 3 archivos reales de archivo Level II del
+radar KMLB (Melbourne, FL), `.gz` (envoltorio NCDC, no LDM tiempo-real).
+
+**Verificado de verdad** (no solo leído del ICD): escribí+corrí
+`test-fixtures/observations/nexrad-l2/l2_probe_py3.py` (Python 3 stdlib)
+contra los 3 archivos KMLB reales completos (43 MB cada uno
+descomprimidos). 0 frames corruptos en miles de mensajes recorridos por
+archivo, valores de reflectividad/velocidad/ZDR/PHI/RHO decodificados
+dentro de rango físicamente plausible en las 3.
+
+Layout confirmado (big-endian):
+
+| Bloque | Tamaño | Notas |
+|---|---|---|
+| Volume Header Record | 24 B | `[0:12]` ASCII tape id (`"AR2V0006.157"`), `[12:16]` fecha juliana (u32 BE, día 1 = 1970-01-01 — literal en Tabla II nota 2 del ICD, no supuesto), `[16:20]` ms del día (u32 BE), `[20:24]` ICAO sitio (`"KMLB"`). No cubierto por el ICD 2620002P (ese documento es la interfaz RDA↔RPG, no el wrapper de archivo Archive II) — layout confirmado empíricamente contra los 3 fixtures. |
+| Prefijo de frame | 12 B, siempre cero | ICD §3.2.2.2: *"the communications manager... inserts an additional 12 bytes to the ICD format message"* — cita textual verificada contra el PDF. Es el placeholder `CTM_Header.py` (`'>3I'`), inerte en archivo. |
+| Message Header | 16 B | `'>H2B2HI2H'`: message_size (halfwords), RDA_redundant_channel, message_type, id_sequence_number, julian_date, milliseconds_of_day, number_of_message_segments, message_segment_number. `RDA_Redundant_Channel=8` confirmado como "ORDA Single Channel" válido en Tabla II (no es basura). |
+| Framing | fijo 2432 B para todo tipo ≠ 31 (12+16+hasta 2400 payload, zero-pad); tipo 31 **no** se rellena, tamaño exacto `12 + message_size*2` — confirmado escaneando el archivo completo (~7600 firmas), no una muestra. |
+| Msg 31 — Data Header Block | 68 B | `'>4sIHHfBBHBBBBfBBH9I'`: radar_id, collection_time, mjd, azimuth_number/angle, compression_indicator, radial_length, elevation_number/angle, 9 punteros u32 (VOL/ELV/RAD/REF/VEL/SW/ZDR/PHI/RHO). **Corrección importante**: la posición de cada puntero es fija, pero qué momento hay en cada slot NO es confiable (cortes solo-vigilancia dual-pol usan el slot "VEL" para ZDR) — hay que identificar cada bloque por su propio tag de 4 bytes (`DREF`/`DVEL`/`DZDR`/etc.), nunca por posición de puntero. |
+| Msg 31 — Data Moment block | 28 B header + N gates | `'>4sIHHHHhBBff'`: tag, n_gates, range, interval, tover, snr_threshold (firmado — bug latente en el simulador de referencia que lo empaca sin signo), data_word_size (8/16 bit), scale, offset. Valor físico = `(raw-offset)/scale` para `raw>=2`; `raw=0`=bajo umbral, `raw=1`=range-folded. |
+
+**Compresión: NO usa bzip2** en estos 3 archivos — cero ocurrencias de la
+firma `BZh` en 43 MB, y el propio campo `compression_indicator` del header
+Msg 31 lee 0 ("uncompressed") en cada radial muestreado. Esto contradice la
+suposición común de que `AR2V0006` implica bzip2 — al menos para este
+sitio/build no aplica.
+
+**Sin resolver:** una corrida de ~177 KB de frames tipo 0 (no es tipo ICD
+válido) entre dos mensajes de metadata cerca del inicio del archivo — no
+rompe el parseo (el stride fijo de 2432 B lo atraviesa igual) pero la causa
+no está confirmada. Qué significa exactamente "0006" en `AR2V0006` — no
+está en el ICD 2620002P (ese documento no cubre el wrapper de archivo).
 
 ## Formato interno — `.obs` (Vesta)
 
@@ -105,8 +145,8 @@ Ubicación: `test-fixtures/observations/<formato>/`.
 - Caso con sectores ≠ 360 (valida fix de orden de sectores).
 - Volumen con RHI (corte vertical), no solo PPI.
 
-**nexrad-l2/**
-
-- `.ar2.bz2` VCP 11 completo, sitio real.
-- Con velocidad Doppler + spectrum width (canales múltiples).
-- Volumen parcial/corrupto (validar manejo de error, no solo caso feliz).
+**nexrad-l2/** — recibido y verificado (2026-07-23): 3 archivos reales KMLB
+(`.gz`, wrapper NCDC), 0 frames corruptos en los 3, momentos REF/VEL/SW/
+ZDR/PHI/RHO decodificados en rango físico plausible. Pendiente todavía:
+volumen parcial/corrupto para probar manejo de error (los 3 que tenemos son
+casos felices completos).
