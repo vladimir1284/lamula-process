@@ -1,5 +1,17 @@
 # Formatos soportados
 
+## Estructura de `test-fixtures/`
+
+```
+test-fixtures/
+├── observations/        # SOLO datos crudos reales (lo que un parser real recibe)
+│   ├── insmet/           # .obs (Camagüey)
+│   └── nexrad-l2/        # .gz (KMLB, Archive II)
+└── reference/            # specs, decoders/simuladores de referencia, no son observaciones
+    ├── insmet/           # Obs_Parser.py original + nuestro port verificado
+    └── nexrad-l2/        # ICD, simulador RDA 2013, referencia libL2 de NOAA, nuestro decoder verificado
+```
+
 ## Gap de código fuente
 
 `legacy/` **no contiene** el código real de los traductores/parsers. Unidades
@@ -31,25 +43,34 @@ Implementación contra especificación pública de cada formato.
 - Desconocido si el original soporta también Level III/NIDS — sin
   evidencia ninguna forma.
 
-**Material recibido** en `test-fixtures/observations/nexrad-l2/`: el ICD
-oficial NOAA/ROC (`RDA_RPG_2620002P.pdf`, "Interface Control Document for
-the RDA/RPG"), el decoder de referencia en C de NOAA ROC (`libL2_decoder.zip`
-— depende de headers del SDK ORPG que no están incluidos, no compila
-standalone, pero sus structs comentados sirven de referencia), un set de
-módulos Python 2 escritos por el usuario en 2013 (`MSG_Header.py`,
-`Digital_Radar_Data.py`, `VCP_Data.py`, `CODE_messages.py`, etc. — **no son
-un decoder**, son un simulador RDA que arma mensajes Level II sintéticos
-para probar el path de ingesta de Vesta, hardcodeado a `RDA_Id='CCMW'` y
-lat/long de Camagüey; sus `struct.pack('>...')` sí son oro porque citan
-tabla/página exacta del ICD), y 3 archivos reales de archivo Level II del
-radar KMLB (Melbourne, FL), `.gz` (envoltorio NCDC, no LDM tiempo-real).
+**Material recibido**, organizado en:
+
+- `test-fixtures/observations/nexrad-l2/` — 3 archivos reales de Level II
+  del radar KMLB (Melbourne, FL), `.gz` (envoltorio NCDC, no LDM
+  tiempo-real). Esto es lo único que un parser real recibe como input.
+- `test-fixtures/reference/nexrad-l2/RDA_RPG_2620002P.pdf` — ICD oficial
+  NOAA/ROC ("Interface Control Document for the RDA/RPG").
+- `test-fixtures/reference/nexrad-l2/libl2_reference/` — subset del decoder
+  de referencia en C de NOAA ROC (`libl2.c`, `parse_ldm_file.c`,
+  `testlibl2.c`, man page); depende de headers del SDK ORPG no incluidos,
+  no compila standalone, sirve solo de referencia de structs/lógica. Se
+  descartaron los scripts/makefiles internos de ROC del zip original — ver
+  `NOTE.md` ahí mismo.
+- `test-fixtures/reference/nexrad-l2/rda_simulator_2013/` — módulos Python 2
+  escritos por el usuario en 2013 (`MSG_Header.py`, `Digital_Radar_Data.py`,
+  `VCP_Data.py`, `CODE_messages.py`, etc.). **No son un decoder**, son un
+  simulador RDA que arma mensajes Level II sintéticos para probar el path
+  de ingesta de Vesta, hardcodeado a `RDA_Id='CCMW'` y lat/long de
+  Camagüey; sus `struct.pack('>...')` sí son oro porque citan tabla/página
+  exacta del ICD.
+- `test-fixtures/reference/nexrad-l2/l2_probe_py3.py` — nuestro decoder
+  Python 3 verificado (ver abajo).
 
 **Verificado de verdad** (no solo leído del ICD): escribí+corrí
-`test-fixtures/observations/nexrad-l2/l2_probe_py3.py` (Python 3 stdlib)
-contra los 3 archivos KMLB reales completos (43 MB cada uno
-descomprimidos). 0 frames corruptos en miles de mensajes recorridos por
-archivo, valores de reflectividad/velocidad/ZDR/PHI/RHO decodificados
-dentro de rango físicamente plausible en las 3.
+`l2_probe_py3.py` (Python 3 stdlib) contra los 3 archivos KMLB reales
+completos (43 MB cada uno descomprimidos). 0 frames corruptos en miles de
+mensajes recorridos por archivo, valores de reflectividad/velocidad/ZDR/PHI/
+RHO decodificados dentro de rango físicamente plausible en las 3.
 
 Layout confirmado (big-endian):
 
@@ -79,9 +100,11 @@ está en el ICD 2620002P (ese documento no cubre el wrapper de archivo).
 No es un formato de radar de entrada, es el **contenedor propio de Vesta**
 al que el original convierte cualquier observación tras ciertas operaciones
 (`Observation.pas`: "esta es convertida automáticamente a este formato").
-Recibido en `test-fixtures/observations/insmet/` (4 observaciones reales del
-radar Camagüey/`rdCamaguey1` + `Obs_Parser.py`, script propio del usuario de
-2013 que lo decodifica).
+Datos crudos reales en `test-fixtures/observations/insmet/` (4
+observaciones del radar Camagüey/`rdCamaguey1`). Material de referencia en
+`test-fixtures/reference/insmet/`: `Obs_Parser.py` (script propio del
+usuario, 2013, que lo decodifica) y `obs_probe_py3.py` (nuestro port
+verificado, ver abajo).
 
 **Gap resuelto:** el script es Python 2 (`print` statement, `xrange`,
 `file()`) y usa `struct` en modo *nativo* (sin prefijo `<`/`>`/`=`), que
@@ -135,7 +158,8 @@ listos primero.
 
 ## Necesidades de fixtures
 
-Ubicación: `test-fixtures/observations/<formato>/`.
+Datos crudos en `test-fixtures/observations/<formato>/`, material de
+referencia (specs, decoders/simuladores) en `test-fixtures/reference/<formato>/`.
 
 **rainbow5/**
 
