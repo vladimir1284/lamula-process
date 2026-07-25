@@ -68,11 +68,19 @@ flowchart TD
 - [x] Paletas `.pal` + escalas (`src/lib/palette/`): a diferencia de los parsers de formato crudo,
       acá sí sobrevivió el código Delphi original (`legacy/Units/Scale.pas`, `TScale.Load`/
       `GetIndex`/`GetValueColor`) — puerto literal, no reconstrucción por bytes. Lookup es
-      *step function* (umbral más cercano por arriba), no gradiente, aunque el header trae un
+      _step function_ (umbral más cercano por arriba), no gradiente, aunque el header trae un
       segundo campo ("look") que en el original tampoco se usa para eso. Probado contra los 11
       `.pal` reales de `legacy/Palettes/` (ISO-8859-1, captions multi-palabra tipo "medio alto"
       preservadas).
-- [ ] Filtro speckler + supresión de clutter vía template.
+- [x] Filtro speckler + supresión de clutter vía template (`src/lib/filters/`): puerto literal de
+      `TObservation.RemoveRadialSpeckler`/`Sup` en `legacy/Units/Observation.pas`. `lowValue` pasa
+      a ser un umbral en unidades físicas (no el TCode crudo original — el modelo nuevo guarda
+      valores físicos + flags, no bytes crudos); el caller decide cómo derivarlo del primer stop
+      de la paleta si quiere paridad exacta con el original. Preserva un off-by-one real del
+      original en `suppressClutter` (`for N:=1 to count-1` nunca toca la última celda del array
+      plano). Cargar un `Template<design>.OBS` real de verdad requiere un lector `.obs`, que sigue
+      fuera de alcance de P0 (formatos: Rainbow5 + NEXRAD L2 nada más) — esta pieza es solo el
+      primitivo de enmascarado, probado con máscaras sintéticas, no contra un template real.
 - [ ] Shell app: abrir archivo, config persistente.
 
 ## Fase 2 — P1 (visor core)
