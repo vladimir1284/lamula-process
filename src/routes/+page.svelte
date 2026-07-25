@@ -40,6 +40,45 @@
 	];
 	type ProductKind = GroundProductKind | 'CROSS_EW' | 'CROSS_NS' | 'PROFILE' | 'RHI';
 
+	// Sidebar catalog — mirrors the optgroups the app has always exposed.
+	const PRODUCT_GROUPS: {
+		label: string;
+		items: { id: ProductKind; label: string; icon: string }[];
+	}[] = [
+		{
+			label: 'Base',
+			items: [
+				{ id: 'PPI', label: 'PPI', icon: 'storm' },
+				{ id: 'CAPPI', label: 'CAPPI', icon: 'layers' }
+			]
+		},
+		{
+			label: 'Columna',
+			items: [
+				{ id: 'TOPS', label: 'Topes (echo tops)', icon: 'cloud_upload' },
+				{ id: 'MAXS_HEIGHT', label: 'Altura del máximo', icon: 'height' },
+				{ id: 'COLUMN_MAX', label: 'Máximo de columna', icon: 'stacked_line_chart' },
+				{ id: 'VIL', label: 'VIL', icon: 'opacity' }
+			]
+		},
+		{
+			label: 'Precip. y viento',
+			items: [
+				{ id: 'RAIN', label: 'Tasa de lluvia (Z-R)', icon: 'rainy' },
+				{ id: 'WIND_SPEED', label: 'Viento (VAD)', icon: 'air' }
+			]
+		},
+		{
+			label: 'Cortes',
+			items: [
+				{ id: 'CROSS_EW', label: 'Corte Este-Oeste', icon: 'swap_horiz' },
+				{ id: 'CROSS_NS', label: 'Corte Norte-Sur', icon: 'swap_vert' },
+				{ id: 'PROFILE', label: 'Perfil vertical', icon: 'monitoring' },
+				{ id: 'RHI', label: 'RHI', icon: 'radar' }
+			]
+		}
+	];
+
 	let product = $state<ProductKind>('PPI');
 	let channelIndex = $state(0);
 	let elevationDeg = $state(0.5);
@@ -75,6 +114,9 @@
 	// Products that use a standalone canvas panel (no georeferencing required).
 	const usesElevation = $derived(
 		product === 'PPI' || product === 'RAIN' || product === 'WIND_SPEED'
+	);
+	const productTitle = $derived(
+		PRODUCT_GROUPS.flatMap((g) => g.items).find((i) => i.id === product)?.label ?? product
 	);
 
 	function maxRangeM(ch: NonNullable<typeof channel>): number {
@@ -144,334 +186,572 @@
 	}
 </script>
 
-<main class="mx-auto flex max-w-5xl flex-col gap-4 p-6">
-	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">LAMULA Process</h1>
-		<button
-			class="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
-			onclick={() => send({ type: 'OPEN' })}
-			disabled={loading}
-		>
-			{loading ? 'Abriendo…' : 'Abrir archivo'}
-		</button>
-	</div>
-
-	{#if error}
-		<p class="text-red-600">{error}</p>
-	{/if}
-
-	{#if observation}
-		<section class="rounded border border-gray-300 p-3 text-sm">
-			<div class="flex flex-wrap gap-x-6 gap-y-1">
-				<span><span class="text-gray-500">Sitio:</span> {observation.site.name}</span>
-				<span><span class="text-gray-500">Fecha:</span> {observation.timestamp}</span>
-				<span><span class="text-gray-500">Diseño:</span> {observation.design}</span>
-			</div>
-		</section>
-
-		<!-- Controls -->
-		<section class="flex flex-wrap items-end gap-4 text-sm">
-			<label class="flex flex-col gap-1">
-				<span class="text-gray-500">Producto</span>
-				<select class="rounded border border-gray-300 px-2 py-1" bind:value={product}>
-					<optgroup label="Base">
-						<option value="PPI">PPI</option>
-						<option value="CAPPI">CAPPI</option>
-					</optgroup>
-					<optgroup label="Columna">
-						<option value="TOPS">Topes (echo tops)</option>
-						<option value="MAXS_HEIGHT">Altura del máximo</option>
-						<option value="COLUMN_MAX">Máximo de columna</option>
-						<option value="VIL">VIL</option>
-					</optgroup>
-					<optgroup label="Precip./Viento">
-						<option value="RAIN">Tasa de lluvia (Z-R)</option>
-						<option value="WIND_SPEED">Viento (VAD)</option>
-					</optgroup>
-					<optgroup label="Cortes">
-						<option value="CROSS_EW">Corte Este-Oeste</option>
-						<option value="CROSS_NS">Corte Norte-Sur</option>
-						<option value="PROFILE">Perfil vertical</option>
-						<option value="RHI">RHI</option>
-					</optgroup>
-				</select>
-			</label>
-
-			<label class="flex flex-col gap-1">
-				<span class="text-gray-500">Canal</span>
-				<select class="rounded border border-gray-300 px-2 py-1" bind:value={channelIndex}>
-					{#each channels as ref (ref.index)}
-						<option value={ref.index}>{ref.channel.moment} ({ref.channel.scans.length})</option>
-					{/each}
-				</select>
-			</label>
-
-			{#if usesElevation}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Elevación</span>
-					<select class="rounded border border-gray-300 px-2 py-1" bind:value={elevationDeg}>
-						{#each elevations as e (e)}
-							<option value={e}>{e.toFixed(1)}°</option>
-						{/each}
-					</select>
-				</label>
-			{/if}
-
-			{#if product === 'CAPPI'}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Base (km)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={cappiBottomKm}
-						step="0.5"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Tope (km)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={cappiTopKm}
-						step="0.5"
-					/>
-				</label>
-			{/if}
-
-			{#if product === 'TOPS'}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Umbral (dBZ)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={topsMinDbz}
-						step="1"
-					/>
-				</label>
-			{/if}
-
-			{#if product === 'VIL'}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Base (km)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={vilBottomKm}
-						step="0.5"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Tope (km)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={vilTopKm}
-						step="0.5"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">C1</span>
-					<input
-						type="number"
-						class="w-24 rounded border border-gray-300 px-2 py-1"
-						bind:value={vilC1}
-						step="0.0001"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">C2</span>
-					<input
-						type="number"
-						class="w-24 rounded border border-gray-300 px-2 py-1"
-						bind:value={vilC2}
-						step="0.0001"
-					/>
-				</label>
-			{/if}
-
-			{#if product === 'RAIN'}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Z-R A</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={zrA}
-						step="10"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Z-R B</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={zrB}
-						step="0.1"
-					/>
-				</label>
-			{/if}
-
-			{#if product === 'RHI'}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Azimut: {rhiAzimuthDeg}°</span>
-					<div class="flex items-center gap-2">
-						<input
-							type="range"
-							class="w-48"
-							bind:value={rhiAzimuthDeg}
-							min="0"
-							max="359"
-							step="1"
-						/>
-						<input
-							type="number"
-							class="w-20 rounded border border-gray-300 px-2 py-1"
-							bind:value={rhiAzimuthDeg}
-							step="1"
-							min="0"
-							max="359"
-						/>
-					</div>
-				</label>
-			{/if}
-
-			{#if product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'PROFILE' || product === 'RHI'}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Altura máx (km)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={maxHeightKm}
-						step="1"
-					/>
-				</label>
-			{/if}
-
-			{#if product === 'PROFILE'}
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">X este (km)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={profileXkm}
-						step="1"
-					/>
-				</label>
-				<label class="flex flex-col gap-1">
-					<span class="text-gray-500">Y norte (km)</span>
-					<input
-						type="number"
-						class="w-20 rounded border border-gray-300 px-2 py-1"
-						bind:value={profileYkm}
-						step="1"
-					/>
-				</label>
-			{/if}
-
-			{#if ground}
-				<span class="self-center rounded bg-gray-100 px-2 py-1 text-gray-600"
-					>unidad: {ground.unit}</span
+<div class="radar-grid-bg min-h-screen bg-surface-container-lowest text-on-surface">
+	<!-- ── TopAppBar ─────────────────────────────────────────────────────────── -->
+	<header
+		class="fixed top-0 right-0 left-0 z-50 flex h-16 items-center justify-between border-b border-outline-variant bg-surface-container px-margin-desktop"
+	>
+		<div class="flex items-center gap-6">
+			<h1 class="flex items-center gap-2 font-headline text-headline-md font-bold text-primary">
+				<span
+					class="material-symbols-outlined text-primary-container"
+					style="font-variation-settings:'FILL' 1;">radar</span
 				>
-			{/if}
-		</section>
-
-		<!-- Readout -->
-		<div class="text-sm text-gray-600">
-			{#if readout && 'azimuthDeg' in readout}
-				Az {fmt(readout.azimuthDeg)}° · Rango {fmt(readout.rangeM / 1000)} km · Valor
-				{readout.value === null ? '—' : fmt(readout.value)}
-				{readout.flag && readout.flag !== 'ok' ? `(${readout.flag})` : ''}
-			{:else if readout && 'heightM' in readout}
-				Rango {fmt(readout.rangeM / 1000)} km · Altura {fmt(readout.heightM / 1000, 2)} km · Valor
-				{readout.value === null ? '—' : fmt(readout.value)}
-			{:else}
-				&nbsp;
+				LAMULA <span class="font-normal text-on-surface-variant">Process</span>
+			</h1>
+			{#if observation}
+				<nav class="hidden items-center gap-5 font-mono text-label-mono lg:flex">
+					<span class="flex items-center gap-2"
+						><span class="text-on-surface-variant">SITIO</span><span class="text-primary"
+							>{observation.site.name}</span
+						></span
+					>
+					<span class="text-outline-variant">·</span>
+					<span class="flex items-center gap-2"
+						><span class="text-on-surface-variant">FECHA</span><span class="text-on-surface"
+							>{observation.timestamp}</span
+						></span
+					>
+					<span class="text-outline-variant">·</span>
+					<span
+						class="rounded border border-primary-container/30 bg-surface-container-high px-2 py-0.5 text-primary-container"
+						>{observation.design}</span
+					>
+				</nav>
 			{/if}
 		</div>
+		<div class="flex items-center gap-4">
+			<button
+				class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+				onclick={() => send({ type: 'OPEN' })}
+				disabled={loading}
+			>
+				<span class="material-symbols-outlined text-[18px]">upload_file</span>
+				{loading ? 'ABRIENDO…' : 'ABRIR ARCHIVO'}
+			</button>
+		</div>
+	</header>
 
-		<!-- Viewer -->
-		<section class="h-[520px] overflow-hidden rounded border border-gray-300">
-			{#if product === 'RHI' && rhiScan}
-				<div class="flex flex-wrap gap-4 p-2">
-					{#if rhiBaseScan}
-						<div class="flex flex-col gap-1">
-							<span class="text-xs text-gray-500">Azimut del corte (arrastra) · fondo: máx de columna</span>
-							<RhiAzimuthPicker
-								scan={rhiBaseScan}
-								{palette}
-								azimuthDeg={rhiAzimuthDeg}
-								onchange={(a) => (rhiAzimuthDeg = a)}
-							/>
+	<!-- ── SideNavBar: channel + elevation + product catalog ─────────────────── -->
+	<aside
+		class="fixed top-0 left-0 z-40 flex h-full w-sidebar-width flex-col overflow-y-auto border-r border-outline-variant bg-surface-container-low pt-16"
+	>
+		<div class="space-y-5 p-4">
+			{#if observation}
+				<div class="grid grid-cols-1 gap-3">
+					<label class="flex flex-col gap-1">
+						<span class="font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
+							>Canal</span
+						>
+						<div
+							class="cyan-glow flex h-9 items-center rounded border border-outline-variant bg-surface-container-high px-3"
+						>
+							<select
+								class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
+								bind:value={channelIndex}
+							>
+								{#each channels as ref (ref.index)}
+									<option value={ref.index}
+										>{ref.channel.moment} ({ref.channel.scans.length})</option
+									>
+								{/each}
+							</select>
 						</div>
+					</label>
+
+					{#if usesElevation}
+						<label class="flex flex-col gap-1">
+							<span class="font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
+								>Elevación</span
+							>
+							<div
+								class="cyan-glow flex h-9 items-center rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<select
+									class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={elevationDeg}
+								>
+									{#each elevations as e (e)}
+										<option value={e}>{e.toFixed(1)}°</option>
+									{/each}
+								</select>
+							</div>
+						</label>
 					{/if}
-					<div class="min-w-[420px] flex-1">
-						<p class="mb-2 text-xs text-gray-500">
-							RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación ({rhiScan.numRays}
-							tumbos). La resolución vertical la limita el número de elevaciones; hay huecos entre haces.
+				</div>
+			{/if}
+
+			<div>
+				<p class="mb-2 px-1 font-mono text-[10px] tracking-widest text-outline uppercase">Producto</p>
+				<div class="space-y-3 font-mono text-label-mono">
+					{#each PRODUCT_GROUPS as group (group.label)}
+						<div>
+							<p
+								class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase"
+							>
+								{group.label}
+							</p>
+							{#each group.items as item (item.id)}
+								<button
+									type="button"
+									class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-all {product ===
+									item.id
+										? 'border-l-4 border-primary bg-primary-container text-on-primary-container'
+										: 'text-on-surface-variant hover:bg-surface-variant'}"
+									onclick={() => (product = item.id)}
+								>
+									<span
+										class="material-symbols-outlined text-[18px]"
+										style={product === item.id ? "font-variation-settings:'FILL' 1;" : ''}
+										>{item.icon}</span
+									>
+									{item.label}
+								</button>
+							{/each}
+						</div>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</aside>
+
+	<!-- ── Main ──────────────────────────────────────────────────────────────── -->
+	<main class="min-h-screen pt-16 pl-sidebar-width">
+		<div class="space-y-gutter p-margin-desktop">
+			{#if error}
+				<div
+					class="flex items-center gap-3 rounded-xl border border-error/40 bg-error-container/20 px-4 py-3 font-mono text-label-mono text-error"
+				>
+					<span class="material-symbols-outlined text-[18px]">error</span>
+					{error}
+				</div>
+			{/if}
+
+			{#if !observation}
+				<!-- Empty state: no observation open. -->
+				<div
+					class="glass-panel flex min-h-[70vh] flex-col items-center justify-center gap-5 rounded-xl px-6 text-center"
+				>
+					<span class="material-symbols-outlined text-[56px] text-primary-container">radar</span>
+					<div>
+						<h2 class="font-headline text-headline-md text-on-surface">Abre una observación</h2>
+						<p class="mt-1 text-body-sm text-on-surface-variant">
+							Formatos: INSMET .obs · NEXRAD Level II · Rainbow5 .vol
 						</p>
-						<RhiPanel
-							scan={rhiScan}
-							{palette}
-							maxHeightM={maxHeightKm * 1000}
-							onreadout={(r) => (readout = r)}
-						/>
 					</div>
-				</div>
-			{:else if (product === 'CROSS_EW' || product === 'CROSS_NS') && cutLine && channel}
-				<div class="p-2">
-					<p class="mb-2 text-xs text-gray-500">
-						Corte vertical (muestreo inverso por píxel; no georreferenciado, funciona sin posición
-						de sitio).
-					</p>
-					<CrossSectionPanel
-						scans={channel.scans}
-						{palette}
-						line={cutLine}
-						maxHeightM={maxHeightKm * 1000}
-					/>
-				</div>
-			{:else if product === 'PROFILE' && profile}
-				<div class="flex gap-4 p-2">
-					<ProfilePanel {profile} valueLabel={channel?.moment ?? 'dBZ'} />
-					<p class="text-xs text-gray-500">
-						Perfil vertical en (E {profileXkm} km, N {profileYkm} km): una muestra por elevación, interpolada
-						por spline cúbico.
-					</p>
-				</div>
-			{:else if isGround}
-				{#if !georef || !site}
-					<div
-						class="flex h-full items-center justify-center p-4 text-center text-sm text-gray-500"
+					<button
+						class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+						onclick={() => send({ type: 'OPEN' })}
+						disabled={loading}
 					>
-						Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31), no se puede
-						georreferenciar el {product}. Cortes y perfil sí funcionan.
+						<span class="material-symbols-outlined text-[18px]">upload_file</span>
+						{loading ? 'ABRIENDO…' : 'ABRIR ARCHIVO'}
+					</button>
+				</div>
+			{:else}
+				<!-- Product header + contextual params toolbar. -->
+				<div
+					class="glass-panel flex flex-col justify-between gap-4 rounded-xl p-4 xl:flex-row xl:items-center"
+				>
+					<div>
+						<h2 class="flex items-center gap-3 font-headline text-headline-md text-on-surface">
+							{productTitle}
+							{#if ground}
+								<span
+									class="rounded bg-dbz-mod/15 px-2 py-0.5 font-mono text-[10px] tracking-widest text-dbz-mod uppercase"
+									>{ground.unit}</span
+								>
+							{/if}
+						</h2>
+						<p class="text-body-sm text-on-surface-variant">
+							{observation.site.name} · {observation.timestamp}
+						</p>
 					</div>
-				{:else if ground}
-					<PpiMap
-						scan={ground.scan}
-						{palette}
-						{site}
-						extraLayers={overlays}
-						onreadout={(r) => (readout = r)}
-					/>
+
+					<div class="flex flex-wrap items-center gap-3">
+						{#if product === 'CAPPI'}
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">BASE</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={cappiBottomKm}
+									step="0.5"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+							</label>
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">TOPE</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={cappiTopKm}
+									step="0.5"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+							</label>
+						{/if}
+
+						{#if product === 'TOPS'}
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">UMBRAL</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={topsMinDbz}
+									step="1"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">dBZ</span>
+							</label>
+						{/if}
+
+						{#if product === 'VIL'}
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">BASE</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={vilBottomKm}
+									step="0.5"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+							</label>
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">TOPE</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={vilTopKm}
+									step="0.5"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+							</label>
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">C1</span>
+								<input
+									type="number"
+									class="w-20 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={vilC1}
+									step="0.0001"
+								/>
+							</label>
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">C2</span>
+								<input
+									type="number"
+									class="w-20 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={vilC2}
+									step="0.0001"
+								/>
+							</label>
+						{/if}
+
+						{#if product === 'RAIN'}
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">Z-R A</span>
+								<input
+									type="number"
+									class="w-16 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={zrA}
+									step="10"
+								/>
+							</label>
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">Z-R B</span>
+								<input
+									type="number"
+									class="w-16 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={zrB}
+									step="0.1"
+								/>
+							</label>
+						{/if}
+
+						{#if product === 'RHI'}
+							<label
+								class="cyan-glow flex h-10 items-center gap-3 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">AZIMUT</span>
+								<input type="range" class="w-40" bind:value={rhiAzimuthDeg} min="0" max="359" step="1" />
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={rhiAzimuthDeg}
+									min="0"
+									max="359"
+									step="1"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">°</span>
+							</label>
+						{/if}
+
+						{#if product === 'PROFILE'}
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">X ESTE</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={profileXkm}
+									step="1"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+							</label>
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">Y NORTE</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={profileYkm}
+									step="1"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+							</label>
+						{/if}
+
+						{#if product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'PROFILE' || product === 'RHI'}
+							<label
+								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<span class="font-mono text-[11px] text-on-surface-variant">ALT MÁX</span>
+								<input
+									type="number"
+									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+									bind:value={maxHeightKm}
+									step="1"
+								/>
+								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+							</label>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Viewer hero + scale rail. -->
+				<div class="grid grid-cols-1 gap-gutter 2xl:grid-cols-[1fr_320px]">
+					<section
+						class="glass-panel flex flex-col overflow-hidden rounded-xl border-primary-container/30 shadow-[0_0_24px_rgba(0,240,255,0.05)]"
+					>
+						<div
+							class="flex items-center justify-between border-b border-outline-variant bg-surface-container-high px-4 py-2.5"
+						>
+							<span
+								class="flex items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
+								><span class="material-symbols-outlined text-[18px] text-primary-container"
+									>my_location</span
+								> Visor · {productTitle}</span
+							>
+						</div>
+
+						<div class="relative h-[620px] overflow-auto bg-black">
+							{#if product === 'RHI' && rhiScan}
+								<div class="flex flex-wrap gap-4 p-3">
+									{#if rhiBaseScan}
+										<div class="flex flex-col gap-1">
+											<span class="font-mono text-[10px] text-on-surface-variant"
+												>Azimut del corte (arrastra) · fondo: máx de columna</span
+											>
+											<RhiAzimuthPicker
+												scan={rhiBaseScan}
+												{palette}
+												azimuthDeg={rhiAzimuthDeg}
+												onchange={(a) => (rhiAzimuthDeg = a)}
+											/>
+										</div>
+									{/if}
+									<div class="min-w-[420px] flex-1">
+										<p class="mb-2 font-mono text-[10px] text-on-surface-variant">
+											RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación ({rhiScan.numRays}
+											tumbos). La resolución vertical la limita el número de elevaciones.
+										</p>
+										<RhiPanel
+											scan={rhiScan}
+											{palette}
+											maxHeightM={maxHeightKm * 1000}
+											onreadout={(r) => (readout = r)}
+										/>
+									</div>
+								</div>
+							{:else if (product === 'CROSS_EW' || product === 'CROSS_NS') && cutLine && channel}
+								<div class="p-3">
+									<p class="mb-2 font-mono text-[10px] text-on-surface-variant">
+										Corte vertical (muestreo inverso por píxel; no georreferenciado, funciona sin
+										posición de sitio).
+									</p>
+									<CrossSectionPanel
+										scans={channel.scans}
+										{palette}
+										line={cutLine}
+										maxHeightM={maxHeightKm * 1000}
+									/>
+								</div>
+							{:else if product === 'PROFILE' && profile}
+								<div class="flex gap-4 p-3">
+									<ProfilePanel {profile} valueLabel={channel?.moment ?? 'dBZ'} />
+									<p class="font-mono text-[10px] text-on-surface-variant">
+										Perfil vertical en (E {profileXkm} km, N {profileYkm} km): una muestra por elevación,
+										interpolada por spline cúbico.
+									</p>
+								</div>
+							{:else if isGround}
+								{#if !georef || !site}
+									<!-- Format without a site position (e.g. NEXRAD L2 msg-31). -->
+									<div
+										class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
+									>
+										<span class="material-symbols-outlined text-[40px] text-dbz-heavy"
+											>wrong_location</span
+										>
+										<p class="max-w-md text-body-sm text-on-surface-variant">
+											Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31): no se puede
+											georreferenciar el <span class="text-on-surface">{productTitle}</span>. Cortes,
+											perfil y RHI sí funcionan.
+										</p>
+										<div
+											class="flex flex-wrap items-center justify-center gap-2 font-mono text-label-mono"
+										>
+											<span class="text-on-surface-variant">Disponibles:</span>
+											<span
+												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
+												>Corte E-O</span
+											>
+											<span
+												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
+												>Corte N-S</span
+											>
+											<span
+												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
+												>Perfil vertical</span
+											>
+											<span
+												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
+												>RHI</span
+											>
+										</div>
+									</div>
+								{:else if ground}
+									<PpiMap
+										scan={ground.scan}
+										{palette}
+										{site}
+										extraLayers={overlays}
+										onreadout={(r) => (readout = r)}
+									/>
+								{/if}
+							{/if}
+						</div>
+
+						<!-- Readout bar. -->
+						<div
+							class="grid grid-cols-2 gap-px border-t border-outline-variant bg-surface-container-low font-mono sm:grid-cols-4"
+						>
+							{#if readout && 'azimuthDeg' in readout}
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">AZIMUT</p>
+									<p class="text-label-mono text-primary-container">{fmt(readout.azimuthDeg)}°</p>
+								</div>
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">RANGO</p>
+									<p class="text-label-mono text-on-surface">{fmt(readout.rangeM / 1000)} km</p>
+								</div>
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">VALOR</p>
+									<p class="text-label-mono text-dbz-heavy">
+										{readout.value === null ? '—' : fmt(readout.value)}
+									</p>
+								</div>
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">ESTADO</p>
+									<p class="text-label-mono text-on-surface">
+										{readout.flag && readout.flag !== 'ok' ? readout.flag : 'ok'}
+									</p>
+								</div>
+							{:else if readout && 'heightM' in readout}
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">RANGO</p>
+									<p class="text-label-mono text-on-surface">{fmt(readout.rangeM / 1000)} km</p>
+								</div>
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">ALTURA</p>
+									<p class="text-label-mono text-on-surface">{fmt(readout.heightM / 1000, 2)} km</p>
+								</div>
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">VALOR</p>
+									<p class="text-label-mono text-dbz-heavy">
+										{readout.value === null ? '—' : fmt(readout.value)}
+									</p>
+								</div>
+								<div class="bg-surface-container-low p-3"></div>
+							{:else}
+								<div class="col-span-2 bg-surface-container-low p-3 sm:col-span-4">
+									<p class="text-label-mono text-on-surface-variant">
+										Pasa el cursor sobre el visor para leer valores.
+									</p>
+								</div>
+							{/if}
+						</div>
+					</section>
+
+					<!-- Scale editor rail. -->
+					<section class="glass-panel flex flex-col self-start overflow-hidden rounded-xl">
+						<div
+							class="flex items-center justify-between border-b border-outline-variant bg-surface-container-high px-4 py-2.5"
+						>
+							<span
+								class="flex items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
+								><span class="material-symbols-outlined text-[18px] text-primary-container"
+									>gradient</span
+								> Editor de escala</span
+							>
+						</div>
+						<div class="p-4">
+							<ScaleEditor {palette} onchange={(p) => (palette = p)} />
+						</div>
+					</section>
+				</div>
+
+				<!-- Recientes. -->
+				{#if recentFiles.length > 0}
+					<section class="glass-panel overflow-hidden rounded-xl">
+						<div
+							class="flex items-center gap-2 border-b border-outline-variant bg-surface-container-high px-6 py-3"
+						>
+							<span class="material-symbols-outlined text-[18px] text-primary-container">history</span>
+							<h3 class="font-mono text-label-mono uppercase">Archivos recientes</h3>
+						</div>
+						<ul class="divide-y divide-outline-variant/30 font-mono text-label-mono">
+							{#each recentFiles as name (name)}
+								<li
+									class="flex items-center gap-3 px-6 py-3 text-on-surface-variant transition-colors hover:bg-surface-variant/20"
+								>
+									<span class="material-symbols-outlined text-[16px] text-outline">description</span>
+									<span class="text-on-surface">{name}</span>
+								</li>
+							{/each}
+						</ul>
+					</section>
 				{/if}
 			{/if}
-		</section>
-
-		<!-- Scale editor -->
-		<section class="rounded border border-gray-300 p-3">
-			<h2 class="mb-2 font-semibold">Editor de escala</h2>
-			<ScaleEditor {palette} onchange={(p) => (palette = p)} />
-		</section>
-	{/if}
-
-	{#if recentFiles.length > 0}
-		<section class="text-sm">
-			<h2 class="font-semibold">Recientes</h2>
-			<ul class="mt-1 text-gray-600">
-				{#each recentFiles as name (name)}
-					<li>{name}</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
-</main>
+		</div>
+	</main>
+</div>

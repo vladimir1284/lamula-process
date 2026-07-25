@@ -41,11 +41,11 @@
 	}
 </script>
 
-<div class="flex flex-col gap-2 text-sm">
+<div class="flex flex-col gap-3 font-mono text-label-mono">
 	<label class="flex items-center gap-2">
-		<span class="w-16 text-gray-500">Nombre</span>
+		<span class="w-16 text-[11px] text-on-surface-variant">Nombre</span>
 		<input
-			class="flex-1 rounded border border-gray-300 px-2 py-1"
+			class="cyan-glow flex-1 rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface focus:ring-0"
 			value={palette.name}
 			oninput={(e) => commit(renamePalette(palette, e.currentTarget.value))}
 		/>
@@ -53,10 +53,10 @@
 
 	<table class="w-full border-collapse">
 		<thead>
-			<tr class="text-left text-xs text-gray-500">
-				<th class="py-1">Umbral</th>
-				<th>Color</th>
-				<th>Etiqueta</th>
+			<tr class="text-left text-[10px] tracking-widest text-on-surface-variant uppercase">
+				<th class="py-1 font-medium">Umbral</th>
+				<th class="font-medium">Color</th>
+				<th class="font-medium">Etiqueta</th>
 				<th></th>
 			</tr>
 		</thead>
@@ -66,7 +66,7 @@
 					<td class="py-0.5 pr-2">
 						<input
 							type="number"
-							class="w-20 rounded border border-gray-300 px-1 py-0.5"
+							class="w-16 rounded border border-outline-variant bg-surface-container-high px-1 py-0.5 text-primary-container focus:ring-0"
 							value={stop.value}
 							oninput={(e) =>
 								commit(updateStop(palette, i, { value: Number(e.currentTarget.value) }))}
@@ -75,6 +75,7 @@
 					<td class="pr-2">
 						<input
 							type="color"
+							class="h-7 w-8 cursor-pointer rounded border border-outline-variant bg-surface-container-high"
 							value={hex(stop.color)}
 							oninput={(e) =>
 								commit(updateStop(palette, i, { color: fromHex(e.currentTarget.value) }))}
@@ -82,14 +83,14 @@
 					</td>
 					<td class="pr-2">
 						<input
-							class="w-full rounded border border-gray-300 px-1 py-0.5"
+							class="w-full rounded border border-outline-variant bg-surface-container-high px-1 py-0.5 text-on-surface focus:ring-0"
 							value={stop.caption}
 							oninput={(e) => commit(updateStop(palette, i, { caption: e.currentTarget.value }))}
 						/>
 					</td>
 					<td>
 						<button
-							class="rounded px-2 py-0.5 text-red-600 hover:bg-red-50"
+							class="rounded px-2 py-0.5 text-error hover:bg-error-container/20"
 							onclick={() => commit(removeStop(palette, i))}
 							aria-label="Eliminar stop">✕</button
 						>
@@ -101,11 +102,14 @@
 
 	<div class="flex gap-2">
 		<button
-			class="rounded bg-gray-200 px-3 py-1 hover:bg-gray-300"
-			onclick={() => commit(addStop(palette, newStop()))}>+ Stop</button
+			class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-1 text-on-surface transition-colors hover:border-primary-container"
+			onclick={() => commit(addStop(palette, newStop()))}
+			><span class="material-symbols-outlined text-[16px]">add</span> Punto</button
 		>
-		<button class="rounded bg-blue-600 px-3 py-1 text-white" onclick={exportPal}>
-			Exportar .pal
-		</button>
+		<button
+			class="flex items-center gap-1 rounded bg-primary-container px-3 py-1 text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+			onclick={exportPal}
+			><span class="material-symbols-outlined text-[16px]">save</span> Exportar .pal</button
+		>
 	</div>
 </div>
