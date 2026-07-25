@@ -53,7 +53,7 @@ wrangler, igual que en `lamula-webviewer`.
 
 ## Proyectos de Cloudflare Pages (dos, separados)
 
-| Proyecto              | Contenido                          | Workflow             |
-| --------------------- | ---------------------------------- | -------------------- |
-| `lamula-process`      | app web (SvelteKit build estático) | `ci.yml`             |
-| `lamula-process-docs` | sitio mkdocs                       | `docs.yml`           |
+| Proyecto              | Contenido                          | Workflow   |
+| --------------------- | ---------------------------------- | ---------- |
+| `lamula-process`      | app web (SvelteKit build estático) | `ci.yml`   |
+| `lamula-process-docs` | sitio mkdocs                       | `docs.yml` |

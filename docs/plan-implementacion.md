@@ -41,7 +41,26 @@ flowchart TD
 
 ## Fase 1 — P0 (fundación)
 
-Pendiente de detallar tareas concretas cuando arranque.
+- [x] Modelo de datos `Observation → Movement (PPI/RHI) → Channel → Scan → Cells`
+      (`src/lib/domain/`). Grid de celdas como `Float32Array`/`Uint8Array` paralelos, no objeto
+      por celda. Flags normalizados (`ok`/`no-data`/`below-threshold`/`range-folded`) en vez de
+      filtrar códigos raw específicos de cada formato al modelo.
+- [x] Sistema de parsers plugin (`src/lib/parsers/{types,registry,detect}.ts`): descriptors con
+      `canParse()` síncrono barato (extensión + magic bytes) y `load()` por dynamic import
+      perezoso. Verificado contra fixtures reales (`<volume` para Rainbow5, gzip magic para
+      NEXRAD L2).
+- [x] Parser Rainbow5 `.vol` completo (`src/lib/parsers/rainbow5/`): framing de blobs +
+      descompresión `qt` (zlib), parser XML mínimo ad-hoc (`src/lib/parsers/xml.ts`, no
+      `DOMParser` — funciona igual en Node/browser/Tauri), decode de ángulos por rayo y de datos
+      de momento (fórmula `vmin+(raw-1)*scale`). Verificado end-to-end contra los 10 fixtures
+      reales de bandaS/bandaX (dBZ/dBuZ/V/W/RhoHV/uPhiDP), valores comparados contra
+      `rainbow_probe.py`. Solo volúmenes PPI (`type="vol"`) — RHI sigue sin fixture, lanza error
+      explícito si aparece.
+- [ ] Parser NEXRAD Level II `.ar2`/`.gz` (stub en `src/lib/parsers/nexrad-l2.ts`, lanza "not
+      implemented yet").
+- [ ] Paletas `.pal` + escalas (import, valor→color).
+- [ ] Filtro speckler + supresión de clutter vía template.
+- [ ] Shell app: abrir archivo, config persistente.
 
 ## Fase 2 — P1 (visor core)
 
