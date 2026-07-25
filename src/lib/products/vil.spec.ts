@@ -8,7 +8,13 @@ const BW = 1;
 const WIDE = { bottomM: -100_000, topM: 100_000, beamWidthDeg: BW };
 
 // independent VIL of a single beam layer at slant/elev with reflectivity dBZ
-function singleLayerVil(slantM: number, elevDeg: number, dBZ: number, c1 = VIL_C1_DEFAULT, c2 = VIL_C2_DEFAULT): number {
+function singleLayerVil(
+	slantM: number,
+	elevDeg: number,
+	dBZ: number,
+	c1 = VIL_C1_DEFAULT,
+	c2 = VIL_C2_DEFAULT
+): number {
 	const { min, max } = beamHeightRangeM(slantM, elevDeg, BW);
 	const thicknessKm = (max - min) / 1000;
 	const z = Math.pow(10, dBZ / 10);

@@ -4,27 +4,53 @@
 	import {
 		observationChannels,
 		listElevationsDeg,
-		pickScanByElevation,
-		hasGeoref
-	} from '$lib/pipeline/select';
-	import { computeCappi } from '$lib/products/cappi';
+		hasGeoref,
+		deriveGroundProduct,
+		type GroundProductKind,
+		type DeriveOptions
+	} from '$lib/pipeline';
 	import { makeRhiScan } from '$lib/render/rhiFixtures';
+	import { eastWestLine, northSouthLine, computeProfile } from '$lib/products';
 	import { defaultDbzPalette } from '$lib/palette/default';
 	import type { Palette } from '$lib/palette/types';
 	import type { Scan } from '$lib/domain/types';
-	import { PpiMap, RhiPanel, ScaleEditor } from '$lib/viewer';
+	import { PpiMap, RhiPanel, CrossSectionPanel, ProfilePanel, ScaleEditor } from '$lib/viewer';
 	import { standardOverlays } from '$lib/overlays';
 	import type { Readout } from '$lib/viewer/readout';
 	import type { RhiReadout } from '$lib/render/rasterizeRHI';
 
 	const { snapshot, send } = useMachine(observationMachine);
 
-	type ProductKind = 'PPI' | 'CAPPI' | 'RHI';
+	// Products that render on the georeferenced PPI map (single ground-range scan).
+	const GROUND_KINDS: GroundProductKind[] = [
+		'PPI',
+		'CAPPI',
+		'TOPS',
+		'MAXS_HEIGHT',
+		'COLUMN_MAX',
+		'VIL',
+		'RAIN',
+		'WIND_SPEED'
+	];
+	type ProductKind = GroundProductKind | 'CROSS_EW' | 'CROSS_NS' | 'PROFILE' | 'RHI';
+
 	let product = $state<ProductKind>('PPI');
 	let channelIndex = $state(0);
 	let elevationDeg = $state(0.5);
+	// product parameters
 	let cappiBottomKm = $state(1);
 	let cappiTopKm = $state(3);
+	let topsMinDbz = $state(18);
+	let vilBottomKm = $state(0);
+	let vilTopKm = $state(15);
+	let vilC1 = $state(0.00524);
+	let vilC2 = $state(0.57143);
+	let zrA = $state(300);
+	let zrB = $state(1.4);
+	let maxHeightKm = $state(18);
+	let profileXkm = $state(0);
+	let profileYkm = $state(30);
+
 	let palette = $state<Palette>(defaultDbzPalette);
 	let readout = $state<Readout | RhiReadout | null>(null);
 
@@ -38,20 +64,56 @@
 	const elevations = $derived(channel ? listElevationsDeg(channel) : []);
 	const georef = $derived(observation ? hasGeoref(observation) : false);
 
-	// The single Scan to render for the current selection.
-	const renderScan = $derived.by((): Scan | null => {
-		if (!channel || channel.scans.length === 0) return null;
-		if (product === 'RHI') return makeRhiScan({ fill: (_r, g) => Math.max(0, 52 - g * 0.4) });
-		if (product === 'CAPPI') {
-			return computeCappi(channel.scans, {
-				bottomM: cappiBottomKm * 1000,
-				topM: cappiTopKm * 1000,
-				moment: channel.moment,
-				beamWidthDeg: channel.beamWidthDeg ?? 1.0,
-				siteAltM: observation?.site.altM ?? 0
-			}).scan;
-		}
-		return pickScanByElevation(channel, elevationDeg);
+	const isGround = $derived(GROUND_KINDS.includes(product as GroundProductKind));
+	// Products that use a standalone canvas panel (no georeferencing required).
+	const usesElevation = $derived(
+		product === 'PPI' || product === 'RAIN' || product === 'WIND_SPEED'
+	);
+
+	function maxRangeM(ch: NonNullable<typeof channel>): number {
+		return Math.max(...ch.scans.map((s) => s.rangeToFirstGateM + (s.numGates - 1) * s.gateLengthM));
+	}
+
+	const deriveOpts = $derived<DeriveOptions>({
+		elevationDeg,
+		beamWidthDeg: channel?.beamWidthDeg ?? 1.0,
+		siteAltM: observation?.site.altM ?? 0,
+		cappiBottomM: cappiBottomKm * 1000,
+		cappiTopM: cappiTopKm * 1000,
+		topsMinDbz,
+		vilBottomM: vilBottomKm * 1000,
+		vilTopM: vilTopKm * 1000,
+		vilC1,
+		vilC2,
+		zrA,
+		zrB
+	});
+
+	// Ground-product scan + unit for the map path.
+	const ground = $derived.by((): { scan: Scan; unit: string } | null => {
+		if (!channel || channel.scans.length === 0 || !isGround) return null;
+		return deriveGroundProduct(channel, product as GroundProductKind, deriveOpts);
+	});
+
+	const rhiScan = $derived(
+		product === 'RHI' ? makeRhiScan({ fill: (_r, g) => Math.max(0, 52 - g * 0.4) }) : null
+	);
+
+	const cutLine = $derived.by(() => {
+		if (!channel || (product !== 'CROSS_EW' && product !== 'CROSS_NS')) return null;
+		const half = maxRangeM(channel);
+		return product === 'CROSS_EW' ? eastWestLine(0, half) : northSouthLine(0, half);
+	});
+
+	const profile = $derived.by(() => {
+		if (!channel || product !== 'PROFILE') return null;
+		return computeProfile(channel.scans, {
+			xEastM: profileXkm * 1000,
+			yNorthM: profileYkm * 1000,
+			beamWidthDeg: channel.beamWidthDeg ?? 1.0,
+			topM: maxHeightKm * 1000,
+			siteAltM: observation?.site.altM ?? 0
+		});
 	});
 
 	const site = $derived(
@@ -60,7 +122,6 @@
 			: null
 	);
 
-	// Geo overlays are built once (they load their own GeoJSON asynchronously).
 	const overlays = standardOverlays();
 
 	function fmt(n: number | null | undefined, digits = 1): string {
@@ -98,9 +159,26 @@
 			<label class="flex flex-col gap-1">
 				<span class="text-gray-500">Producto</span>
 				<select class="rounded border border-gray-300 px-2 py-1" bind:value={product}>
-					<option value="PPI">PPI</option>
-					<option value="CAPPI">CAPPI</option>
-					<option value="RHI">RHI (sintético)</option>
+					<optgroup label="Base">
+						<option value="PPI">PPI</option>
+						<option value="CAPPI">CAPPI</option>
+					</optgroup>
+					<optgroup label="Columna">
+						<option value="TOPS">Topes (echo tops)</option>
+						<option value="MAXS_HEIGHT">Altura del máximo</option>
+						<option value="COLUMN_MAX">Máximo de columna</option>
+						<option value="VIL">VIL</option>
+					</optgroup>
+					<optgroup label="Precip./Viento">
+						<option value="RAIN">Tasa de lluvia (Z-R)</option>
+						<option value="WIND_SPEED">Viento (VAD)</option>
+					</optgroup>
+					<optgroup label="Cortes">
+						<option value="CROSS_EW">Corte Este-Oeste</option>
+						<option value="CROSS_NS">Corte Norte-Sur</option>
+						<option value="PROFILE">Perfil vertical</option>
+						<option value="RHI">RHI (sintético)</option>
+					</optgroup>
 				</select>
 			</label>
 
@@ -113,7 +191,7 @@
 				</select>
 			</label>
 
-			{#if product === 'PPI'}
+			{#if usesElevation}
 				<label class="flex flex-col gap-1">
 					<span class="text-gray-500">Elevación</span>
 					<select class="rounded border border-gray-300 px-2 py-1" bind:value={elevationDeg}>
@@ -144,6 +222,117 @@
 					/>
 				</label>
 			{/if}
+
+			{#if product === 'TOPS'}
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Umbral (dBZ)</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={topsMinDbz}
+						step="1"
+					/>
+				</label>
+			{/if}
+
+			{#if product === 'VIL'}
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Base (km)</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={vilBottomKm}
+						step="0.5"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Tope (km)</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={vilTopKm}
+						step="0.5"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">C1</span>
+					<input
+						type="number"
+						class="w-24 rounded border border-gray-300 px-2 py-1"
+						bind:value={vilC1}
+						step="0.0001"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">C2</span>
+					<input
+						type="number"
+						class="w-24 rounded border border-gray-300 px-2 py-1"
+						bind:value={vilC2}
+						step="0.0001"
+					/>
+				</label>
+			{/if}
+
+			{#if product === 'RAIN'}
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Z-R A</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={zrA}
+						step="10"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Z-R B</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={zrB}
+						step="0.1"
+					/>
+				</label>
+			{/if}
+
+			{#if product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'PROFILE'}
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Altura máx (km)</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={maxHeightKm}
+						step="1"
+					/>
+				</label>
+			{/if}
+
+			{#if product === 'PROFILE'}
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">X este (km)</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={profileXkm}
+						step="1"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Y norte (km)</span>
+					<input
+						type="number"
+						class="w-20 rounded border border-gray-300 px-2 py-1"
+						bind:value={profileYkm}
+						step="1"
+					/>
+				</label>
+			{/if}
+
+			{#if ground}
+				<span class="self-center rounded bg-gray-100 px-2 py-1 text-gray-600"
+					>unidad: {ground.unit}</span
+				>
+			{/if}
 		</section>
 
 		<!-- Readout -->
@@ -153,10 +342,8 @@
 				{readout.value === null ? '—' : fmt(readout.value)}
 				{readout.flag && readout.flag !== 'ok' ? `(${readout.flag})` : ''}
 			{:else if readout && 'heightM' in readout}
-				Rango {fmt(readout.rangeM / 1000)} km · Altura {fmt(readout.heightM / 1000, 2)} km · Valor {readout.value ===
-				null
-					? '—'
-					: fmt(readout.value)}
+				Rango {fmt(readout.rangeM / 1000)} km · Altura {fmt(readout.heightM / 1000, 2)} km · Valor
+				{readout.value === null ? '—' : fmt(readout.value)}
 			{:else}
 				&nbsp;
 			{/if}
@@ -164,29 +351,52 @@
 
 		<!-- Viewer -->
 		<section class="h-[520px] overflow-hidden rounded border border-gray-300">
-			{#if product === 'RHI'}
-				{#if renderScan}
-					<div class="p-2">
-						<p class="mb-2 text-xs text-amber-700">
-							RHI sintético — ningún formato de entrada trae RHI real; geometría verificada contra
-							datos sintéticos.
-						</p>
-						<RhiPanel scan={renderScan} {palette} onreadout={(r) => (readout = r)} />
-					</div>
-				{/if}
-			{:else if !georef || !site}
-				<div class="flex h-full items-center justify-center p-4 text-center text-sm text-gray-500">
-					Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31), no se puede
-					georreferenciar el {product}. RHI sí funciona.
+			{#if product === 'RHI' && rhiScan}
+				<div class="p-2">
+					<p class="mb-2 text-xs text-amber-700">
+						RHI sintético — ningún formato de entrada trae RHI real; geometría verificada contra
+						datos sintéticos.
+					</p>
+					<RhiPanel scan={rhiScan} {palette} onreadout={(r) => (readout = r)} />
 				</div>
-			{:else if renderScan}
-				<PpiMap
-					scan={renderScan}
-					{palette}
-					{site}
-					extraLayers={overlays}
-					onreadout={(r) => (readout = r)}
-				/>
+			{:else if (product === 'CROSS_EW' || product === 'CROSS_NS') && cutLine && channel}
+				<div class="p-2">
+					<p class="mb-2 text-xs text-gray-500">
+						Corte vertical (muestreo inverso por píxel; no georreferenciado, funciona sin posición
+						de sitio).
+					</p>
+					<CrossSectionPanel
+						scans={channel.scans}
+						{palette}
+						line={cutLine}
+						maxHeightM={maxHeightKm * 1000}
+					/>
+				</div>
+			{:else if product === 'PROFILE' && profile}
+				<div class="flex gap-4 p-2">
+					<ProfilePanel {profile} valueLabel={channel?.moment ?? 'dBZ'} />
+					<p class="text-xs text-gray-500">
+						Perfil vertical en (E {profileXkm} km, N {profileYkm} km): una muestra por elevación, interpolada
+						por spline cúbico.
+					</p>
+				</div>
+			{:else if isGround}
+				{#if !georef || !site}
+					<div
+						class="flex h-full items-center justify-center p-4 text-center text-sm text-gray-500"
+					>
+						Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31), no se puede
+						georreferenciar el {product}. Cortes y perfil sí funcionan.
+					</div>
+				{:else if ground}
+					<PpiMap
+						scan={ground.scan}
+						{palette}
+						{site}
+						extraLayers={overlays}
+						onreadout={(r) => (readout = r)}
+					/>
+				{/if}
 			{/if}
 		</section>
 

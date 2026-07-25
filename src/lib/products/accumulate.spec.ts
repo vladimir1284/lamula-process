@@ -38,7 +38,11 @@ describe('computeAccumulate', () => {
 	});
 
 	it('marks cells with no echoes no-data', () => {
-		const { scan } = computeAccumulate([frame(0)], { beamWidthDeg: 1, bottomM: 50_000, topM: 60_000 });
+		const { scan } = computeAccumulate([frame(0)], {
+			beamWidthDeg: 1,
+			bottomM: 50_000,
+			topM: 60_000
+		});
 		expect(getCell(scan.cells, 0, 1).flag).toBe('no-data');
 	});
 });

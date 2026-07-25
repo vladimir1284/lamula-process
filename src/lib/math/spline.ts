@@ -30,9 +30,8 @@ export function buildSpline(xs: number[] | Float64Array, ys: number[] | Float64A
 		const sig = (x[i] - x[i - 1]) / (x[i + 1] - x[i - 1]);
 		const p = sig * y2[i - 1] + 2;
 		y2[i] = (sig - 1) / p;
-		u[i] =
-			(y[i + 1] - y[i]) / (x[i + 1] - x[i]) - (y[i] - y[i - 1]) / (x[i] - x[i - 1]);
-		u[i] = (6 * u[i] / (x[i + 1] - x[i - 1]) - sig * u[i - 1]) / p;
+		u[i] = (y[i + 1] - y[i]) / (x[i + 1] - x[i]) - (y[i] - y[i - 1]) / (x[i] - x[i - 1]);
+		u[i] = ((6 * u[i]) / (x[i + 1] - x[i - 1]) - sig * u[i - 1]) / p;
 	}
 	// natural upper boundary
 	y2[n - 1] = 0;
@@ -60,8 +59,6 @@ export function evalSpline(s: Spline, xq: number): number {
 	const a = (xs[hi] - xq) / h;
 	const b = (xq - xs[lo]) / h;
 	return (
-		a * ys[lo] +
-		b * ys[hi] +
-		((a * a * a - a) * y2[lo] + (b * b * b - b) * y2[hi]) * (h * h) / 6
+		a * ys[lo] + b * ys[hi] + (((a * a * a - a) * y2[lo] + (b * b * b - b) * y2[hi]) * (h * h)) / 6
 	);
 }

@@ -49,6 +49,10 @@ describe('createTimeSpan', () => {
 
 describe('parseTmsList', () => {
 	it('reads one relative path per non-empty line', () => {
-		expect(parseTmsList('a.obs\r\nsub/b.vol\n\n  c.gz  \n')).toEqual(['a.obs', 'sub/b.vol', 'c.gz']);
+		expect(parseTmsList('a.obs\r\nsub/b.vol\n\n  c.gz  \n')).toEqual([
+			'a.obs',
+			'sub/b.vol',
+			'c.gz'
+		]);
 	});
 });

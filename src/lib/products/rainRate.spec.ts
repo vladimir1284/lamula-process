@@ -19,7 +19,13 @@ describe('Z-R / KDP formulas', () => {
 
 describe('computeRainRate', () => {
 	it('maps a dBZ scan to mm/h, preserving geometry', () => {
-		const s = makeScan({ numRays: 4, numGates: 3, gateLengthM: 500, angleDeg: 1.5, fill: () => 30 });
+		const s = makeScan({
+			numRays: 4,
+			numGates: 3,
+			gateLengthM: 500,
+			angleDeg: 1.5,
+			fill: () => 30
+		});
 		const { scan, unit } = computeRainRate(s);
 		expect(unit).toBe('mm/h');
 		expect(scan.angleDeg).toBe(1.5);

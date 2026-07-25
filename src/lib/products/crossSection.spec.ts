@@ -35,7 +35,13 @@ describe('cross-section helpers', () => {
 describe('sampleCrossSection', () => {
 	// scan0 (elev 0): value = ray*100 + gate; scan1 (elev 10): constant 77
 	const scans = [
-		makeScan({ numRays: 4, numGates: 6, gateLengthM: 1000, angleDeg: 0, fill: (r, g) => r * 100 + g }),
+		makeScan({
+			numRays: 4,
+			numGates: 6,
+			gateLengthM: 1000,
+			angleDeg: 0,
+			fill: (r, g) => r * 100 + g
+		}),
 		makeScan({ numRays: 4, numGates: 6, gateLengthM: 1000, angleDeg: 10, fill: () => 77 })
 	];
 	const metas = buildScanMeta(scans);

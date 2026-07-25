@@ -184,9 +184,9 @@ ya extraído 1:1) y QA visual diferida a revisión manual. Solo target **web**.
 1. **Precipitación:** se adelanta `TTimeSpan` desde P3 (solo el contenedor de datos, **no** la
    animación/playback) para poder hacer acumulado real en mm, no solo tasa instantánea.
 2. **NetCDF:** **diferido**. El escritor real no está en el repo (vive en `..\General\CDFFile.pas`
-   + `NetCDF_Translator.pas`, un dir hermano ausente); en el árbol presente `ffNetCDF` está
-   declarado pero **nunca se despacha** → feature vestigial. Sin oráculo verificable no se
-   inventa un esquema. Se retoma si aparecen esas fuentes o un consumidor real.
+   - `NetCDF_Translator.pas`, un dir hermano ausente); en el árbol presente `ffNetCDF` está
+     declarado pero **nunca se despacha** → feature vestigial. Sin oráculo verificable no se
+     inventa un esquema. Se retoma si aparecen esas fuentes o un consumidor real.
 3. **Viento/Doppler:** VAD por **mínimos cuadrados de N puntos** (puerto de `WindOnCircularArc`,
    comentado en legacy pero completo y estándar), no el `VADVector` de 2 puntos (depende de un
    primitivo externo ausente).
@@ -227,22 +227,44 @@ ya extraído 1:1) y QA visual diferida a revisión manual. Solo target **web**.
   volume(Mm³)/stddev sobre celdas de una región en rejilla horizontal. Umbral en código.
   Salida TXT + CSV (RTF y OLE-Word **descartados**).
 
-**Orden de construcción** (tasks P2.0–P2.6):
+**Orden de construcción** (tasks P2.0–P2.6) — código completo 2026-07-25, 217 tests verdes
+(+67 sobre P1), typecheck/lint limpios, `pnpm build` estático OK:
 
-- [ ] **P2.0** Tipos compartidos de producto (`ProductResult { scan, unit, skipped }`), helper de
-      grilla de rango-en-tierra + iteración de elevaciones. Convención: los productos de columna
-      emiten un `Scan` `angleDeg=0` reusando el pipeline raster PPI (igual que CAPPI).
-- [ ] **P2.1** Productos de columna: `tops.ts`, `maxs.ts` (+ `columnMax.ts`), `vil.ts`. Math pura
-      + tests con oráculo numérico independiente.
-- [ ] **P2.2** `TTimeSpan` (`domain/timespan.ts` + loader `.tms` sobre el registry de parsers),
-      `rainRate.ts` (Z-R/KDP), `accumulate.ts` (integración temporal en mm).
-- [ ] **P2.3** `wind.ts`: VAD mínimos cuadrados → rapidez+dirección. Tests con campo de viento
-      sintético (sembrar Vx,Vy conocidos, recuperar).
-- [ ] **P2.4** Cortes `crossSection.ts` (EstWst/NthSth/Cut) + `profile.ts` (spline cúbico) +
-      panel `CrossSectionPanel.svelte`/`ProfilePanel.svelte` (canvas standalone, estilo RhiPanel).
-- [ ] **P2.5** Análisis: `analysis/region.ts` (polígono/rectángulo, punto-en-polígono),
-      `analysis/statistics.ts` (fórmulas Report.pas), `analysis/report.ts` (serializa TXT+CSV).
-- [ ] **P2.6** Cableado UI: selectores de producto nuevos en la máquina XState + `+page.svelte`,
-      panel de stats/regiones. QA visual diferida.
+- [x] **P2.0** Tipos compartidos de producto (`ProductResult { scan, unit, skipped }`,
+      `products/types.ts`) + `products/columnCommon.ts` (dims de grilla rango-en-tierra +
+      `finalizeGroundScan`). Convención: los productos de columna emiten un `Scan` `angleDeg=0`
+      reusando el pipeline raster PPI (igual que CAPPI).
+- [x] **P2.1** Productos de columna: `tops.ts`, `maxs.ts` (altura del máximo **y** máximo de
+      columna en un solo pase), `vil.ts`. Math pura + tests con oráculo numérico independiente
+      (altura de haz de `geo/`).
+- [x] **P2.2** `domain/timespan.ts` (`TTimeSpan` + `parseTmsList`), `rainRate.ts` (Z-R/KDP),
+      `accumulate.ts` (integración temporal en mm, `Δt` cap a intervalo). `accumulate` es puro
+      sobre `AccumFrame[]` para testear sin el stack de parsers.
+- [x] **P2.3** `wind.ts`: VAD mínimos cuadrados 2×2 en forma cerrada → rapidez+dirección.
+      Tests recuperan un `(Vx,Vy)` sembrado. NODATA excluido del ajuste.
+- [x] **P2.4** `crossSection.ts` (corte de línea arbitraria, EstWst/NthSth como presets;
+      muestreo inverso por píxel) + `math/spline.ts` (spline cúbico natural) + `profile.ts` +
+      paneles `CrossSectionPanel.svelte`/`ProfilePanel.svelte` (canvas standalone).
+- [x] **P2.5** `analysis/region.ts` (polígono/rectángulo/círculo + punto-en-polígono),
+      `analysis/statistics.ts` (fórmulas Report.pas, promedio en Z lineal, área/volumen por
+      sector anular real), `analysis/report.ts` (TXT + CSV, cabeceras UTF-8).
+- [x] **P2.6** `pipeline/deriveProduct.ts` (mapa producto→scan, puro/testeado) cableado en
+      `+page.svelte` con selectores agrupados y controles por producto; paneles de corte/perfil
+      wired. QA visual diferida.
+
+**Brechas/riesgos a revisar (igual que P1):**
+
+- **QA visual pendiente** — nadie vio píxeles de los productos nuevos (sin navegador interactivo
+  en el sandbox). Abrir un `.obs`/`.vol` real y confirmar: orientación/escala de Topes/VIL/Máx
+  contra los anillos, colores contra la paleta apropiada por unidad (m/kg·m⁻²/mm·h⁻¹/m·s⁻¹), el
+  corte E-O/N-S contra la estructura vertical esperada, el perfil, y el viento VAD contra un caso
+  de viento conocido. Las paletas siguen siendo la rampa dBZ por defecto — cada producto necesita
+  su propia escala (pendiente en el editor).
+- **Acumulado sin UI** — `computeAccumulate` existe y está testeado, pero el `+page.svelte` de un
+  solo archivo no construye un `TimeSpan`; falta un flujo multi-archivo para exponerlo.
+- **Estadísticas/reportes sin UI** — `analysis/*` está completo y testeado, pero falta el panel
+  para dibujar regiones y disparar el reporte (dibujo de polígono sobre el mapa OL, pendiente).
+- **Paneles Svelte sin tests de componente** (frágiles headless) — misma decisión que P1; toda la
+  lógica extraíble está en módulos puros testeados.
 
 **Diferido/fuera de P2:** NetCDF (ver decisión 2); animación/playback de TimeSpan (queda en P3).

@@ -173,7 +173,12 @@ export function rasterizeCrossSection(
 			const y = line.ay + t * dy;
 			const s = sampleCrossSection(metas, x, y, height, pad);
 			if (!s) continue;
-			const flagCode = s.flag === 'ok' ? CELL_FLAG_OK : s.flag === 'below-threshold' ? CELL_FLAG_BELOW_THRESHOLD : -1;
+			const flagCode =
+				s.flag === 'ok'
+					? CELL_FLAG_OK
+					: s.flag === 'below-threshold'
+						? CELL_FLAG_BELOW_THRESHOLD
+						: -1;
 			if (flagCode !== CELL_FLAG_OK && !(includeBelow && flagCode === CELL_FLAG_BELOW_THRESHOLD))
 				continue;
 			const [r, g, b] = colorForValue(palette, s.value);

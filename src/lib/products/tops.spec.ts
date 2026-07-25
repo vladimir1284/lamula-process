@@ -23,8 +23,20 @@ describe('computeTops', () => {
 
 	it('keeps the greatest beam height above threshold across elevations', () => {
 		// two low tilts so round(r·cosθ)=r for r≤2; higher tilt wins the top height
-		const lo = makeScan({ numRays: 4, numGates: 3, gateLengthM: 1000, angleDeg: 1, fill: () => 30 });
-		const hi = makeScan({ numRays: 4, numGates: 3, gateLengthM: 1000, angleDeg: 2, fill: () => 30 });
+		const lo = makeScan({
+			numRays: 4,
+			numGates: 3,
+			gateLengthM: 1000,
+			angleDeg: 1,
+			fill: () => 30
+		});
+		const hi = makeScan({
+			numRays: 4,
+			numGates: 3,
+			gateLengthM: 1000,
+			angleDeg: 2,
+			fill: () => 30
+		});
 		const { scan } = computeTops([lo, hi], { minValue: 20, beamWidthDeg: BW });
 		// gate 2, slant 2000 m, winner = elevation 2°
 		expect(getCell(scan.cells, 0, 2).value).toBeCloseTo(centreH(2000, 2), 3);
@@ -48,7 +60,12 @@ describe('computeTops', () => {
 
 	it('respects the height band', () => {
 		const s = makeScan({ numRays: 4, numGates: 3, gateLengthM: 1000, angleDeg: 0, fill: () => 30 });
-		const { scan } = computeTops([s], { minValue: 20, beamWidthDeg: BW, bottomM: 50_000, topM: 60_000 });
+		const { scan } = computeTops([s], {
+			minValue: 20,
+			beamWidthDeg: BW,
+			bottomM: 50_000,
+			topM: 60_000
+		});
 		for (let r = 0; r < scan.numRays; r++)
 			for (let g = 0; g < scan.numGates; g++)
 				expect(getCell(scan.cells, r, g).flag).toBe('no-data');

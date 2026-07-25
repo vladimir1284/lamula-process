@@ -35,7 +35,14 @@ describe('regionContains', () => {
 	});
 
 	it('rectangle inclusive of edges', () => {
-		const r: Region = { kind: 'rectangle', name: 'r', minXM: -10, minYM: -10, maxXM: 10, maxYM: 10 };
+		const r: Region = {
+			kind: 'rectangle',
+			name: 'r',
+			minXM: -10,
+			minYM: -10,
+			maxXM: 10,
+			maxYM: 10
+		};
 		expect(regionContains(r, 0, 0)).toBe(true);
 		expect(regionContains(r, 10, 10)).toBe(true);
 		expect(regionContains(r, 11, 0)).toBe(false);

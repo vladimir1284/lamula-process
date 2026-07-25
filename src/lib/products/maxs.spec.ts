@@ -21,8 +21,20 @@ describe('computeMaxs', () => {
 
 	it('picks the elevation with the largest reflectivity and reports its beam-centre height', () => {
 		// lower tilt has the stronger echo → columnMax comes from it, at its (lower) height
-		const lo = makeScan({ numRays: 4, numGates: 3, gateLengthM: 1000, angleDeg: 1, fill: () => 40 });
-		const hi = makeScan({ numRays: 4, numGates: 3, gateLengthM: 1000, angleDeg: 2, fill: () => 20 });
+		const lo = makeScan({
+			numRays: 4,
+			numGates: 3,
+			gateLengthM: 1000,
+			angleDeg: 1,
+			fill: () => 40
+		});
+		const hi = makeScan({
+			numRays: 4,
+			numGates: 3,
+			gateLengthM: 1000,
+			angleDeg: 2,
+			fill: () => 20
+		});
 		const { height, columnMax } = computeMaxs([lo, hi], { beamWidthDeg: BW });
 		expect(getCell(columnMax.scan.cells, 0, 2).value).toBeCloseTo(40, 6);
 		expect(getCell(height.scan.cells, 0, 2).value).toBeCloseTo(centreH(2000, 1), 3);
