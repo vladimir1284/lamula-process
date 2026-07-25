@@ -6,10 +6,12 @@
 test-fixtures/
 ├── observations/        # SOLO datos crudos reales (lo que un parser real recibe)
 │   ├── insmet/           # .obs (Camagüey)
-│   └── nexrad-l2/        # .gz (KMLB, Archive II)
+│   ├── nexrad-l2/        # .gz (KMLB, Archive II)
+│   └── rainbow/          # .vol (bandaS = HNS/Tegucigalpa, bandaX = HNX/La Ceiba)
 └── reference/            # specs, decoders/simuladores de referencia, no son observaciones
     ├── insmet/           # Obs_Parser.py original + nuestro port verificado
-    └── nexrad-l2/        # ICD, simulador RDA 2013, referencia libL2 de NOAA, nuestro decoder verificado
+    ├── nexrad-l2/        # ICD, simulador RDA 2013, referencia libL2 de NOAA, nuestro decoder verificado
+    └── rainbow/          # nuestro decoder verificado (rainbow_probe.py)
 ```
 
 ## Gap de código fuente
@@ -25,14 +27,50 @@ hermano en el org LADETEC-CU con estas unidades.
 **Consecuencia:** no hay lógica original que portar para los parsers.
 Implementación contra especificación pública de cada formato.
 
-## Formato 1 — Rainbow 5.0 (Gematronik)
+## Formato 1 — Rainbow 5.0 (Gematronik/Leonardo-Selex)
 
-- Extensión `.vol`, XML propietario.
-- Confirmado en `Leeme_Process.txt` ccronología 5.3.4.7, 5.3.13.1, 5.3.16.1,
+- Extensión `.vol`, contenedor XML + blobs binarios (no XML puro).
+- Confirmado en `Leeme_Process.txt` cronología 5.3.4.7, 5.3.13.1, 5.3.16.1,
   5.3.17.1-5.3.17.3 ("Rainbow5 Translator", "gematronik").
-- Doc: especificación ICD de Leonardo/Selex-Gematronik (por conseguir).
+- **Sin código fuente legacy vendido**: `Process.dpr` referencia
+  `Rainbow5_Translator.pas`/`Rainbow5_File.pas` pero ninguno de los dos
+  archivos está en `legacy/` (mismo gap que Nexrad, ver arriba). Oráculo
+  usado en su lugar: [xradar](https://github.com/openradar/xradar)
+  (`xradar/io/backends/rainbow.py`), cruzado contra bytes reales.
 - Sensible a locale (separador decimal) — bug documentado en el original,
   no reintroducirlo.
+
+**Material recibido**, organizado en:
+
+- `test-fixtures/observations/rainbow/bandaS/` — volumen real S-band, sitio
+  `HNS`/Tegucigalpa (Honduras), 15 elevaciones (0.0°-30.0°), un archivo por
+  momento (`dBZ`, `dBuZ`, `V`, `W`).
+- `test-fixtures/observations/rainbow/bandaX/` — volumen real X-band, sitio
+  `HNX`/La Ceiba (Honduras), 4 elevaciones (1.3°-5.0°), un archivo por
+  momento (`dBZ`, `dBuZ`, `V`, `W`, `RhoHV`, `uPhiDP`).
+- `test-fixtures/reference/rainbow/rainbow_probe.py` — nuestro decoder
+  Python 3 stdlib-only, verificado contra los 10 archivos (0 fallos de
+  descompresión/layout, rangos físicos plausibles en cada uno).
+
+**Verificado de verdad** (bytes reales, no solo la lectura de xradar):
+corrí `rainbow_probe.py` contra los 10 archivos completos.
+
+Layout confirmado:
+
+| Bloque | Notas |
+|---|---|
+| Header XML | un único `<volume>` raíz, termina en la línea literal `<!-- END XML -->`. `volume > scan` (uno por archivo) y `volume > sensorinfo` (**hermano** de `scan`, no anidado — confirmado por posición de bytes real) con `lon`/`lat`/`alt`/`wavelen`/`beamwidth`. |
+| Blobs binarios | tras el marcador, secuencia plana: `<BLOB blobid="N" size="S" compression="qt">\n<S bytes>\n</BLOB>\n`. `blobid` es un contador único para **todo el archivo** (no se reinicia por slice/elevación): slice 0 usa 0,1,2; slice 1 usa 3,4,5; etc. Hay un `\n` literal después del `>` de apertura, uno antes de `</BLOB>`, y uno más entre `</BLOB>` y el siguiente `<BLOB>` — los tres confirmados byte a byte. |
+| Compresión `qt` | primeros 4 bytes del payload = tamaño sin comprimir (u32 big-endian), el resto es un stream zlib crudo (`zlib.decompress`). Ningún otro valor de compresión visto en los fixtures. |
+| Por `<slice refid="N">` (una por elevación) | `posangle` = ángulo de elevación en grados. `slicedata` contiene 2× `<rayinfo refid="startangle"/"stopangle">` (ángulo por rayo, u16, único depth=16 visto en `rayinfo`) + 1× `<rawdata type="..." rays bins min max depth blobid>` (dato del momento). |
+| Decode `rayinfo` (ángulo) | `grados = raw * 360.0 / 65536.0` — **divide por `2**depth`**, no por `2**depth-2`. Confirmado: la secuencia decodificada avanza ~1.0° entre rayos, igual al `anglestep` real del volumen. |
+| Decode `rawdata` (momento) | u8 (depth=8: `dBZ`/`dBuZ`/`V`/`W`/`RhoHV`) o u16 (depth=16: `uPhiDP`, único caso visto). `raw=0` = sin dato/bajo umbral. Para `raw>=1`: `scale=(vmax-vmin)/(2**depth-2)`, `físico = vmin + (raw-1)*scale` — **no** la fórmula ingenua `vmin + raw*scale` (corre todo medio paso). Confirmado empíricamente: el `raw==1` real más bajo de un sweep mapea EXACTO al `vmin` declarado del slice, a 3+ decimales — coincide con la fórmula de xradar (`scale_factor=(vmax-vmin)/(2**depth-2)`, `add_offset=vmin-scale_factor`, `raw*scale_factor+add_offset`, algebraicamente idéntica). |
+
+**Sin resolver:** `@depth` sub-byte (ej. 6-bit) y el bit-unpacking asociado
+— ningún fixture lo usa, no verificado con bytes reales. Valores de
+`compression` distintos de `"qt"` — no vistos. Ambigüedad `raw==1` vs
+mínimo físico real cuando `vmin=0` (ej. `RhoHV`) — mismo tipo de ambigüedad
+que en `.obs`/Level II, no resuelta aquí tampoco.
 
 ## Formato 2 — NEXRAD Level II (Archive II)
 
@@ -161,13 +199,17 @@ listos primero.
 Datos crudos en `test-fixtures/observations/<formato>/`, material de
 referencia (specs, decoders/simuladores) en `test-fixtures/reference/<formato>/`.
 
-**rainbow5/**
-
-- Volumen reflectividad simple (single channel, PPI 360°).
-- Volumen multicanal (reflectividad + velocidad Doppler + ancho espectral).
-- Caso `anglestep < 1°` (bug histórico de sectores, changelog 5.3.17.1-3).
-- Caso con sectores ≠ 360 (valida fix de orden de sectores).
-- Volumen con RHI (corte vertical), no solo PPI.
+**rainbow5/** — recibido y verificado (2026-07-24): `bandaS` (15 elevaciones,
+`dBZ`/`dBuZ`/`V`/`W`) y `bandaX` (4 elevaciones, `dBZ`/`dBuZ`/`V`/`W`/
+`RhoHV`/`uPhiDP`), 0 fallos de descompresión/layout en los 10 archivos.
+Cada momento va en su propio archivo `.vol` (no hay un volumen
+multi-momento en un solo archivo entre los fixtures recibidos). Pendiente
+todavía:
+- Caso `anglestep < 1°` (bug histórico de sectores, changelog 5.3.17.1-3) —
+  los fixtures actuales usan `anglestep=1`.
+- Volumen con RHI (corte vertical) — los fixtures actuales son solo PPI.
+- `@depth` sub-byte (ej. 6-bit) — ningún fixture actual lo usa.
+- Volumen parcial/corrupto para probar manejo de error.
 
 **nexrad-l2/** — recibido y verificado (2026-07-23): 3 archivos reales KMLB
 (`.gz`, wrapper NCDC), 0 frames corruptos en los 3, momentos REF/VEL/SW/
