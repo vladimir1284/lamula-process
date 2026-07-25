@@ -175,4 +175,74 @@ arrancar:
 
 ## Fase 3 — P2 (productos derivados)
 
-Pendiente.
+Arrancada 2026-07-25. Misma estrategia que P1: decisiones fijadas con el usuario, luego
+construcción en ancho con la matemática cubierta por tests unitarios (oráculo = legacy Delphi,
+ya extraído 1:1) y QA visual diferida a revisión manual. Solo target **web**.
+
+**Decisiones fijadas con el usuario (2026-07-25):**
+
+1. **Precipitación:** se adelanta `TTimeSpan` desde P3 (solo el contenedor de datos, **no** la
+   animación/playback) para poder hacer acumulado real en mm, no solo tasa instantánea.
+2. **NetCDF:** **diferido**. El escritor real no está en el repo (vive en `..\General\CDFFile.pas`
+   + `NetCDF_Translator.pas`, un dir hermano ausente); en el árbol presente `ffNetCDF` está
+   declarado pero **nunca se despacha** → feature vestigial. Sin oráculo verificable no se
+   inventa un esquema. Se retoma si aparecen esas fuentes o un consumidor real.
+3. **Viento/Doppler:** VAD por **mínimos cuadrados de N puntos** (puerto de `WindOnCircularArc`,
+   comentado en legacy pero completo y estándar), no el `VADVector` de 2 puntos (depende de un
+   primitivo externo ausente).
+4. **Rarezas del legacy → normalizar + documentar** (mismo criterio que P1): unidad de altura en
+   metros explícitos (se descarta el tag `unKM`-declarado-pero-`unM`-guardado de Tops/Maxs);
+   redondeo unificado entre EstWst/NthSth; NODATA **excluido** del ajuste VAD (el legacy lo mete
+   como 0 — bug marcado en la propia fuente); cabeceras de reporte en UTF-8 limpio (el legacy
+   trae mojibake ISO). Regiones: modelo polígono/rectángulo con test punto-en-polígono, **no** el
+   modelo `.rgn` de conjunto-enumerado-de-celdas del legacy (rareza no portable a un rewrite).
+
+**Oráculos legacy extraídos 1:1** (algoritmos + constantes verificados contra la fuente):
+
+- **Tops** (`Tops.pas`/`TopsScan.pas`): tope de eco = mayor altura de haz interpolada a fracción
+  `Location/100` entre borde inferior/superior donde `dBZ ≥ Minimum`. Comparación en espacio de
+  código. Salida = Scan de rango-en-tierra, valor = altura (m).
+- **Maxs** (`Maxs.pas`/`MaxsScan.pas`): altura (centro de haz) donde la reflectividad de columna
+  es máxima. Salida = Scan, valor = altura (m). Se añade `columnMax` (el valor máximo de la
+  columna) como compañero natural del ítem de alcance "máximos (column max reflectivity)".
+- **VIL** (`VIL.pas`/`VILScan.pas`): `VIL = C1·Σ(Z^C2·espesor_km)`, `Z=10^(dBZ/10)`,
+  `C1=0.00524`, `C2=0.57143` (≈4/7), ambos configurables. Salida kg/m². Selección de capa por
+  solape de haz con `[Bottom,Top]`, espesor de haz completo (no recortado).
+- **Rain rate** (`RainTable.pas`): Z-R `R=(Z/A)^(1/B)` con `A=300, B=1.4` por defecto; KDP
+  `R=A·K^B` con `40.7, 0.866` (sign-preserving). Config-driven. Salida mm/h.
+- **Accumulate** (`Accumulate.pas`/`ContributionScan.pas` + `TTimeSpan`): mm =
+  Σ_obs( media_haces( Δt_horas · tasa_mm/h ) ), Δt cap a `Interval` (5 min por defecto) para no
+  sobre-acumular en huecos; capa `[Bottom,Top]` como CAPPI.
+- **Wind VAD** (`WindGrid.pas` `WindOnCircularArc`): ajuste mínimos-cuadrados de
+  `Vr(az) = Vx·cosθ·sin(az) + Vy·cosθ·cos(az)` sobre el arco de azimut → `(Vx,Vy)` → rapidez
+  (`√(Vx²+Vy²)`) + dirección (`atan2`). Salida = 2 rejillas co-registradas (rapidez + dirección).
+- **Cortes** (`EstWst`/`NthSth`/`Cut` + `*Grid`, `PRTable.pas`): EstWst = proyección **MAX**
+  colapsando N-S; NthSth = MAX colapsando E-O; Cut = **media** (Z lineal) a lo largo de una línea
+  arbitraria. Salida = rejilla altura×horizontal. Corrección slant `R=Rtierra/cos(elev)`.
+- **Profile** (`Profile.pas`/`ProfileVector.pas`): perfil vertical 1-D en un punto; una muestra
+  (altura-centro-de-haz, valor) por elevación, interpolada por spline cúbico natural, ancla fija
+  0 a 20 km.
+- **Estadísticas/reportes** (`Report.pas`, único sitio con la mate real — `Statistics.pas`/
+  `Result.pas` son stubs vacíos): area(km²)/coating(%)/average(dB)/max/min/mean/median/
+  volume(Mm³)/stddev sobre celdas de una región en rejilla horizontal. Umbral en código.
+  Salida TXT + CSV (RTF y OLE-Word **descartados**).
+
+**Orden de construcción** (tasks P2.0–P2.6):
+
+- [ ] **P2.0** Tipos compartidos de producto (`ProductResult { scan, unit, skipped }`), helper de
+      grilla de rango-en-tierra + iteración de elevaciones. Convención: los productos de columna
+      emiten un `Scan` `angleDeg=0` reusando el pipeline raster PPI (igual que CAPPI).
+- [ ] **P2.1** Productos de columna: `tops.ts`, `maxs.ts` (+ `columnMax.ts`), `vil.ts`. Math pura
+      + tests con oráculo numérico independiente.
+- [ ] **P2.2** `TTimeSpan` (`domain/timespan.ts` + loader `.tms` sobre el registry de parsers),
+      `rainRate.ts` (Z-R/KDP), `accumulate.ts` (integración temporal en mm).
+- [ ] **P2.3** `wind.ts`: VAD mínimos cuadrados → rapidez+dirección. Tests con campo de viento
+      sintético (sembrar Vx,Vy conocidos, recuperar).
+- [ ] **P2.4** Cortes `crossSection.ts` (EstWst/NthSth/Cut) + `profile.ts` (spline cúbico) +
+      panel `CrossSectionPanel.svelte`/`ProfilePanel.svelte` (canvas standalone, estilo RhiPanel).
+- [ ] **P2.5** Análisis: `analysis/region.ts` (polígono/rectángulo, punto-en-polígono),
+      `analysis/statistics.ts` (fórmulas Report.pas), `analysis/report.ts` (serializa TXT+CSV).
+- [ ] **P2.6** Cableado UI: selectores de producto nuevos en la máquina XState + `+page.svelte`,
+      panel de stats/regiones. QA visual diferida.
+
+**Diferido/fuera de P2:** NetCDF (ver decisión 2); animación/playback de TimeSpan (queda en P3).
