@@ -38,5 +38,6 @@ export type {
 	CrossSectionRasterOptions,
 	CrossSectionRasterResult
 } from './crossSection';
+export { volumeToRhiScan } from './rhiFromVolume';
 export { computeProfile } from './profile';
 export type { ProfileOptions, ProfileResult, ProfileSample } from './profile';

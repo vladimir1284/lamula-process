@@ -9,12 +9,18 @@
 		type GroundProductKind,
 		type DeriveOptions
 	} from '$lib/pipeline';
-	import { makeRhiScan } from '$lib/render/rhiFixtures';
-	import { eastWestLine, northSouthLine, computeProfile } from '$lib/products';
+	import { eastWestLine, northSouthLine, computeProfile, volumeToRhiScan } from '$lib/products';
 	import { defaultDbzPalette } from '$lib/palette/default';
 	import type { Palette } from '$lib/palette/types';
 	import type { Scan } from '$lib/domain/types';
-	import { PpiMap, RhiPanel, CrossSectionPanel, ProfilePanel, ScaleEditor } from '$lib/viewer';
+	import {
+		PpiMap,
+		RhiPanel,
+		RhiAzimuthPicker,
+		CrossSectionPanel,
+		ProfilePanel,
+		ScaleEditor
+	} from '$lib/viewer';
 	import { standardOverlays } from '$lib/overlays';
 	import type { Readout } from '$lib/viewer/readout';
 	import type { RhiReadout } from '$lib/render/rasterizeRHI';
@@ -50,6 +56,7 @@
 	let maxHeightKm = $state(18);
 	let profileXkm = $state(0);
 	let profileYkm = $state(30);
+	let rhiAzimuthDeg = $state(0);
 
 	let palette = $state<Palette>(defaultDbzPalette);
 	let readout = $state<Readout | RhiReadout | null>(null);
@@ -95,9 +102,17 @@
 		return deriveGroundProduct(channel, product as GroundProductKind, deriveOpts);
 	});
 
-	const rhiScan = $derived(
-		product === 'RHI' ? makeRhiScan({ fill: (_r, g) => Math.max(0, 52 - g * 0.4) }) : null
-	);
+	const rhiScan = $derived.by((): Scan | null => {
+		if (product !== 'RHI' || !channel || channel.scans.length === 0) return null;
+		return volumeToRhiScan(channel.scans, rhiAzimuthDeg);
+	});
+	// Column-max composite as the plan-view reference for the azimuth picker: the radial always
+	// lands on real echo regardless of which tilt holds it (vs. the lowest sweep, whose footprint
+	// can differ a lot from the rest of a deep VCP).
+	const rhiBaseScan = $derived.by((): Scan | null => {
+		if (product !== 'RHI' || !channel || channel.scans.length === 0) return null;
+		return deriveGroundProduct(channel, 'COLUMN_MAX', deriveOpts).scan;
+	});
 
 	const cutLine = $derived.by(() => {
 		if (!channel || (product !== 'CROSS_EW' && product !== 'CROSS_NS')) return null;
@@ -177,7 +192,7 @@
 						<option value="CROSS_EW">Corte Este-Oeste</option>
 						<option value="CROSS_NS">Corte Norte-Sur</option>
 						<option value="PROFILE">Perfil vertical</option>
-						<option value="RHI">RHI (sintético)</option>
+						<option value="RHI">RHI</option>
 					</optgroup>
 				</select>
 			</label>
@@ -295,7 +310,31 @@
 				</label>
 			{/if}
 
-			{#if product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'PROFILE'}
+			{#if product === 'RHI'}
+				<label class="flex flex-col gap-1">
+					<span class="text-gray-500">Azimut: {rhiAzimuthDeg}°</span>
+					<div class="flex items-center gap-2">
+						<input
+							type="range"
+							class="w-48"
+							bind:value={rhiAzimuthDeg}
+							min="0"
+							max="359"
+							step="1"
+						/>
+						<input
+							type="number"
+							class="w-20 rounded border border-gray-300 px-2 py-1"
+							bind:value={rhiAzimuthDeg}
+							step="1"
+							min="0"
+							max="359"
+						/>
+					</div>
+				</label>
+			{/if}
+
+			{#if product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'PROFILE' || product === 'RHI'}
 				<label class="flex flex-col gap-1">
 					<span class="text-gray-500">Altura máx (km)</span>
 					<input
@@ -352,12 +391,30 @@
 		<!-- Viewer -->
 		<section class="h-[520px] overflow-hidden rounded border border-gray-300">
 			{#if product === 'RHI' && rhiScan}
-				<div class="p-2">
-					<p class="mb-2 text-xs text-amber-700">
-						RHI sintético — ningún formato de entrada trae RHI real; geometría verificada contra
-						datos sintéticos.
-					</p>
-					<RhiPanel scan={rhiScan} {palette} onreadout={(r) => (readout = r)} />
+				<div class="flex flex-wrap gap-4 p-2">
+					{#if rhiBaseScan}
+						<div class="flex flex-col gap-1">
+							<span class="text-xs text-gray-500">Azimut del corte (arrastra) · fondo: máx de columna</span>
+							<RhiAzimuthPicker
+								scan={rhiBaseScan}
+								{palette}
+								azimuthDeg={rhiAzimuthDeg}
+								onchange={(a) => (rhiAzimuthDeg = a)}
+							/>
+						</div>
+					{/if}
+					<div class="min-w-[420px] flex-1">
+						<p class="mb-2 text-xs text-gray-500">
+							RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación ({rhiScan.numRays}
+							tumbos). La resolución vertical la limita el número de elevaciones; hay huecos entre haces.
+						</p>
+						<RhiPanel
+							scan={rhiScan}
+							{palette}
+							maxHeightM={maxHeightKm * 1000}
+							onreadout={(r) => (readout = r)}
+						/>
+					</div>
 				</div>
 			{:else if (product === 'CROSS_EW' || product === 'CROSS_NS') && cutLine && channel}
 				<div class="p-2">
