@@ -22,3 +22,21 @@ export { computeAccumulate, DEFAULT_INTERVAL_MS } from './accumulate';
 export type { AccumFrame, AccumulateOptions } from './accumulate';
 export { computeWind, windDirectionDeg, fitRingVad } from './wind';
 export type { WindOptions, WindResult } from './wind';
+export {
+	rasterizeCrossSection,
+	sampleCrossSection,
+	buildScanMeta,
+	nearestScanByElev,
+	nearestRayByAzimuth,
+	eastWestLine,
+	northSouthLine
+} from './crossSection';
+export type {
+	CutLine,
+	ScanMeta,
+	CrossSample,
+	CrossSectionRasterOptions,
+	CrossSectionRasterResult
+} from './crossSection';
+export { computeProfile } from './profile';
+export type { ProfileOptions, ProfileResult, ProfileSample } from './profile';
