@@ -81,7 +81,15 @@ flowchart TD
       plano). Cargar un `Template<design>.OBS` real de verdad requiere un lector `.obs`, que sigue
       fuera de alcance de P0 (formatos: Rainbow5 + NEXRAD L2 nada más) — esta pieza es solo el
       primitivo de enmascarado, probado con máscaras sintéticas, no contra un template real.
-- [ ] Shell app: abrir archivo, config persistente.
+- [x] Shell app: abrir archivo, config persistente (`src/lib/platform/`, wired into
+      `src/routes/+page.svelte`). Web path completo y probado (`happy-dom`): File System Access
+      API con fallback a `<input type=file>`, config (`recentFiles`, MRU de 10) en `localStorage`.
+      Backend Tauri (`@tauri-apps/plugin-dialog`/`plugin-fs`/`plugin-store`) **no implementado
+      todavía** — lanza error explícito ("not implemented yet") en vez de código Rust sin
+      compilar/verificar, mismo patrón que el stub inicial de NEXRAD L2: no hay toolchain de Rust
+      en este sandbox para verificarlo (ver brecha ya anotada en Fase 0). Build estático
+      (`pnpm build` + `vite preview`) verificado, SSR renderiza el botón; no se probó clic real en
+      navegador (sin herramienta de browser interactivo en este entorno).
 
 ## Fase 2 — P1 (visor core)
 

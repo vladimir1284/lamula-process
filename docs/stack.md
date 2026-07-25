@@ -21,6 +21,7 @@ instalación mayor — esto es un snapshot, no una garantía a futuro).
 | svelte-i18n              | 4.0.1   |                                                                                        |
 | mkdocs                   | 1.6.1   |                                                                                        |
 | mkdocs-material          | 9.7.7   | mermaid vía `pymdownx.superfences`, sin plugin extra                                   |
+| happy-dom                | 20.11.1 | entorno DOM para specs que tocan `window`/`localStorage` (`// @vitest-environment happy-dom` por archivo, no cambia el project vitest global) |
 
 ## Decisiones pendientes de validar
 
