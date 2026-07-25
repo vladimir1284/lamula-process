@@ -49,12 +49,14 @@ describe('parseObservation', () => {
 		expect(obs.movements[0].channels[0].moment).toBe('dBZ');
 	});
 
-	it('surfaces the real parser error once loaded (nexrad-l2 decoder lands in a later step)', async () => {
+	it('routes a real nexrad-l2 fixture through to a decoded Observation', async () => {
 		const input = {
 			fileName: 'nexrad-l2/KMLB20121026_120332_V06.gz',
 			bytes: readFixture('nexrad-l2/KMLB20121026_120332_V06.gz')
 		};
-		await expect(parseObservation(input)).rejects.toThrow(/not implemented yet/);
+		const obs = await parseObservation(input);
+		expect(obs.site.code).toBe('KMLB');
+		expect(obs.movements[0].channels.some((c) => c.moment === 'dBZ')).toBe(true);
 	});
 
 	it('surfaces the last error when every matching descriptor fails', async () => {

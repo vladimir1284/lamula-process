@@ -6,9 +6,12 @@
 export interface RadarSite {
 	name: string;
 	code: string;
-	lat: number;
-	lon: number;
-	altM: number;
+	// NEXRAD L2's message-31 stream (the only message type this app decodes so far) doesn't
+	// self-describe site position -- that lives in a volume-constant block this parser doesn't
+	// read yet, see src/lib/parsers/nexrad-l2/parse.ts. Rainbow5's sensorinfo always has it.
+	lat?: number;
+	lon?: number;
+	altM?: number;
 }
 
 // Moment types seen across real fixtures (Rainbow5 + NEXRAD L2), see docs/formatos.md.
@@ -19,8 +22,9 @@ export type MovementKind = 'PPI' | 'RHI';
 export interface Channel {
 	id: number;
 	moment: MomentType;
-	waveLengthM: number;
-	beamWidthDeg: number;
+	// Same gap as RadarSite.lat/lon above: not present in NEXRAD L2 message-31.
+	waveLengthM?: number;
+	beamWidthDeg?: number;
 	// Present when the source format carries calibration constants (.obs met_potential/delta_potential).
 	calibration?: {
 		metPotential: number;

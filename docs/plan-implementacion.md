@@ -56,8 +56,15 @@ flowchart TD
       reales de bandaS/bandaX (dBZ/dBuZ/V/W/RhoHV/uPhiDP), valores comparados contra
       `rainbow_probe.py`. Solo volúmenes PPI (`type="vol"`) — RHI sigue sin fixture, lanza error
       explícito si aparece.
-- [ ] Parser NEXRAD Level II `.ar2`/`.gz` (stub en `src/lib/parsers/nexrad-l2.ts`, lanza "not
-      implemented yet").
+- [x] Parser NEXRAD Level II `.ar2`/`.gz` completo (`src/lib/parsers/nexrad-l2/`): gunzip vía
+      `DecompressionStream`, framing de mensajes (2432 B fijo salvo tipo 31), Data Header Block +
+      moment blocks identificados por su propio tag de 4 bytes (nunca por posición de puntero),
+      agrupados por `elevation_number` en Scans por canal/momento (REF/VEL/SW/ZDR/PHI/RHO).
+      Verificado end-to-end contra `KMLB20121026_121212_V06.gz` real, valores comparados contra
+      `l2_probe_py3.py`. `RadarSite.lat/lon/altM` y `Channel.waveLengthM/beamWidthDeg` quedaron
+      opcionales en el modelo: el stream de mensaje-31 no trae esos datos (viven en un bloque de
+      constantes de volumen — `RVOL` — que este parser todavía no decodifica, layout no
+      verificado).
 - [ ] Paletas `.pal` + escalas (import, valor→color).
 - [ ] Filtro speckler + supresión de clutter vía template.
 - [ ] Shell app: abrir archivo, config persistente.
