@@ -189,6 +189,43 @@ de Rainbow5 como el de Level II deben producir — y fixtures reales para
 probarlo end-to-end sin depender de tener los parsers de formato crudo
 listos primero.
 
+**Parser `.obs` (`src/lib/parsers/insmet/`), notas del parseo real:**
+
+- El campo `number_of_cells` del channel desc **no es fiable** para el
+  canal 1 (velocidad/ancho espectral): en los 4 fixtures reales, el bloque
+  PPI decodificado siempre tiene el mismo ancho de fila que el canal 0
+  (1800 gates), sin importar lo que diga `number_of_cells` del canal 1
+  (450/540 según el archivo). El único valor consistente y verificado es
+  `unpacked_size / sector_count` (del PPI Header/Desc, no del channel
+  desc) — así es como el parser deriva `Scan.numGates`, ignorando
+  deliberadamente `number_of_cells`.
+- Un mismo momento (ej. `dBZ`) puede venir de **dos canales físicos
+  distintos** dentro de una misma observación: cortes "batch"/split-cut
+  alternan reflectividad de pulso largo (canal 0) y de pulso corto (canal
+  1, junto con V/W) en distintas elevaciones — confirmado en
+  `c02y1830.obs`, donde el canal 1 también trae PPIs `unDBZ` con su propio
+  `met_potential` (`-26.99` vs `-36.99` del canal 0). El parser agrupa por
+  el par `(índice de canal físico, momento)`, no solo por momento (a
+  diferencia de NEXRAD L2), para no perder esa calibración distinta.
+- `.obs` no da ángulos por rayo ni rango al primer gate: solo un par
+  `start_az`/`finish_az` y un `sectorCount` por PPI. En los 4 fixtures
+  siempre es `start=0, finish=360, sectorCount=360` (1°/sector exacto), así
+  que el parser subdivide uniformemente ese rango — no es un dato
+  inventado, pero tampoco literal por-rayo; revisar si aparece algún
+  fixture con sector parcial. `rangeToFirstGateM` se asume 0 (no hay campo
+  para esto en el contenedor).
+- Medidas soportadas: solo `unDBZ` (byte-80), `unMS`→`V` y `unSW`→`W`
+  (ambas `(byte-128)/2`) — las únicas ejercitadas por fixtures reales.
+  `unDB` (necesita la corrección `dB2dBZ()` con rango, nunca vista en
+  datos reales) y el resto (`ZDR`/`uPhiDP`/`RhoHV`/`KDP`/...) lanzan error
+  en vez de adivinar una fórmula. El propio `Obs_Parser.py` invierte el
+  signo de `unMS` con un comentario `# TODO speed sign correction` del
+  autor original — no se replica esa inversión aquí por ser una duda del
+  propio autor, no una convención confirmada.
+- `wave_length` es un código (`dWaveLength` en `Obs_Parser.py`:
+  `0=wl3cm, 1=wl10cm, 2=wl5cm`), no metros directos — el parser traduce el
+  código, no asume que el byte crudo ya está en metros.
+
 ## Fuera de alcance de parsing (por ahora)
 
 - NMEA/ATTEX (Rusia) — tracking de avión, es P4.

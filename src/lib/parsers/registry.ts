@@ -17,5 +17,12 @@ export const PARSER_DESCRIPTORS: readonly ParserDescriptor[] = [
 		canParse: (input) =>
 			hasExtension(input.fileName, '.ar2', '.ar2.bz2', '.gz') || isGzipMagic(input.bytes),
 		load: () => import('./nexrad-l2').then((m) => m.nexradL2Parser)
+	},
+	{
+		id: 'insmet',
+		label: 'Vesta observation container (.obs)',
+		canParse: (input) =>
+			hasExtension(input.fileName, '.obs') || startsWithAscii(input.bytes, 'Vesta Observation'),
+		load: () => import('./insmet').then((m) => m.insmetParser)
 	}
 ];

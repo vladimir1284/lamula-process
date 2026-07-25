@@ -27,6 +27,14 @@ describe('detectParsers', () => {
 		expect(detectParsers(input).map((d) => d.id)).toEqual(['nexrad-l2']);
 	});
 
+	it('picks insmet for a real .obs fixture by extension and content', () => {
+		const input = {
+			fileName: 'insmet/c02y1830.obs',
+			bytes: readFixture('insmet/c02y1830.obs')
+		};
+		expect(detectParsers(input).map((d) => d.id)).toEqual(['insmet']);
+	});
+
 	it('matches nothing for an unrelated extension/content', () => {
 		const input = { fileName: 'notes.txt', bytes: new TextEncoder().encode('hello') };
 		expect(detectParsers(input)).toEqual([]);
@@ -47,6 +55,16 @@ describe('parseObservation', () => {
 		const obs = await parseObservation(input);
 		expect(obs.site.code).toBe('HNS');
 		expect(obs.movements[0].channels[0].moment).toBe('dBZ');
+	});
+
+	it('routes a real .obs fixture through to a decoded Observation', async () => {
+		const input = {
+			fileName: 'insmet/c02y1830.obs',
+			bytes: readFixture('insmet/c02y1830.obs')
+		};
+		const obs = await parseObservation(input);
+		expect(obs.site.code).toBe('rdCamaguey1');
+		expect(obs.movements[0].channels.some((c) => c.moment === 'dBZ')).toBe(true);
 	});
 
 	it('routes a real nexrad-l2 fixture through to a decoded Observation', async () => {

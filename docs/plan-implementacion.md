@@ -78,9 +78,17 @@ flowchart TD
       valores físicos + flags, no bytes crudos); el caller decide cómo derivarlo del primer stop
       de la paleta si quiere paridad exacta con el original. Preserva un off-by-one real del
       original en `suppressClutter` (`for N:=1 to count-1` nunca toca la última celda del array
-      plano). Cargar un `Template<design>.OBS` real de verdad requiere un lector `.obs`, que sigue
-      fuera de alcance de P0 (formatos: Rainbow5 + NEXRAD L2 nada más) — esta pieza es solo el
-      primitivo de enmascarado, probado con máscaras sintéticas, no contra un template real.
+      plano). Cargar un `Template<design>.OBS` real ahora sí es posible con el parser `.obs` (ver
+      más abajo), pero esta pieza en sí sigue siendo solo el primitivo de enmascarado, probado
+      con máscaras sintéticas — falta conectarla a un template real cargado por ese parser.
+- [x] Parser `.obs` (Vesta/INSMET) completo (`src/lib/parsers/insmet/`), agregado después del
+      cierre inicial de P0 al descubrirse que abrir un `.obs` real fallaba con "No parser recognizes
+      file": el formato estaba documentado y verificado (`docs/formatos.md`) pero nunca conectado al
+      registry. Agrupa Scans por `(canal físico, momento)` en vez de solo por momento — un mismo
+      momento (`dBZ`) puede venir de dos canales físicos distintos con calibración propia en cortes
+      batch/split-cut. `Scan.numGates` se deriva de `unpacked_size/sectorCount`, no del
+      `number_of_cells` del channel desc (verificado no confiable para el canal de velocidad/ancho
+      espectral). Verificado end-to-end contra los 4 fixtures reales de Camagüey.
 - [x] Shell app: abrir archivo, config persistente (`src/lib/platform/`, wired into
       `src/routes/+page.svelte`). Web path completo y probado (`happy-dom`): File System Access
       API con fallback a `<input type=file>`, config (`recentFiles`, MRU de 10) en `localStorage`.
