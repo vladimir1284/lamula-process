@@ -65,7 +65,13 @@ flowchart TD
       opcionales en el modelo: el stream de mensaje-31 no trae esos datos (viven en un bloque de
       constantes de volumen — `RVOL` — que este parser todavía no decodifica, layout no
       verificado).
-- [ ] Paletas `.pal` + escalas (import, valor→color).
+- [x] Paletas `.pal` + escalas (`src/lib/palette/`): a diferencia de los parsers de formato crudo,
+      acá sí sobrevivió el código Delphi original (`legacy/Units/Scale.pas`, `TScale.Load`/
+      `GetIndex`/`GetValueColor`) — puerto literal, no reconstrucción por bytes. Lookup es
+      *step function* (umbral más cercano por arriba), no gradiente, aunque el header trae un
+      segundo campo ("look") que en el original tampoco se usa para eso. Probado contra los 11
+      `.pal` reales de `legacy/Palettes/` (ISO-8859-1, captions multi-palabra tipo "medio alto"
+      preservadas).
 - [ ] Filtro speckler + supresión de clutter vía template.
 - [ ] Shell app: abrir archivo, config persistente.
 
