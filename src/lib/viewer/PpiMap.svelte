@@ -1,0 +1,118 @@
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import Map from 'ol/Map';
+	import View from 'ol/View';
+	import ImageLayer from 'ol/layer/Image';
+	import Static from 'ol/source/ImageStatic';
+	import VectorLayer from 'ol/layer/Vector';
+	import VectorSource from 'ol/source/Vector';
+	import type BaseLayer from 'ol/layer/Base';
+	import 'ol/ol.css';
+
+	import type { Scan } from '$lib/domain/types';
+	import type { Palette } from '$lib/palette/types';
+	import { PpiRenderer } from '$lib/render/renderClient';
+	import { buildAzimuthLUT, maxGroundRangeM } from '$lib/render/scanSample';
+	import { siteExtent3857, siteCenter3857, mercatorScaleAtLat } from '$lib/geo/extent';
+	import { rasterToDataURL } from './radarImage';
+	import { ringFeatures, ringStyle, defaultRingsM } from './rings';
+	import { readoutAt, type Readout } from './readout';
+
+	interface Props {
+		scan: Scan;
+		palette: Palette;
+		/** Radar site position; required to georeference. */
+		site: { lon: number; lat: number };
+		/** Output raster resolution in px (square). Default 1024. */
+		sizePx?: number;
+		/** Extra OpenLayers layers (e.g. geo overlays) drawn above the radar image. */
+		extraLayers?: BaseLayer[];
+		/** Called on every pointer move with the current readout. */
+		onreadout?: (r: Readout | null) => void;
+	}
+
+	let { scan, palette, site, sizePx = 1024, extraLayers = [], onreadout }: Props = $props();
+
+	let mapEl: HTMLDivElement;
+	let map: Map | undefined;
+	let radarLayer: ImageLayer<Static> | undefined;
+	let ringsLayer: VectorLayer<VectorSource> | undefined;
+	let extraGroup: BaseLayer[] = [];
+	const renderer = new PpiRenderer();
+	let renderToken = 0;
+
+	function siteXY(): [number, number] {
+		return siteCenter3857(site.lon, site.lat);
+	}
+	function scale(): number {
+		return mercatorScaleAtLat(site.lat);
+	}
+
+	onMount(() => {
+		radarLayer = new ImageLayer<Static>();
+		ringsLayer = new VectorLayer({ source: new VectorSource(), style: ringStyle });
+		map = new Map({
+			target: mapEl,
+			layers: [radarLayer, ringsLayer, ...extraLayers],
+			view: new View({ center: siteXY(), zoom: 8 })
+		});
+		extraGroup = extraLayers;
+
+		map.on('pointermove', (ev) => {
+			if (!onreadout) return;
+			const lut = buildAzimuthLUT(scan);
+			onreadout(readoutAt(ev.coordinate as [number, number], siteXY(), scale(), scan, lut));
+		});
+	});
+
+	onDestroy(() => {
+		renderer.terminate();
+		map?.setTarget(undefined);
+	});
+
+	// Re-render the radar image whenever the scan, palette, site, or resolution changes.
+	$effect(() => {
+		// track dependencies
+		const s = scan;
+		const p = palette;
+		const px = sizePx;
+		const _site = site;
+		if (!map || !radarLayer) return;
+
+		const token = ++renderToken;
+		const maxRangeM = maxGroundRangeM(s);
+		renderer.render(s, p, { sizePx: px }).then((result) => {
+			if (token !== renderToken || !radarLayer) return; // superseded
+			const extent = siteExtent3857(_site.lon, _site.lat, maxRangeM);
+			radarLayer.setSource(
+				new Static({ url: rasterToDataURL(result), imageExtent: extent, interpolate: false })
+			);
+
+			// refresh range rings for this extent
+			if (ringsLayer) {
+				const src = ringsLayer.getSource()!;
+				src.clear();
+				src.addFeatures(
+					ringFeatures({
+						center3857: siteXY(),
+						ringsM: defaultRingsM(maxRangeM),
+						mercatorScale: scale()
+					})
+				);
+			}
+
+			// centre + frame the radar on first render
+			map!.getView().fit(extent, { padding: [20, 20, 20, 20] });
+		});
+	});
+
+	// Keep the map's extra layers in sync if the prop changes.
+	$effect(() => {
+		if (!map) return;
+		for (const l of extraGroup) map.removeLayer(l);
+		for (const l of extraLayers) map.addLayer(l);
+		extraGroup = extraLayers;
+	});
+</script>
+
+<div bind:this={mapEl} class="h-full w-full"></div>

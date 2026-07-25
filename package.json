@@ -41,6 +41,9 @@
 		"vitest": "^4.1.8"
 	},
 	"dependencies": {
-		"@tauri-apps/api": "2.11.1"
+		"@tauri-apps/api": "2.11.1",
+		"@xstate/svelte": "^5.0.0",
+		"ol": "10.9.0",
+		"xstate": "5.32.5"
 	}
 }

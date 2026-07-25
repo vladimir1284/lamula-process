@@ -101,7 +101,77 @@ flowchart TD
 
 ## Fase 2 — P1 (visor core)
 
-Pendiente.
+Código P1 completo (2026-07-25, automode) — 150 tests verdes, typecheck/lint limpios,
+`pnpm build` estático OK. **Falta QA visual** (ver más abajo). Solo target **web** (Tauri
+diferido, ver memoria `project-web-only-focus`). Decisiones fijadas con el usuario antes de
+arrancar:
+
+1. **Arquitectura de render:** raster georreferenciado sobre OpenLayers. El scan polar se
+   remuestrea a `ImageData` (en Web Worker) y se coloca como capa de imagen de OL en el
+   `extent` derivado de `site lat/lon` + rango. Las capas geo (costas/ríos/fronteras) son
+   capas vectoriales nativas de OL encima. (No canvas standalone, no WebGL por ahora.)
+   Nota: NEXRAD L2 no trae `site lat/lon` hasta decodificar `RVOL` — Rainbow5/`.obs` sí.
+2. **RHI:** sin fixture real (los 3 parsers solo traen volumen PPI; Rainbow5 RHI lanza
+   error). Se construye geometría + visor contra un scan **sintético** hecho a mano;
+   cableado a datos reales cuando aparezca un fixture o llegue el corte reconstruido de P2.
+3. **Editor de escala:** completo — CRUD de stops + color pickers, re-render en vivo,
+   export a `.pal` (ISO-8859-1 / CRLF).
+4. **Estrategia automode:** ir en ancho. Toda la matemática (geometría/remuestreo/
+   interpolación/altura de haz) con tests unitarios + build estático verde; la QA visual
+   (píxeles) queda para revisión manual del usuario — este sandbox no tiene navegador
+   interactivo.
+
+**Oráculos de geometría legacy** (ya leídos, portar 1:1):
+
+- Altura de haz: modelo tierra 4/3 (ley de cosenos) en `legacy/Units/HeightTable.pas`
+  (`Re=6378.160`, `RefIndex=4/3`, `Rref=RefIndex*Re`, `Ralt=Rref+alt`,
+  `height = sqrt(Ralt² + Rpln² − 2·Ralt·Rpln·cos(π/2+elev)) − Rref`; min/max con ±haz/2).
+- Rango en tierra = rango oblicuo · cos(elevación).
+- CAPPI: promedio de losa a altura constante entre elevaciones
+  (`legacy/Units/CAPPIScan.pas` — acumular celdas cuya altura de haz ∈ [bottom,top] en una
+  matriz cartesiana de rango-en-tierra, luego promediar por conteo).
+- PPI/remuestreo polar→cartesiano: `legacy/Units/Grid.pas` (`TScanGrid.RenderScan`), leer al
+  implementar.
+
+**Orden de construcción** (tasks P1.0–P1.8) — todo hecho:
+
+- [x] **P1.0** Instalado `ol@10.9.0`, `xstate@5.32.5` + `@xstate/svelte@5`. **shadcn-svelte
+      NO instalado**: su init es interactivo/con red; la UI P1 usa Tailwind plano. El pin en
+      `stack.md` sigue válido para retomar shadcn después.
+- [x] **P1.1** `src/lib/geo/`: `height.ts` (altura de haz 4/3), `groundRange.ts`, `extent.ts`
+      (`site lat/lon`+rango → extent EPSG:3857 con corrección `1/cos(lat)`). Oráculo numérico
+      independiente en los tests.
+- [x] **P1.2** `src/lib/render/`: `scanSample.ts` (muestreo **inverso** pantalla→polar,
+      no el scatter-average del legacy — documentado), `rasterizePPI.ts`, worker
+      (`ppi.worker.ts` + `renderClient.ts` con fallback síncrono).
+- [x] **P1.3** `src/lib/viewer/PpiMap.svelte`: capa `ImageStatic` georreferenciada, anillos
+      (`rings.ts`), lectura azimut/rango/valor (`readout.ts`, puro y testeado).
+- [x] **P1.4** `src/lib/overlays/geoLayer.ts` + datos **vendorizados** en `static/geo/`
+      (Natural Earth 1:50m recortado a Cuba+Centroamérica, 209 KB; ver
+      `scratchpad/fetch-geo.mjs`). Brecha de datos resuelta.
+- [x] **P1.5** `src/lib/products/cappi.ts` (+ `measure.ts` para promedio en Z lineal).
+      Selector base/tope km en la UI.
+- [x] **P1.6** `src/lib/render/rasterizeRHI.ts` + `rhiFixtures.ts`, panel
+      `src/lib/viewer/RhiPanel.svelte` (canvas standalone, ejes). Solo datos sintéticos.
+- [x] **P1.7** `src/lib/palette/{edit,serialize,default}.ts` + `viewer/ScaleEditor.svelte`.
+      Export `.pal` round-trip verificado contra `parsePalette`.
+- [x] **P1.8** `src/lib/pipeline/{observationMachine,select}.ts` (XState) cableado en
+      `src/routes/+page.svelte` con selectores producto/canal/elevación/altitud.
+
+**Brechas/riesgos a revisar (revisión de mañana):**
+
+- **QA visual pendiente** — lo más importante. Render de PPI/CAPPI/RHI probado solo por
+  matemática unitaria + build; nadie vio píxeles. Abrir un `.obs`/`.vol` real en el navegador
+  (`pnpm dev`) y confirmar: orientación (N arriba), escala de rango contra los anillos,
+  colores contra la paleta, y el readout del mouse. El worker (`ppi.worker.ts`) no se ejecutó
+  headless — verificar que el `new Worker(new URL(...))` resuelve en el build de Vite.
+- **shadcn-svelte** sin instalar (ver P1.0) — decisión pragmática, no bloqueante.
+- NEXRAD L2 sin `site lat/lon` → su PPI/CAPPI muestra un aviso "no georreferenciable" hasta
+  decodificar `RVOL`; Rainbow5/`.obs` funcionan.
+- Componentes Svelte+OL sin tests de componente (frágiles headless); se cubrió toda la lógica
+  extraíble en módulos puros testeados (`readout`, `scanSample`, `rasterize*`, `cappi`,
+  `select`, `serialize/edit`, la máquina XState con actores mock).
+- **Sin commits** (regla: solo commitear a pedido). Todo el trabajo está en el working tree.
 
 ## Fase 3 — P2 (productos derivados)
 

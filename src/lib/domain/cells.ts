@@ -9,6 +9,16 @@ export function cellFlagCode(flag: CellFlag): number {
 	return CELL_FLAGS.indexOf(flag);
 }
 
+// Reverse of cellFlagCode: numeric code -> flag string (e.g. for readouts). The 'ok' code is 0,
+// which renderers compare against directly rather than stringifying every cell.
+export function cellFlagFromCode(code: number): CellFlag {
+	return CELL_FLAGS[code];
+}
+
+// Numeric codes hoisted for hot rasterizer loops (must match CELL_FLAGS order above).
+export const CELL_FLAG_OK = 0;
+export const CELL_FLAG_BELOW_THRESHOLD = 2;
+
 export function createCells(numRays: number, numGates: number): Cells {
 	return {
 		numRays,
