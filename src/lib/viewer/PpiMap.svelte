@@ -7,6 +7,11 @@
 	import Static from 'ol/source/ImageStatic';
 	import VectorLayer from 'ol/layer/Vector';
 	import VectorSource from 'ol/source/Vector';
+	import Draw from 'ol/interaction/Draw';
+	import type LineString from 'ol/geom/LineString';
+	import Feature from 'ol/Feature';
+	import Point from 'ol/geom/Point';
+	import { Style, Stroke, Circle as CircleStyle, Fill, Text } from 'ol/style';
 	import type BaseLayer from 'ol/layer/Base';
 	import 'ol/ol.css';
 
@@ -14,6 +19,7 @@
 
 	import type { Scan } from '$lib/domain/types';
 	import type { Palette } from '$lib/palette/types';
+	import type { CutLine } from '$lib/products/crossSection';
 	import { PpiRenderer } from '$lib/render/renderClient';
 	import { buildAzimuthLUT, maxGroundRangeM } from '$lib/render/scanSample';
 	import { siteExtent3857, siteCenter3857, mercatorScaleAtLat } from '$lib/geo/extent';
@@ -36,6 +42,10 @@
 		dataOpacity?: number;
 		/** Called on every pointer move with the current readout. */
 		onreadout?: (r: Readout | null) => void;
+		/** When true, a two-point line-draw interaction is active on the map. */
+		drawEnabled?: boolean;
+		/** Called with the drawn line converted to site-relative ground metres. */
+		onCutLine?: (line: CutLine) => void;
 	}
 
 	let {
@@ -46,7 +56,9 @@
 		extraLayers = [],
 		baseMap = 'off',
 		dataOpacity = 1,
-		onreadout
+		onreadout,
+		drawEnabled = false,
+		onCutLine
 	}: Props = $props();
 
 	let mapEl: HTMLDivElement;
@@ -55,9 +67,37 @@
 	let labelsLayer: TileLayer | undefined;
 	let radarLayer: ImageLayer<Static> | undefined;
 	let ringsLayer: VectorLayer<VectorSource> | undefined;
+	let drawLayer: VectorLayer<VectorSource> | undefined;
+	let draw: Draw | undefined;
 	let extraGroup: BaseLayer[] = [];
 	const renderer = new PpiRenderer();
 	let renderToken = 0;
+
+	// Endpoint colors match CrossSectionPanel's A/B markers so the same cut reads consistently
+	// across the map and the vertical-section canvas.
+	const CUT_START_COLOR = '#22c55e';
+	const CUT_END_COLOR = '#ef4444';
+
+	const drawStyle = new Style({
+		stroke: new Stroke({ color: '#00f0ff', width: 2 })
+	});
+
+	function endpointStyle(label: string, color: string): Style {
+		return new Style({
+			image: new CircleStyle({
+				radius: 6,
+				fill: new Fill({ color }),
+				stroke: new Stroke({ color: '#0b0f14', width: 2 })
+			}),
+			text: new Text({
+				text: label,
+				offsetY: -14,
+				font: 'bold 12px monospace',
+				fill: new Fill({ color }),
+				stroke: new Stroke({ color: '#0b0f14', width: 3 })
+			})
+		});
+	}
 
 	function siteXY(): [number, number] {
 		return siteCenter3857(site.lon, site.lat);
@@ -79,10 +119,11 @@
 		labelsLayer = new TileLayer({ zIndex: 15 });
 		radarLayer = new ImageLayer<Static>({ zIndex: 10, opacity: dataOpacity });
 		ringsLayer = new VectorLayer({ source: new VectorSource(), style: ringStyle, zIndex: 20 });
+		drawLayer = new VectorLayer({ source: new VectorSource(), style: drawStyle, zIndex: 22 });
 		for (const l of extraLayers) l.setZIndex(25);
 		map = new Map({
 			target: mapEl,
-			layers: [baseLayer, labelsLayer, radarLayer, ringsLayer, ...extraLayers],
+			layers: [baseLayer, labelsLayer, radarLayer, ringsLayer, drawLayer, ...extraLayers],
 			view: new View({ center: siteXY(), zoom: 8 })
 		});
 		applyBaseMap(baseMap);
@@ -146,6 +187,48 @@
 	// Track the radar (data) layer opacity.
 	$effect(() => {
 		radarLayer?.setOpacity(dataOpacity);
+	});
+
+	// Two-point line-draw interaction for the free-hand cross-section tool. Only one interaction
+	// lives at a time; re-created whenever drawEnabled toggles so a stale one never lingers.
+	$effect(() => {
+		const enabled = drawEnabled;
+		if (!map || !drawLayer) return;
+		if (draw) {
+			map.removeInteraction(draw);
+			draw = undefined;
+		}
+		if (!enabled) return;
+		const source = drawLayer.getSource()!;
+		const interaction = new Draw({ source, type: 'LineString', minPoints: 2, maxPoints: 2 });
+		interaction.on('drawstart', () => source.clear());
+		interaction.on('drawend', (ev) => {
+			const coords = (ev.feature.getGeometry() as LineString).getCoordinates();
+			const start = coords[0];
+			const end = coords[coords.length - 1];
+
+			// Mark the two endpoints so the cut's direction (A → B) is unambiguous on the map --
+			// same A/green, B/red convention as the cross-section canvas.
+			const startFeature = new Feature(new Point(start));
+			startFeature.setStyle(endpointStyle('A', CUT_START_COLOR));
+			const endFeature = new Feature(new Point(end));
+			endFeature.setStyle(endpointStyle('B', CUT_END_COLOR));
+			source.addFeatures([startFeature, endFeature]);
+
+			if (!onCutLine) return;
+			const [x0, y0] = start;
+			const [x1, y1] = end;
+			const s3857 = siteXY();
+			const sc = scale();
+			onCutLine({
+				ax: (x0 - s3857[0]) / sc,
+				ay: (y0 - s3857[1]) / sc,
+				bx: (x1 - s3857[0]) / sc,
+				by: (y1 - s3857[1]) / sc
+			});
+		});
+		map.addInteraction(interaction);
+		draw = interaction;
 	});
 
 	// Keep the map's extra layers in sync if the prop changes.

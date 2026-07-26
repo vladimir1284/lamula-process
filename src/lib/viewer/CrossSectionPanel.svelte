@@ -9,7 +9,7 @@
 		type CrossSample
 	} from '$lib/products/crossSection';
 
-	interface Readout {
+	export interface CrossSectionReadout {
 		distanceM: number;
 		heightM: number;
 		sample: CrossSample | null;
@@ -23,10 +23,23 @@
 		line: CutLine;
 		/** Max height shown (m). Default 18 km. */
 		maxHeightM?: number;
-		onreadout?: (r: Readout | null) => void;
+		/** Draw the A (start) / B (end) endpoint markers -- matches PpiMap's cut-line markers. */
+		markEndpoints?: boolean;
+		onreadout?: (r: CrossSectionReadout | null) => void;
 	}
 
-	let { scans, palette, line, maxHeightM = 18_000, onreadout }: Props = $props();
+	let {
+		scans,
+		palette,
+		line,
+		maxHeightM = 18_000,
+		markEndpoints = false,
+		onreadout
+	}: Props = $props();
+
+	// Same A/green, B/red convention as PpiMap's cut-line endpoint markers.
+	const START_COLOR = '#22c55e';
+	const END_COLOR = '#ef4444';
 
 	let canvas: HTMLCanvasElement | undefined = $state();
 	const PAD = { left: 48, bottom: 28, top: 8, right: 8 };
@@ -76,6 +89,23 @@
 		for (let m = 0; m <= maxHeightM + 1; m += 3_000) {
 			const y = PAD.top + PLOT_H - (m / maxHeightM) * PLOT_H;
 			ctx.fillText(`${Math.round(m / 1000)}`, 4, y + 3);
+		}
+
+		if (markEndpoints) {
+			const drawEndpoint = (x: number, label: string, color: string) => {
+				ctx.beginPath();
+				ctx.arc(x, PAD.top, 5, 0, Math.PI * 2);
+				ctx.fillStyle = color;
+				ctx.fill();
+				ctx.strokeStyle = '#0b0f14';
+				ctx.lineWidth = 1.5;
+				ctx.stroke();
+				ctx.font = 'bold 11px monospace';
+				ctx.fillStyle = color;
+				ctx.fillText(label, x - 3, PAD.top - 8);
+			};
+			drawEndpoint(PAD.left, 'A', START_COLOR);
+			drawEndpoint(PAD.left + PLOT_W, 'B', END_COLOR);
 		}
 	});
 
