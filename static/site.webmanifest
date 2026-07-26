@@ -1,0 +1,27 @@
+{
+  "name": "LAMULA Process",
+  "short_name": "LAMULA",
+  "description": "Procesamiento y visualización de radar meteorológico (NEXRAD Level II, Rainbow5, Vesta .obs)",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "theme_color": "#0b0e11",
+  "background_color": "#0b0e11",
+  "display": "standalone",
+  "orientation": "any",
+  "start_url": "/"
+}

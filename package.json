@@ -5,8 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build:assets": "node scripts/build-assets.mjs",
+		"build": "node scripts/build-assets.mjs && vite build",
 		"preview": "vite preview",
+		"postinstall": "node scripts/build-assets.mjs",
 		"prepare": "svelte-kit sync || echo '' && husky",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
