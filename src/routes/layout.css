@@ -81,6 +81,12 @@ html {
 	color: var(--color-on-primary-container);
 }
 
+/* Native <select> popups render with OS light chrome by default, which
+   clashes with the near-white on-surface text used on closed controls. */
+select {
+	color-scheme: dark;
+}
+
 /* ── Component utilities ───────────────────────────────────────────────────── */
 .material-symbols-outlined {
 	font-variation-settings:
