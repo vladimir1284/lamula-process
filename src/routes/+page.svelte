@@ -657,15 +657,17 @@
 									>my_location</span
 								> Visor · {productTitle}</span
 							>
-							<ScaleLegend {palette} />
-							<button
-								class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
-								onclick={() => (showScaleEditor = true)}
-								aria-label="Editar escala"
-								title="Editar escala"
-							>
-								<span class="material-symbols-outlined text-[16px]">palette</span>
-							</button>
+							<div class="ml-auto flex items-center gap-2">
+								<ScaleLegend {palette} />
+								<button
+									class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+									onclick={() => (showScaleEditor = true)}
+									aria-label="Editar escala"
+									title="Editar escala"
+								>
+									<span class="material-symbols-outlined text-[16px]">palette</span>
+								</button>
+							</div>
 						</div>
 
 						<div class="relative h-[620px] overflow-auto bg-black">

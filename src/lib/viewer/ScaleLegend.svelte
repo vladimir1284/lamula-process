@@ -30,7 +30,7 @@
 				></div>
 			{/each}
 		</div>
-		<div class="flex font-mono text-[8px] leading-tight text-on-surface-variant tabular-nums">
+		<div class="flex font-mono text-[10px] leading-tight text-on-surface-variant tabular-nums">
 			{#each stops as stop, i (i)}
 				<span class="flex-1 text-center">
 					{i === 0 || i === stops.length - 1 || i % Math.ceil(stops.length / 6) === 0
