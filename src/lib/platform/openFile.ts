@@ -5,7 +5,7 @@ export interface OpenedFile {
 	bytes: Uint8Array;
 }
 
-const ACCEPTED_EXTENSIONS = ['.vol', '.gz', '.ar2', '.obs'];
+const ACCEPTED_EXTENSIONS = ['.vol', '.gz', '.ar2', '.ar2.bz2', '.obs'];
 
 // Tauri desktop file access (@tauri-apps/plugin-dialog + plugin-fs) isn't wired up yet -- no Rust
 // toolchain is available in this sandbox to build/verify the plugin registration, see
@@ -55,7 +55,10 @@ function openViaInputElement(): Promise<OpenedFile | null> {
 	return new Promise((resolve, reject) => {
 		const input = document.createElement('input');
 		input.type = 'file';
-		input.accept = ACCEPTED_EXTENSIONS.join(',');
+		// No `accept` filter: real NEXRAD Level II archives pulled from NOAA/AWS ship with no
+		// extension at all (e.g. "KBYX20260726_113948_V06"), so an extension allowlist would grey
+		// them out in this fallback picker. Content sniffing in registry.ts's canParse is the real
+		// gate; ACCEPTED_EXTENSIONS above only hints the File System Access API picker.
 		input.addEventListener('change', () => {
 			const file = input.files?.[0];
 			if (!file) {
