@@ -25,7 +25,9 @@
 	import { siteExtent3857, siteCenter3857, mercatorScaleAtLat } from '$lib/geo/extent';
 	import { rasterToDataURL } from './radarImage';
 	import { ringFeatures, ringStyle, defaultRingsM } from './rings';
+	import { radialFeatures, radialStyle } from './radials';
 	import { readoutAt, type Readout } from './readout';
+	import type { UnitSystem } from '$lib/units';
 
 	interface Props {
 		scan: Scan;
@@ -46,6 +48,12 @@
 		drawEnabled?: boolean;
 		/** Called with the drawn line converted to site-relative ground metres. */
 		onCutLine?: (line: CutLine) => void;
+		/** Unit system for range-ring labels. Default metric (km). */
+		unitSystem?: UnitSystem;
+		/** Show distance-from-radar range rings. Default true. */
+		showRings?: boolean;
+		/** Show azimuth radial marks. Default true. */
+		showRadials?: boolean;
 	}
 
 	let {
@@ -58,7 +66,10 @@
 		dataOpacity = 1,
 		onreadout,
 		drawEnabled = false,
-		onCutLine
+		onCutLine,
+		unitSystem = 'metric',
+		showRings = true,
+		showRadials = false
 	}: Props = $props();
 
 	let mapEl: HTMLDivElement;
@@ -67,6 +78,7 @@
 	let labelsLayer: TileLayer | undefined;
 	let radarLayer: ImageLayer<Static> | undefined;
 	let ringsLayer: VectorLayer<VectorSource> | undefined;
+	let radialsLayer: VectorLayer<VectorSource> | undefined;
 	let drawLayer: VectorLayer<VectorSource> | undefined;
 	let draw: Draw | undefined;
 	let extraGroup: BaseLayer[] = [];
@@ -114,16 +126,36 @@
 	}
 
 	onMount(() => {
-		// Ordering via zIndex: base(0) → radar(10) → CARTO names(15) → rings(20) → overlays(25).
+		// Ordering via zIndex: base(0) → radar(10) → CARTO names(15) → rings(20) → radials(21) →
+		// overlays(25).
 		baseLayer = new TileLayer({ zIndex: 0 });
 		labelsLayer = new TileLayer({ zIndex: 15 });
 		radarLayer = new ImageLayer<Static>({ zIndex: 10, opacity: dataOpacity });
-		ringsLayer = new VectorLayer({ source: new VectorSource(), style: ringStyle, zIndex: 20 });
+		ringsLayer = new VectorLayer({
+			source: new VectorSource(),
+			style: ringStyle,
+			zIndex: 20,
+			visible: showRings
+		});
+		radialsLayer = new VectorLayer({
+			source: new VectorSource(),
+			style: radialStyle,
+			zIndex: 21,
+			visible: showRadials
+		});
 		drawLayer = new VectorLayer({ source: new VectorSource(), style: drawStyle, zIndex: 22 });
 		for (const l of extraLayers) l.setZIndex(25);
 		map = new Map({
 			target: mapEl,
-			layers: [baseLayer, labelsLayer, radarLayer, ringsLayer, drawLayer, ...extraLayers],
+			layers: [
+				baseLayer,
+				labelsLayer,
+				radarLayer,
+				ringsLayer,
+				radialsLayer,
+				drawLayer,
+				...extraLayers
+			],
 			view: new View({ center: siteXY(), zoom: 8 })
 		});
 		applyBaseMap(baseMap);
@@ -173,6 +205,20 @@
 					ringFeatures({
 						center3857: siteXY(),
 						ringsM: defaultRingsM(maxRangeM),
+						mercatorScale: scale(),
+						unitSystem
+					})
+				);
+			}
+
+			// refresh azimuth radials for this extent
+			if (radialsLayer) {
+				const src = radialsLayer.getSource()!;
+				src.clear();
+				src.addFeatures(
+					radialFeatures({
+						center3857: siteXY(),
+						rangeM: maxRangeM,
 						mercatorScale: scale()
 					})
 				);
@@ -191,6 +237,14 @@
 	// Track the radar (data) layer opacity.
 	$effect(() => {
 		radarLayer?.setOpacity(dataOpacity);
+	});
+
+	// Toggle range-ring / azimuth-radial overlay visibility.
+	$effect(() => {
+		ringsLayer?.setVisible(showRings);
+	});
+	$effect(() => {
+		radialsLayer?.setVisible(showRadials);
 	});
 
 	// Two-point line-draw interaction for the free-hand cross-section tool. Only one interaction

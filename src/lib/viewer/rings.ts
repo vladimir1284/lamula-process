@@ -3,6 +3,7 @@ import type { FeatureLike } from 'ol/Feature';
 import CircleGeom from 'ol/geom/Circle';
 import Point from 'ol/geom/Point';
 import { Style, Stroke, Text, Fill } from 'ol/style';
+import { formatDistanceM, type UnitSystem } from '$lib/units';
 
 /**
  * Range-ring features for the PPI overlay. Rings are drawn in the map projection (EPSG:3857)
@@ -18,10 +19,13 @@ export interface RingOptions {
 	mercatorScale: number;
 	/** Label each ring in km. Default true. */
 	labels?: boolean;
+	/** Unit system for the ring label text. Default metric (km). */
+	unitSystem?: UnitSystem;
 }
 
 export function ringFeatures(opts: RingOptions): Feature[] {
 	const feats: Feature[] = [];
+	const system = opts.unitSystem ?? 'metric';
 	for (const m of opts.ringsM) {
 		const radius = m * opts.mercatorScale;
 		const ring = new Feature(new CircleGeom(opts.center3857, radius));
@@ -31,7 +35,7 @@ export function ringFeatures(opts: RingOptions): Feature[] {
 			// place a label at the ring's north point
 			const label = new Feature(new Point([opts.center3857[0], opts.center3857[1] + radius]));
 			label.set('kind', 'ring-label');
-			label.set('text', `${Math.round(m / 1000)} km`);
+			label.set('text', formatDistanceM(m, system, 0));
 			feats.push(label);
 		}
 	}

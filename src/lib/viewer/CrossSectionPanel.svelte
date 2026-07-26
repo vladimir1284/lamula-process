@@ -8,6 +8,7 @@
 		type CutLine,
 		type CrossSample
 	} from '$lib/products/crossSection';
+	import { distanceUnitLabel, toDisplayDistanceM, type UnitSystem } from '$lib/units';
 
 	export interface CrossSectionReadout {
 		distanceM: number;
@@ -25,6 +26,8 @@
 		maxHeightM?: number;
 		/** Draw the A (start) / B (end) endpoint markers -- matches PpiMap's cut-line markers. */
 		markEndpoints?: boolean;
+		/** Unit system for the distance axis. Default metric (km). */
+		unitSystem?: UnitSystem;
 		onreadout?: (r: CrossSectionReadout | null) => void;
 	}
 
@@ -34,6 +37,7 @@
 		line,
 		maxHeightM = 18_000,
 		markEndpoints = false,
+		unitSystem = 'metric',
 		onreadout
 	}: Props = $props();
 
@@ -82,9 +86,13 @@
 		// x ticks every 50 km along the cut
 		for (let m = 0; m <= lineLengthM + 1; m += 50_000) {
 			const x = PAD.left + (m / lineLengthM) * PLOT_W;
-			ctx.fillText(`${Math.round(m / 1000)}`, x - 6, PAD.top + PLOT_H + 12);
+			ctx.fillText(
+				`${Math.round(toDisplayDistanceM(m, unitSystem))}`,
+				x - 6,
+				PAD.top + PLOT_H + 12
+			);
 		}
-		ctx.fillText('km', PAD.left + PLOT_W - 4, PAD.top + PLOT_H + 22);
+		ctx.fillText(distanceUnitLabel(unitSystem), PAD.left + PLOT_W - 4, PAD.top + PLOT_H + 22);
 		// y ticks every 3 km
 		for (let m = 0; m <= maxHeightM + 1; m += 3_000) {
 			const y = PAD.top + PLOT_H - (m / maxHeightM) * PLOT_H;

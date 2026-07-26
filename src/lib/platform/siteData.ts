@@ -59,6 +59,13 @@ export async function setSiteLocation(
 	return updated;
 }
 
+export async function deleteSiteLocation(key: string): Promise<SiteDataStore> {
+	const store = await loadSiteData();
+	delete store[key];
+	await saveSiteData(store);
+	return store;
+}
+
 /** Serialize the whole store for a user-triggered download. */
 export function exportSiteData(store: SiteDataStore): string {
 	return JSON.stringify(store, null, 2);

@@ -2,6 +2,7 @@
 	import type { Scan } from '$lib/domain/types';
 	import type { Palette } from '$lib/palette/types';
 	import { rasterizeRHI, rhiReadoutAt, type RhiReadout } from '$lib/render/rasterizeRHI';
+	import { distanceUnitLabel, toDisplayDistanceM, type UnitSystem } from '$lib/units';
 
 	interface Props {
 		scan: Scan;
@@ -10,10 +11,19 @@
 		maxRangeM?: number;
 		/** Max height shown (m). Default 18 km. */
 		maxHeightM?: number;
+		/** Unit system for the ground-range axis. Default metric (km). */
+		unitSystem?: UnitSystem;
 		onreadout?: (r: RhiReadout | null) => void;
 	}
 
-	let { scan, palette, maxRangeM, maxHeightM = 18_000, onreadout }: Props = $props();
+	let {
+		scan,
+		palette,
+		maxRangeM,
+		maxHeightM = 18_000,
+		unitSystem = 'metric',
+		onreadout
+	}: Props = $props();
 
 	let canvas: HTMLCanvasElement | undefined = $state();
 	const PAD = { left: 48, bottom: 28, top: 8, right: 8 };
@@ -61,9 +71,13 @@
 		// x ticks every 50 km
 		for (let m = 0; m <= maxR + 1; m += 50_000) {
 			const x = PAD.left + (m / maxR) * PLOT_W;
-			ctx.fillText(`${Math.round(m / 1000)}`, x - 6, PAD.top + PLOT_H + 12);
+			ctx.fillText(
+				`${Math.round(toDisplayDistanceM(m, unitSystem))}`,
+				x - 6,
+				PAD.top + PLOT_H + 12
+			);
 		}
-		ctx.fillText('km', PAD.left + PLOT_W - 4, PAD.top + PLOT_H + 22);
+		ctx.fillText(distanceUnitLabel(unitSystem), PAD.left + PLOT_W - 4, PAD.top + PLOT_H + 22);
 		// y ticks every 3 km
 		for (let m = 0; m <= maxHeightM + 1; m += 3_000) {
 			const y = PAD.top + PLOT_H - (m / maxHeightM) * PLOT_H;

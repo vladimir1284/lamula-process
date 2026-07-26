@@ -20,6 +20,7 @@
 	import type { Palette, ProductPaletteKey } from '$lib/palette/types';
 	import type { Scan, MomentType } from '$lib/domain/types';
 	import { momentUnit } from '$lib/domain';
+	import { formatDistanceM, formatAltitudeM, formatReading } from '$lib/units';
 	import {
 		PpiMap,
 		RhiPanel,
@@ -45,10 +46,12 @@
 		siteKey,
 		getSiteLocation,
 		setSiteLocation,
+		deleteSiteLocation,
 		loadSiteData,
 		exportSiteData,
 		importSiteData,
 		loadKnownSitesSeed,
+		type SiteDataStore,
 		type PaletteBook,
 		seedPaletteBook,
 		loadPaletteBook,
@@ -57,7 +60,11 @@
 		upsertPalette,
 		assignMomentPalette,
 		exportPaletteBook,
-		importPaletteBook
+		importPaletteBook,
+		type AppSettings,
+		DEFAULT_SETTINGS,
+		loadSettings,
+		saveSettings
 	} from '$lib/platform';
 
 	// Every moment the app can decode, for the settings assignment UI (domain/types.ts MomentType).
@@ -172,13 +179,51 @@
 	let book = $state<PaletteBook>(seedPaletteBook());
 	let readout = $state<Readout | RhiReadout | null>(null);
 	let siteOverride = $state<{ lat: number; lon: number; altM: number } | null>(null);
-	let showLocationEditor = $state(false);
 	let showScaleEditor = $state(false);
 	let showSettings = $state(false);
 	let showAwsExplorer = $state(false);
-	// Background map + radar (data) layer opacity for the PPI viewer.
-	let baseMap = $state<BaseMapId>('carto-dark');
-	let dataOpacity = $state(1);
+
+	// App-wide settings (platform/settingsStore.ts): unit system + default base map, persisted in
+	// localStorage. Seeded synchronously with the defaults so the first paint is consistent; the
+	// stored/edited values load in onMount, same pattern as `book` above.
+	let settings = $state<AppSettings>({ ...DEFAULT_SETTINGS });
+	const unitSystem = $derived(settings.unitSystem);
+	let settingsLoaded = false;
+	async function updateSettings(patch: Partial<AppSettings>) {
+		settings = { ...settings, ...patch };
+		await saveSettings(settings);
+	}
+	// Settings modal: which section is active, and (for "Sitios") which saved site is being
+	// edited -- reusing SiteLocationEditor for both the header's "editar ubicación" shortcut and
+	// the general site-data management, so there's a single settings entry point, not two.
+	let settingsTab = $state<'unidades' | 'sitios' | 'paletas'>('unidades');
+	let editingSiteKey = $state<string | null>(null);
+	let siteList = $state<SiteDataStore>({});
+	async function refreshSiteList() {
+		siteList = await loadSiteData();
+	}
+
+	// Background map + radar (data) layer opacity for the PPI viewer. `baseMap` mirrors
+	// `settings.baseMap` for the <select> binding below, and is persisted back on change.
+	let baseMap = $state<BaseMapId>(DEFAULT_SETTINGS.baseMap);
+	let dataOpacity = $state(0.8);
+	let showRings = $state(DEFAULT_SETTINGS.showRings);
+	let showRadials = $state(DEFAULT_SETTINGS.showRadials);
+	$effect(() => {
+		const bm = baseMap;
+		if (!settingsLoaded) return;
+		void updateSettings({ baseMap: bm });
+	});
+	$effect(() => {
+		const sr = showRings;
+		if (!settingsLoaded) return;
+		void updateSettings({ showRings: sr });
+	});
+	$effect(() => {
+		const sr = showRadials;
+		if (!settingsLoaded) return;
+		void updateSettings({ showRadials: sr });
+	});
 
 	// Refs to the currently-mounted view, for "export image" (only one of these is non-null at a
 	// time, mirroring the {#if}/{:else if} chain that mounts them).
@@ -313,16 +358,28 @@
 		return n === null || n === undefined ? '—' : n.toFixed(digits);
 	}
 
+	// Opens Configuración straight to the "editar ubicación" form for the current file's site
+	// (single settings entry point -- no separate location-editor modal).
 	function openLocationEditor() {
-		showLocationEditor = true;
+		editingSiteKey = observation ? siteKey(observation.site) : null;
+		settingsTab = 'sitios';
+		showSettings = true;
 	}
-	function cancelLocationEditor() {
-		showLocationEditor = false;
+	function cancelSiteEdit() {
+		editingSiteKey = null;
 	}
 	async function saveSiteLocation(loc: { lat: number; lon: number; altM: number }) {
-		siteOverride = loc;
-		showLocationEditor = false;
-		if (observation) await setSiteLocation(siteKey(observation.site), loc);
+		const key = editingSiteKey;
+		editingSiteKey = null;
+		if (!key) return;
+		if (observation && siteKey(observation.site) === key) siteOverride = loc;
+		await setSiteLocation(key, loc);
+		await refreshSiteList();
+	}
+	async function removeSiteLocation(key: string) {
+		if (editingSiteKey === key) editingSiteKey = null;
+		await deleteSiteLocation(key);
+		await refreshSiteList();
 	}
 
 	async function exportSiteDataFile() {
@@ -342,6 +399,7 @@
 		if (!file) return;
 		await importSiteData(await file.text());
 		input.value = '';
+		await refreshSiteList();
 		if (observation && !hasGeoref(observation)) {
 			const loc = await getSiteLocation(siteKey(observation.site));
 			if (loc) siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
@@ -350,6 +408,7 @@
 
 	async function loadKnownSites() {
 		await loadKnownSitesSeed();
+		await refreshSiteList();
 		if (observation && !hasGeoref(observation)) {
 			const loc = await getSiteLocation(siteKey(observation.site));
 			if (loc) siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
@@ -358,6 +417,12 @@
 
 	onMount(async () => {
 		book = await loadPaletteBook();
+		settings = await loadSettings();
+		baseMap = settings.baseMap;
+		showRings = settings.showRings;
+		showRadials = settings.showRadials;
+		settingsLoaded = true;
+		await refreshSiteList();
 	});
 
 	// The scale editor edits the palette assigned to the active key (current moment or product).
@@ -906,6 +971,29 @@
 											>{Math.round(dataOpacity * 100)}%</span
 										>
 									</label>
+									<!-- Range-ring / azimuth-radial overlay toggles. -->
+									<label
+										class="flex shrink-0 items-center gap-1 font-mono text-label-mono text-on-surface-variant"
+										title="Círculos de distancia"
+									>
+										<input
+											type="checkbox"
+											bind:checked={showRings}
+											class="accent-primary-container"
+										/>
+										ANILLOS
+									</label>
+									<label
+										class="flex shrink-0 items-center gap-1 font-mono text-label-mono text-on-surface-variant"
+										title="Marcas radiales (acimut)"
+									>
+										<input
+											type="checkbox"
+											bind:checked={showRadials}
+											class="accent-primary-container"
+										/>
+										RADIALES
+									</label>
 								{/if}
 								<ScaleLegend {palette} />
 								<button
@@ -954,6 +1042,7 @@
 											scan={rhiScan}
 											{palette}
 											maxHeightM={maxHeightKm * 1000}
+											{unitSystem}
 											onreadout={(r) => (readout = r)}
 										/>
 									</div>
@@ -970,6 +1059,7 @@
 										{palette}
 										line={cutLine}
 										maxHeightM={maxHeightKm * 1000}
+										{unitSystem}
 									/>
 								</div>
 							{:else if product === 'CROSS_LINE'}
@@ -1011,8 +1101,11 @@
 													{site}
 													{baseMap}
 													{dataOpacity}
+													{showRings}
+													{showRadials}
 													extraLayers={overlays}
 													drawEnabled={true}
+													{unitSystem}
 													onCutLine={(l) => (drawnCutLine = l)}
 													onreadout={(r) => (readout = r)}
 												/>
@@ -1036,6 +1129,7 @@
 														line={drawnCutLine}
 														maxHeightM={maxHeightKm * 1000}
 														markEndpoints={true}
+														{unitSystem}
 														onreadout={(r) => (crossLineReadout = r)}
 													/>
 												{:else}
@@ -1055,13 +1149,13 @@
 															DISTANCIA (A→B)
 														</p>
 														<p class="text-label-mono text-on-surface">
-															{fmt(crossLineReadout.distanceM / 1000)} km
+															{formatDistanceM(crossLineReadout.distanceM, unitSystem)}
 														</p>
 													</div>
 													<div class="bg-surface-container-low p-2">
 														<p class="mb-0.5 text-label-caps text-on-surface-variant">ALTURA</p>
 														<p class="text-label-mono text-on-surface">
-															{fmt(crossLineReadout.heightM / 1000, 2)} km
+															{formatAltitudeM(crossLineReadout.heightM, unitSystem)}
 														</p>
 													</div>
 													<div class="bg-surface-container-low p-2">
@@ -1069,7 +1163,11 @@
 														<p class="text-label-mono text-dbz-heavy">
 															{crossLineReadout.sample?.value == null
 																? '—'
-																: `${fmt(crossLineReadout.sample.value)}${momentUnit(channel?.moment ?? 'dBZ')}`}
+																: formatReading(
+																		crossLineReadout.sample.value,
+																		momentUnit(channel?.moment ?? 'dBZ'),
+																		unitSystem
+																	)}
 														</p>
 													</div>
 												{:else}
@@ -1147,7 +1245,10 @@
 										{site}
 										{baseMap}
 										{dataOpacity}
+										{showRings}
+										{showRadials}
 										extraLayers={overlays}
+										{unitSystem}
 										onreadout={(r) => (readout = r)}
 									/>
 								{/if}
@@ -1173,12 +1274,16 @@
 								</div>
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">RANGO</p>
-									<p class="text-label-mono text-on-surface">{fmt(readout.rangeM / 1000)} km</p>
+									<p class="text-label-mono text-on-surface">
+										{formatDistanceM(readout.rangeM, unitSystem)}
+									</p>
 								</div>
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">VALOR</p>
 									<p class="text-label-mono text-dbz-heavy">
-										{readout.value === null ? '—' : `${fmt(readout.value)}${ground?.unit ?? ''}`}
+										{readout.value === null
+											? '—'
+											: formatReading(readout.value, ground?.unit ?? '', unitSystem)}
 									</p>
 								</div>
 								<div class="bg-surface-container-low p-3">
@@ -1190,18 +1295,26 @@
 							{:else if readout && 'heightM' in readout}
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">RANGO</p>
-									<p class="text-label-mono text-on-surface">{fmt(readout.rangeM / 1000)} km</p>
+									<p class="text-label-mono text-on-surface">
+										{formatDistanceM(readout.rangeM, unitSystem)}
+									</p>
 								</div>
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">ALTURA</p>
-									<p class="text-label-mono text-on-surface">{fmt(readout.heightM / 1000, 2)} km</p>
+									<p class="text-label-mono text-on-surface">
+										{formatAltitudeM(readout.heightM, unitSystem)}
+									</p>
 								</div>
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">VALOR</p>
 									<p class="text-label-mono text-dbz-heavy">
 										{readout.value === null
 											? '—'
-											: `${fmt(readout.value)}${momentUnit(channel?.moment ?? 'dBZ')}`}
+											: formatReading(
+													readout.value,
+													momentUnit(channel?.moment ?? 'dBZ'),
+													unitSystem
+												)}
 									</p>
 								</div>
 								<div class="bg-surface-container-low p-3"></div>
@@ -1240,54 +1353,9 @@
 						</ul>
 					</section>
 				{/if}
-
-				<!-- Site-location store: export / import / seed the known radar network. -->
-				<section class="glass-panel overflow-hidden rounded-xl">
-					<div
-						class="flex items-center gap-2 border-b border-outline-variant bg-surface-container-high px-6 py-3"
-					>
-						<span class="material-symbols-outlined text-[18px] text-primary-container"
-							>pin_drop</span
-						>
-						<h3 class="font-mono text-label-mono uppercase">Ubicaciones de sitio guardadas</h3>
-					</div>
-					<div class="flex flex-wrap gap-2 p-4 font-mono text-label-mono">
-						<button
-							class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 text-on-surface transition-colors hover:border-primary-container"
-							onclick={exportSiteDataFile}
-						>
-							<span class="material-symbols-outlined text-[16px]">download</span> Exportar
-						</button>
-						<label
-							class="flex cursor-pointer items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 text-on-surface transition-colors hover:border-primary-container"
-						>
-							<span class="material-symbols-outlined text-[16px]">upload</span> Importar
-							<input
-								type="file"
-								accept="application/json"
-								class="hidden"
-								onchange={importSiteDataFile}
-							/>
-						</label>
-						<button
-							class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 text-on-surface transition-colors hover:border-primary-container"
-							onclick={loadKnownSites}
-						>
-							<span class="material-symbols-outlined text-[16px]">public</span> Cargar red conocida
-						</button>
-					</div>
-				</section>
 			{/if}
 		</div>
 	</main>
-
-	<Modal open={showLocationEditor} title="Ubicación del sitio" onclose={cancelLocationEditor}>
-		<SiteLocationEditor
-			initial={siteOverride ?? undefined}
-			onsave={saveSiteLocation}
-			oncancel={cancelLocationEditor}
-		/>
-	</Modal>
 
 	<Modal
 		open={showAwsExplorer}
@@ -1295,6 +1363,7 @@
 		onclose={() => (showAwsExplorer = false)}
 	>
 		<AwsExplorer
+			{unitSystem}
 			onload={(picked) => {
 				showAwsExplorer = false;
 				send({ type: 'LOAD_REMOTE', picked });
@@ -1308,91 +1377,241 @@
 		</div>
 	</Modal>
 
-	<Modal open={showSettings} title="Configuración" onclose={() => (showSettings = false)}>
-		<div class="space-y-5 p-4">
-			<div>
-				<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
-					Paletas por variable
-				</h3>
-				<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
-					Cada variable se dibuja con la paleta asignada. Edita los colores con el ícono de paleta
-					sobre el visor; aquí eliges qué paleta usa cada variable.
-				</p>
-				<div class="grid grid-cols-1 gap-2">
-					{#each MOMENTS as m (m)}
-						<label class="flex items-center gap-3">
-							<span class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant"
-								>{m}</span
-							>
-							<div
-								class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<select
-									class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
-									value={book.assignments[m]}
-									onchange={(e) => onAssign(m, (e.currentTarget as HTMLSelectElement).value)}
-								>
-									{#each book.palettes as p (p.name)}
-										<option value={p.name}>{p.name}</option>
-									{/each}
-								</select>
-							</div>
-						</label>
-					{/each}
-				</div>
+	<Modal
+		open={showSettings}
+		title="Configuración"
+		onclose={() => {
+			showSettings = false;
+			editingSiteKey = null;
+		}}
+	>
+		<div class="flex flex-col gap-4">
+			<!-- Section tabs. -->
+			<div class="flex gap-1 border-b border-outline-variant font-mono text-label-mono uppercase">
+				{#each [{ id: 'unidades', label: 'Unidades', icon: 'straighten' }, { id: 'sitios', label: 'Sitios', icon: 'pin_drop' }, { id: 'paletas', label: 'Paletas', icon: 'palette' }] as tab (tab.id)}
+					<button
+						class="flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors {settingsTab ===
+						tab.id
+							? 'border-primary-container text-primary-container'
+							: 'border-transparent text-on-surface-variant hover:text-on-surface'}"
+						onclick={() => (settingsTab = tab.id as typeof settingsTab)}
+					>
+						<span class="material-symbols-outlined text-[16px]">{tab.icon}</span>
+						{tab.label}
+					</button>
+				{/each}
 			</div>
 
-			<div>
-				<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
-					Paletas por producto
-				</h3>
-				<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
-					Topes, VIL, lluvia y viento tienen su propia unidad física y no usan la paleta de la
-					variable de origen.
-				</p>
-				<div class="grid grid-cols-1 gap-2">
-					{#each PRODUCT_PALETTE_KEYS as pk (pk.key)}
-						<label class="flex items-center gap-3">
-							<span class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant"
-								>{pk.label}</span
-							>
-							<div
-								class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<select
-									class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
-									value={book.assignments[pk.key]}
-									onchange={(e) => onAssign(pk.key, (e.currentTarget as HTMLSelectElement).value)}
-								>
-									{#each book.palettes as p (p.name)}
-										<option value={p.name}>{p.name}</option>
-									{/each}
-								</select>
-							</div>
-						</label>
-					{/each}
+			{#if settingsTab === 'unidades'}
+				<div class="space-y-3">
+					<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
+						Sistema de unidades
+					</h3>
+					<p class="font-mono text-[10px] text-on-surface-variant">
+						Afecta anillos de rango, ejes de corte/RHI, distancia a sitio (descarga AWS) y las
+						lecturas de viento/lluvia al pasar el cursor. Los umbrales de paletas y las
+						coordenadas/altura guardadas de sitio siguen en unidades métricas internamente.
+					</p>
+					<div class="flex gap-2">
+						<button
+							class="flex items-center gap-2 rounded border px-4 py-2 font-mono text-label-mono transition-colors {unitSystem ===
+							'metric'
+								? 'border-primary-container bg-primary-container text-on-primary-container'
+								: 'border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-primary-container'}"
+							onclick={() => updateSettings({ unitSystem: 'metric' })}
+						>
+							Métrico (km, m/s, mm)
+						</button>
+						<button
+							class="flex items-center gap-2 rounded border px-4 py-2 font-mono text-label-mono transition-colors {unitSystem ===
+							'imperial'
+								? 'border-primary-container bg-primary-container text-on-primary-container'
+								: 'border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-primary-container'}"
+							onclick={() => updateSettings({ unitSystem: 'imperial' })}
+						>
+							Imperial (mi, mph, in)
+						</button>
+					</div>
 				</div>
-			</div>
+			{:else if settingsTab === 'sitios'}
+				<div class="space-y-4">
+					{#if editingSiteKey}
+						<div class="flex items-center justify-between">
+							<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
+								Editar: {editingSiteKey}
+							</h3>
+							<button
+								class="font-mono text-[10px] text-on-surface-variant hover:text-primary-container"
+								onclick={cancelSiteEdit}
+							>
+								← Volver a la lista
+							</button>
+						</div>
+						<SiteLocationEditor
+							initial={siteList[editingSiteKey] ?? siteOverride ?? undefined}
+							onsave={saveSiteLocation}
+							oncancel={cancelSiteEdit}
+						/>
+					{:else}
+						<div>
+							<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
+								Ubicaciones de sitio guardadas
+							</h3>
+							<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
+								Posición usada para los formatos que no traen su propia georreferencia (NEXRAD L2,
+								.obs), guardada por código de sitio.
+							</p>
+							{#if Object.keys(siteList).length > 0}
+								<ul class="mb-3 divide-y divide-outline-variant/30 font-mono text-label-mono">
+									{#each Object.entries(siteList) as [key, loc] (key)}
+										<li class="flex items-center gap-3 py-2">
+											<span class="w-20 shrink-0 text-on-surface">{key}</span>
+											<span class="flex-1 text-[11px] text-on-surface-variant">
+												{fmt(loc.lat, 4)}°, {fmt(loc.lon, 4)}° · {formatAltitudeM(
+													loc.altM,
+													unitSystem
+												)}
+											</span>
+											<button
+												class="text-on-surface-variant transition-colors hover:text-primary-container"
+												aria-label="Editar {key}"
+												title="Editar"
+												onclick={() => (editingSiteKey = key)}
+											>
+												<span class="material-symbols-outlined text-[16px]">edit</span>
+											</button>
+											<button
+												class="text-on-surface-variant transition-colors hover:text-dbz-heavy"
+												aria-label="Eliminar {key}"
+												title="Eliminar"
+												onclick={() => removeSiteLocation(key)}
+											>
+												<span class="material-symbols-outlined text-[16px]">delete</span>
+											</button>
+										</li>
+									{/each}
+								</ul>
+							{:else}
+								<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
+									Sin ubicaciones guardadas todavía.
+								</p>
+							{/if}
+							<div class="flex flex-wrap gap-2 border-t border-outline-variant pt-4">
+								<button
+									class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container"
+									onclick={exportSiteDataFile}
+								>
+									<span class="material-symbols-outlined text-[16px]">download</span> Exportar
+								</button>
+								<label
+									class="flex cursor-pointer items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container"
+								>
+									<span class="material-symbols-outlined text-[16px]">upload</span> Importar
+									<input
+										type="file"
+										accept="application/json"
+										class="hidden"
+										onchange={importSiteDataFile}
+									/>
+								</label>
+								<button
+									class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container"
+									onclick={loadKnownSites}
+								>
+									<span class="material-symbols-outlined text-[16px]">public</span> Cargar red conocida
+								</button>
+							</div>
+						</div>
+					{/if}
+				</div>
+			{:else if settingsTab === 'paletas'}
+				<div class="space-y-5">
+					<div>
+						<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
+							Paletas por variable
+						</h3>
+						<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
+							Cada variable se dibuja con la paleta asignada. Edita los colores con el ícono de
+							paleta sobre el visor; aquí eliges qué paleta usa cada variable.
+						</p>
+						<div class="grid grid-cols-1 gap-2">
+							{#each MOMENTS as m (m)}
+								<label class="flex items-center gap-3">
+									<span class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant"
+										>{m}</span
+									>
+									<div
+										class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
+									>
+										<select
+											class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
+											value={book.assignments[m]}
+											onchange={(e) => onAssign(m, (e.currentTarget as HTMLSelectElement).value)}
+										>
+											{#each book.palettes as p (p.name)}
+												<option value={p.name}>{p.name}</option>
+											{/each}
+										</select>
+									</div>
+								</label>
+							{/each}
+						</div>
+					</div>
 
-			<div class="flex flex-wrap gap-2 border-t border-outline-variant pt-4">
-				<button
-					class="flex items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
-					onclick={downloadPaletteBook}
-				>
-					<span class="material-symbols-outlined text-[16px]">download</span> Exportar paletas
-				</button>
-				<label
-					class="flex cursor-pointer items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
-				>
-					<span class="material-symbols-outlined text-[16px]">upload</span> Importar paletas
-					<input
-						type="file"
-						accept="application/json"
-						class="hidden"
-						onchange={onImportPaletteBook}
-					/>
-				</label>
-			</div>
+					<div>
+						<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
+							Paletas por producto
+						</h3>
+						<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
+							Topes, VIL, lluvia y viento tienen su propia unidad física y no usan la paleta de la
+							variable de origen.
+						</p>
+						<div class="grid grid-cols-1 gap-2">
+							{#each PRODUCT_PALETTE_KEYS as pk (pk.key)}
+								<label class="flex items-center gap-3">
+									<span class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant"
+										>{pk.label}</span
+									>
+									<div
+										class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
+									>
+										<select
+											class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
+											value={book.assignments[pk.key]}
+											onchange={(e) =>
+												onAssign(pk.key, (e.currentTarget as HTMLSelectElement).value)}
+										>
+											{#each book.palettes as p (p.name)}
+												<option value={p.name}>{p.name}</option>
+											{/each}
+										</select>
+									</div>
+								</label>
+							{/each}
+						</div>
+					</div>
+
+					<div class="flex flex-wrap gap-2 border-t border-outline-variant pt-4">
+						<button
+							class="flex items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+							onclick={downloadPaletteBook}
+						>
+							<span class="material-symbols-outlined text-[16px]">download</span> Exportar paletas
+						</button>
+						<label
+							class="flex cursor-pointer items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+						>
+							<span class="material-symbols-outlined text-[16px]">upload</span> Importar paletas
+							<input
+								type="file"
+								accept="application/json"
+								class="hidden"
+								onchange={onImportPaletteBook}
+							/>
+						</label>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</Modal>
 </div>

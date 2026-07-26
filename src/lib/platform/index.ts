@@ -9,6 +9,7 @@ export {
 	saveSiteData,
 	getSiteLocation,
 	setSiteLocation,
+	deleteSiteLocation,
 	exportSiteData,
 	importSiteData,
 	loadKnownSitesSeed
@@ -24,3 +25,5 @@ export {
 	exportPaletteBook,
 	importPaletteBook
 } from './paletteStore';
+export type { AppSettings } from './settingsStore';
+export { DEFAULT_SETTINGS, loadSettings, saveSettings } from './settingsStore';

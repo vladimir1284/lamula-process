@@ -2,6 +2,7 @@
 	import RadarSiteMap from './RadarSiteMap.svelte';
 	import { geocodeZip, nearestSites, type RadarCatalogSite } from './radarCatalog';
 	import { listVolumeScans, fetchVolumeScanBytes, type VolumeScan } from './nexradS3';
+	import { distanceUnitLabel, toDisplayDistanceM, type UnitSystem } from '$lib/units';
 
 	interface Picked {
 		fileName: string;
@@ -10,9 +11,11 @@
 
 	interface Props {
 		onload: (picked: Picked) => void;
+		/** Unit system for the nearest-site distance display. Default metric (km). */
+		unitSystem?: UnitSystem;
 	}
 
-	let { onload }: Props = $props();
+	let { onload, unitSystem = 'metric' }: Props = $props();
 
 	let zip = $state('');
 	let geocodeStatus = $state<'idle' | 'loading' | 'not-found'>('idle');
@@ -126,7 +129,8 @@
 								: 'border-outline-variant bg-surface-container-high text-on-surface hover:border-primary-container'}"
 							onclick={() => selectSite(site.code)}
 						>
-							{site.code} · {site.distanceKm.toFixed(0)} km
+							{site.code} · {toDisplayDistanceM(site.distanceKm * 1000, unitSystem).toFixed(0)}
+							{distanceUnitLabel(unitSystem)}
 						</button>
 					</li>
 				{/each}
