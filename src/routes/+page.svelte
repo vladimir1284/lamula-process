@@ -487,21 +487,238 @@
 								{group.label}
 							</p>
 							{#each group.items as item (item.id)}
-								<button
-									type="button"
-									class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-all {product ===
-									item.id
-										? 'border-l-4 border-primary bg-primary-container text-on-primary-container'
-										: 'text-on-surface-variant hover:bg-surface-variant'}"
-									onclick={() => (product = item.id)}
-								>
-									<span
-										class="material-symbols-outlined text-[18px]"
-										style={product === item.id ? "font-variation-settings:'FILL' 1;" : ''}
-										>{item.icon}</span
+								<div>
+									<button
+										type="button"
+										class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-all {product ===
+										item.id
+											? 'border-l-4 border-primary bg-primary-container text-on-primary-container'
+											: 'text-on-surface-variant hover:bg-surface-variant'}"
+										onclick={() => (product = item.id)}
 									>
-									{item.label}
-								</button>
+										<span
+											class="material-symbols-outlined text-[18px]"
+											style={product === item.id ? "font-variation-settings:'FILL' 1;" : ''}
+											>{item.icon}</span
+										>
+										{item.label}
+										{#if product === item.id && ground}
+											<span
+												class="ml-auto rounded bg-dbz-mod/15 px-1.5 py-0.5 font-mono text-[9px] tracking-widest text-dbz-mod uppercase"
+												>{ground.unit}</span
+											>
+										{/if}
+									</button>
+
+									{#if product === item.id}
+										<div class="flex flex-col gap-2 py-2 pl-4">
+											{#if item.id === 'CAPPI'}
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>BASE</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={cappiBottomKm}
+														step="0.5"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+												</label>
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>TOPE</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={cappiTopKm}
+														step="0.5"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+												</label>
+											{/if}
+
+											{#if item.id === 'TOPS'}
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>UMBRAL</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={topsMinDbz}
+														step="1"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">dBZ</span>
+												</label>
+											{/if}
+
+											{#if item.id === 'VIL'}
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>BASE</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={vilBottomKm}
+														step="0.5"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+												</label>
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>TOPE</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={vilTopKm}
+														step="0.5"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+												</label>
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant">C1</span>
+													<input
+														type="number"
+														class="w-20 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={vilC1}
+														step="0.0001"
+													/>
+												</label>
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant">C2</span>
+													<input
+														type="number"
+														class="w-20 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={vilC2}
+														step="0.0001"
+													/>
+												</label>
+											{/if}
+
+											{#if item.id === 'RAIN'}
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>Z-R A</span
+													>
+													<input
+														type="number"
+														class="w-16 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={zrA}
+														step="10"
+													/>
+												</label>
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>Z-R B</span
+													>
+													<input
+														type="number"
+														class="w-16 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={zrB}
+														step="0.1"
+													/>
+												</label>
+											{/if}
+
+											{#if item.id === 'RHI'}
+												<label
+													class="cyan-glow flex h-9 items-center gap-3 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>AZIMUT</span
+													>
+													<input
+														type="range"
+														class="w-full"
+														bind:value={rhiAzimuthDeg}
+														min="0"
+														max="359"
+														step="1"
+													/>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={rhiAzimuthDeg}
+														min="0"
+														max="359"
+														step="1"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">°</span>
+												</label>
+											{/if}
+
+											{#if item.id === 'PROFILE'}
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>X ESTE</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={profileXkm}
+														step="1"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+												</label>
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>Y NORTE</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={profileYkm}
+														step="1"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+												</label>
+											{/if}
+
+											{#if item.id === 'CROSS_EW' || item.id === 'CROSS_NS' || item.id === 'PROFILE' || item.id === 'RHI'}
+												<label
+													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
+												>
+													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
+														>ALT MÁX</span
+													>
+													<input
+														type="number"
+														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
+														bind:value={maxHeightKm}
+														step="1"
+													/>
+													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
+												</label>
+											{/if}
+										</div>
+									{/if}
+								</div>
 							{/each}
 						</div>
 					{/each}
@@ -552,211 +769,6 @@
 					</button>
 				</div>
 			{:else}
-				<!-- Product header + contextual params toolbar. -->
-				<div
-					class="glass-panel flex flex-col justify-between gap-4 rounded-xl p-4 xl:flex-row xl:items-center"
-				>
-					<div>
-						<h2 class="flex items-center gap-3 font-headline text-headline-md text-on-surface">
-							{productTitle}
-							{#if ground}
-								<span
-									class="rounded bg-dbz-mod/15 px-2 py-0.5 font-mono text-[10px] tracking-widest text-dbz-mod uppercase"
-									>{ground.unit}</span
-								>
-							{/if}
-						</h2>
-						<p class="text-body-sm text-on-surface-variant">
-							{observation.site.name} · {observation.timestamp}
-						</p>
-					</div>
-
-					<div class="flex flex-wrap items-center gap-3">
-						{#if product === 'CAPPI'}
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">BASE</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={cappiBottomKm}
-									step="0.5"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-							</label>
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">TOPE</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={cappiTopKm}
-									step="0.5"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-							</label>
-						{/if}
-
-						{#if product === 'TOPS'}
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">UMBRAL</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={topsMinDbz}
-									step="1"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">dBZ</span>
-							</label>
-						{/if}
-
-						{#if product === 'VIL'}
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">BASE</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={vilBottomKm}
-									step="0.5"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-							</label>
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">TOPE</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={vilTopKm}
-									step="0.5"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-							</label>
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">C1</span>
-								<input
-									type="number"
-									class="w-20 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={vilC1}
-									step="0.0001"
-								/>
-							</label>
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">C2</span>
-								<input
-									type="number"
-									class="w-20 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={vilC2}
-									step="0.0001"
-								/>
-							</label>
-						{/if}
-
-						{#if product === 'RAIN'}
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">Z-R A</span>
-								<input
-									type="number"
-									class="w-16 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={zrA}
-									step="10"
-								/>
-							</label>
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">Z-R B</span>
-								<input
-									type="number"
-									class="w-16 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={zrB}
-									step="0.1"
-								/>
-							</label>
-						{/if}
-
-						{#if product === 'RHI'}
-							<label
-								class="cyan-glow flex h-10 items-center gap-3 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">AZIMUT</span>
-								<input
-									type="range"
-									class="w-40"
-									bind:value={rhiAzimuthDeg}
-									min="0"
-									max="359"
-									step="1"
-								/>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={rhiAzimuthDeg}
-									min="0"
-									max="359"
-									step="1"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">°</span>
-							</label>
-						{/if}
-
-						{#if product === 'PROFILE'}
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">X ESTE</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={profileXkm}
-									step="1"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-							</label>
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">Y NORTE</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={profileYkm}
-									step="1"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-							</label>
-						{/if}
-
-						{#if product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'PROFILE' || product === 'RHI'}
-							<label
-								class="cyan-glow flex h-10 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-							>
-								<span class="font-mono text-[11px] text-on-surface-variant">ALT MÁX</span>
-								<input
-									type="number"
-									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-									bind:value={maxHeightKm}
-									step="1"
-								/>
-								<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-							</label>
-						{/if}
-					</div>
-				</div>
-
 				<!-- Viewer hero (full width; scale = legend in header, editing via modal). -->
 				<div>
 					<section
