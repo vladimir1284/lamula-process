@@ -26,6 +26,7 @@
 		SiteLocationEditor
 	} from '$lib/viewer';
 	import { standardOverlays } from '$lib/overlays';
+	import { BASE_MAP_IDS, BASE_MAP_LABELS, type BaseMapId } from '$lib/viewer/baseMaps';
 	import type { Readout } from '$lib/viewer/readout';
 	import type { RhiReadout } from '$lib/render/rasterizeRHI';
 	import {
@@ -130,6 +131,9 @@
 	let showLocationEditor = $state(false);
 	let showScaleEditor = $state(false);
 	let showSettings = $state(false);
+	// Background map + radar (data) layer opacity for the PPI viewer.
+	let baseMap = $state<BaseMapId>('carto-dark');
+	let dataOpacity = $state(1);
 
 	const observation = $derived($snapshot.context.observation);
 	const loading = $derived($snapshot.value === 'opening' || $snapshot.value === 'parsing');
@@ -709,7 +713,47 @@
 									>my_location</span
 								> Visor · {productTitle}</span
 							>
-							<div class="ml-auto flex items-center gap-2">
+							<div class="ml-auto flex items-center gap-3">
+								{#if isGround && site}
+									<!-- Background map selector. -->
+									<label
+										class="flex shrink-0 items-center gap-1.5 font-mono text-label-mono text-on-surface-variant"
+										title="Mapa de fondo"
+									>
+										<span class="material-symbols-outlined text-[16px] text-primary-container"
+											>map</span
+										>
+										<select
+											bind:value={baseMap}
+											class="rounded border border-outline-variant bg-surface-container-high px-1.5 py-1 text-on-surface focus:border-primary-container focus:outline-none"
+										>
+											<option value="off">{BASE_MAP_LABELS.off}</option>
+											{#each BASE_MAP_IDS as id (id)}
+												<option value={id}>{BASE_MAP_LABELS[id]}</option>
+											{/each}
+										</select>
+									</label>
+									<!-- Radar (data) layer opacity. -->
+									<label
+										class="flex shrink-0 items-center gap-1.5 font-mono text-label-mono text-on-surface-variant"
+										title="Opacidad de la capa de datos"
+									>
+										<span class="material-symbols-outlined text-[16px] text-primary-container"
+											>opacity</span
+										>
+										<input
+											type="range"
+											min="0"
+											max="1"
+											step="0.05"
+											bind:value={dataOpacity}
+											class="h-1 w-24 accent-primary-container"
+										/>
+										<span class="w-8 text-right text-on-surface"
+											>{Math.round(dataOpacity * 100)}%</span
+										>
+									</label>
+								{/if}
 								<ScaleLegend {palette} />
 								<button
 									class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
@@ -820,6 +864,8 @@
 										scan={ground.scan}
 										{palette}
 										{site}
+										{baseMap}
+										{dataOpacity}
 										extraLayers={overlays}
 										onreadout={(r) => (readout = r)}
 									/>

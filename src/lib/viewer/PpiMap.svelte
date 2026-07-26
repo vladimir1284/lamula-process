@@ -3,11 +3,14 @@
 	import Map from 'ol/Map';
 	import View from 'ol/View';
 	import ImageLayer from 'ol/layer/Image';
+	import TileLayer from 'ol/layer/Tile';
 	import Static from 'ol/source/ImageStatic';
 	import VectorLayer from 'ol/layer/Vector';
 	import VectorSource from 'ol/source/Vector';
 	import type BaseLayer from 'ol/layer/Base';
 	import 'ol/ol.css';
+
+	import { createBaseMapSources, type BaseMapId } from './baseMaps';
 
 	import type { Scan } from '$lib/domain/types';
 	import type { Palette } from '$lib/palette/types';
@@ -27,14 +30,29 @@
 		sizePx?: number;
 		/** Extra OpenLayers layers (e.g. geo overlays) drawn above the radar image. */
 		extraLayers?: BaseLayer[];
+		/** Background map from the catalog (baseMaps.ts); 'off' = radar over black. */
+		baseMap?: BaseMapId;
+		/** Radar image opacity 0..1. Default 1 (opaque). */
+		dataOpacity?: number;
 		/** Called on every pointer move with the current readout. */
 		onreadout?: (r: Readout | null) => void;
 	}
 
-	let { scan, palette, site, sizePx = 1024, extraLayers = [], onreadout }: Props = $props();
+	let {
+		scan,
+		palette,
+		site,
+		sizePx = 1024,
+		extraLayers = [],
+		baseMap = 'off',
+		dataOpacity = 1,
+		onreadout
+	}: Props = $props();
 
 	let mapEl: HTMLDivElement;
 	let map: Map | undefined;
+	let baseLayer: TileLayer | undefined;
+	let labelsLayer: TileLayer | undefined;
 	let radarLayer: ImageLayer<Static> | undefined;
 	let ringsLayer: VectorLayer<VectorSource> | undefined;
 	let extraGroup: BaseLayer[] = [];
@@ -48,14 +66,26 @@
 		return mercatorScaleAtLat(site.lat);
 	}
 
+	function applyBaseMap(id: BaseMapId) {
+		if (!baseLayer || !labelsLayer) return;
+		const { base, labels } = createBaseMapSources(id);
+		baseLayer.setSource(base as never);
+		labelsLayer.setSource(labels as never);
+	}
+
 	onMount(() => {
-		radarLayer = new ImageLayer<Static>();
-		ringsLayer = new VectorLayer({ source: new VectorSource(), style: ringStyle });
+		// Ordering via zIndex: base(0) → radar(10) → CARTO names(15) → rings(20) → overlays(25).
+		baseLayer = new TileLayer({ zIndex: 0 });
+		labelsLayer = new TileLayer({ zIndex: 15 });
+		radarLayer = new ImageLayer<Static>({ zIndex: 10, opacity: dataOpacity });
+		ringsLayer = new VectorLayer({ source: new VectorSource(), style: ringStyle, zIndex: 20 });
+		for (const l of extraLayers) l.setZIndex(25);
 		map = new Map({
 			target: mapEl,
-			layers: [radarLayer, ringsLayer, ...extraLayers],
+			layers: [baseLayer, labelsLayer, radarLayer, ringsLayer, ...extraLayers],
 			view: new View({ center: siteXY(), zoom: 8 })
 		});
+		applyBaseMap(baseMap);
 		extraGroup = extraLayers;
 
 		map.on('pointermove', (ev) => {
@@ -108,11 +138,24 @@
 		});
 	});
 
+	// Swap background map when the prop changes.
+	$effect(() => {
+		applyBaseMap(baseMap);
+	});
+
+	// Track the radar (data) layer opacity.
+	$effect(() => {
+		radarLayer?.setOpacity(dataOpacity);
+	});
+
 	// Keep the map's extra layers in sync if the prop changes.
 	$effect(() => {
 		if (!map) return;
 		for (const l of extraGroup) map.removeLayer(l);
-		for (const l of extraLayers) map.addLayer(l);
+		for (const l of extraLayers) {
+			l.setZIndex(25);
+			map.addLayer(l);
+		}
 		extraGroup = extraLayers;
 	});
 </script>
