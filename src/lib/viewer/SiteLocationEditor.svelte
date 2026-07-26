@@ -2,6 +2,7 @@
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import Map from 'ol/Map';
 	import View from 'ol/View';
+	import TileLayer from 'ol/layer/Tile';
 	import VectorLayer from 'ol/layer/Vector';
 	import VectorSource from 'ol/source/Vector';
 	import Feature from 'ol/Feature';
@@ -12,6 +13,7 @@
 	import 'ol/ol.css';
 
 	import { standardOverlays } from '$lib/overlays';
+	import { createBaseMapSources } from './baseMaps';
 	import { fetchElevationM } from '$lib/geo/elevation';
 
 	interface LocationValue {
@@ -92,9 +94,13 @@
 			})
 		});
 
+		// OSM tiles underneath the vector overlays so the user can orient the pick
+		// against real streets/coastlines, not a blank vector plane.
+		const osmLayer = new TileLayer({ source: createBaseMapSources('osm').base! });
+
 		map = new Map({
 			target: mapEl,
-			layers: [...standardOverlays(), markerLayer],
+			layers: [osmLayer, ...standardOverlays(), markerLayer],
 			view: new View({
 				center:
 					lon !== undefined && lat !== undefined
