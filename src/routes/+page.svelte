@@ -10,7 +10,13 @@
 		type GroundProductKind,
 		type DeriveOptions
 	} from '$lib/pipeline';
-	import { eastWestLine, northSouthLine, computeProfile, volumeToRhiScan } from '$lib/products';
+	import {
+		eastWestLine,
+		northSouthLine,
+		computeProfile,
+		volumeToRhiScan,
+		type CutLine
+	} from '$lib/products';
 	import type { Palette, ProductPaletteKey } from '$lib/palette/types';
 	import type { Scan, MomentType } from '$lib/domain/types';
 	import { momentUnit } from '$lib/domain';
@@ -34,6 +40,7 @@
 	import { BASE_MAP_IDS, BASE_MAP_LABELS, type BaseMapId } from '$lib/viewer/baseMaps';
 	import type { Readout } from '$lib/viewer/readout';
 	import type { RhiReadout } from '$lib/render/rasterizeRHI';
+	import type { CrossSectionReadout } from '$lib/viewer/CrossSectionPanel.svelte';
 	import {
 		siteKey,
 		getSiteLocation,
@@ -98,7 +105,7 @@
 		'RAIN',
 		'WIND_SPEED'
 	];
-	type ProductKind = GroundProductKind | 'CROSS_EW' | 'CROSS_NS' | 'PROFILE' | 'RHI';
+	type ProductKind = GroundProductKind | 'CROSS_EW' | 'CROSS_NS' | 'CROSS_LINE' | 'PROFILE' | 'RHI';
 
 	// Sidebar catalog — mirrors the optgroups the app has always exposed.
 	const PRODUCT_GROUPS: {
@@ -133,6 +140,7 @@
 			items: [
 				{ id: 'CROSS_EW', label: 'Corte Este-Oeste', icon: 'swap_horiz' },
 				{ id: 'CROSS_NS', label: 'Corte Norte-Sur', icon: 'swap_vert' },
+				{ id: 'CROSS_LINE', label: 'Corte (línea libre)', icon: 'timeline' },
 				{ id: 'PROFILE', label: 'Perfil vertical', icon: 'monitoring' },
 				{ id: 'RHI', label: 'RHI', icon: 'radar' }
 			]
@@ -156,6 +164,8 @@
 	let profileXkm = $state(0);
 	let profileYkm = $state(30);
 	let rhiAzimuthDeg = $state(0);
+	let drawnCutLine = $state<CutLine | null>(null);
+	let crossLineReadout = $state<CrossSectionReadout | null>(null);
 
 	// Per-variable palette group, persisted + configurable (platform/paletteStore.ts). Seeded
 	// synchronously so the first paint has colors; the stored/edited book loads in onMount.
@@ -267,6 +277,21 @@
 		if (!channel || (product !== 'CROSS_EW' && product !== 'CROSS_NS')) return null;
 		const half = maxRangeM(channel);
 		return product === 'CROSS_EW' ? eastWestLine(0, half) : northSouthLine(0, half);
+	});
+
+	// Free-hand cut: a column-max composite as the plan-view background to draw the line on (same
+	// reasoning as rhiBaseScan -- always shows real echo regardless of which tilt holds it).
+	const crossLineBaseScan = $derived.by((): Scan | null => {
+		if (product !== 'CROSS_LINE' || !channel || channel.scans.length === 0) return null;
+		return deriveGroundProduct(channel, 'COLUMN_MAX', deriveOpts).scan;
+	});
+
+	// Drop the drawn line whenever the user leaves the CROSS_LINE tool, so coming back starts fresh.
+	$effect(() => {
+		if (product !== 'CROSS_LINE') {
+			drawnCutLine = null;
+			crossLineReadout = null;
+		}
 	});
 
 	const profile = $derived.by(() => {
@@ -736,7 +761,28 @@
 												</label>
 											{/if}
 
-											{#if item.id === 'CROSS_EW' || item.id === 'CROSS_NS' || item.id === 'PROFILE' || item.id === 'RHI'}
+											{#if item.id === 'CROSS_LINE'}
+												<p class="px-1 font-mono text-[10px] text-on-surface-variant">
+													{drawnCutLine
+														? 'Línea trazada.'
+														: 'Haz clic en el mapa para marcar 2 puntos.'}
+												</p>
+												{#if drawnCutLine}
+													<button
+														type="button"
+														class="flex h-8 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high font-mono text-[11px] text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+														onclick={() => {
+															drawnCutLine = null;
+															crossLineReadout = null;
+														}}
+													>
+														<span class="material-symbols-outlined text-[14px]">restart_alt</span> Rehacer
+														línea
+													</button>
+												{/if}
+											{/if}
+
+											{#if item.id === 'CROSS_EW' || item.id === 'CROSS_NS' || item.id === 'CROSS_LINE' || item.id === 'PROFILE' || item.id === 'RHI'}
 												<label
 													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
 												>
@@ -926,6 +972,116 @@
 										maxHeightM={maxHeightKm * 1000}
 									/>
 								</div>
+							{:else if product === 'CROSS_LINE'}
+								{#if !site}
+									<div
+										class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
+									>
+										<span class="material-symbols-outlined text-[40px] text-dbz-heavy"
+											>wrong_location</span
+										>
+										<p class="max-w-md text-body-sm text-on-surface-variant">
+											El corte de línea libre se traza sobre el mapa y necesita la posición del
+											sitio. Define la ubicación o usa Corte E-O / N-S (no la requieren).
+										</p>
+										<button
+											class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+											onclick={openLocationEditor}
+										>
+											<span class="material-symbols-outlined text-[18px]">add_location_alt</span> DEFINIR
+											UBICACIÓN
+										</button>
+									</div>
+								{:else if crossLineBaseScan && channel}
+									<div class="flex h-full gap-3 p-3">
+										<!-- Left: map to trace the cut on. -->
+										<div class="flex min-w-0 flex-1 flex-col gap-1">
+											<p class="font-mono text-[10px] text-on-surface-variant">
+												Fondo: máximo de columna. Haz clic para el punto <span
+													class="text-[#22c55e]">A (inicio)</span
+												>
+												y otro para <span class="text-[#ef4444]">B (fin)</span> del corte.
+											</p>
+											<div
+												class="min-h-0 flex-1 overflow-hidden rounded border border-outline-variant"
+											>
+												<PpiMap
+													scan={crossLineBaseScan}
+													{palette}
+													{site}
+													{baseMap}
+													{dataOpacity}
+													extraLayers={overlays}
+													drawEnabled={true}
+													onCutLine={(l) => (drawnCutLine = l)}
+													onreadout={(r) => (readout = r)}
+												/>
+											</div>
+										</div>
+
+										<!-- Right: the vertical cut itself, in its own panel. -->
+										<div class="flex min-w-0 flex-1 flex-col gap-1">
+											<p class="font-mono text-[10px] text-on-surface-variant">
+												Corte vertical de <span class="text-[#22c55e]">A</span> a
+												<span class="text-[#ef4444]">B</span> (muestreo inverso por píxel).
+											</p>
+											<div
+												class="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded border border-outline-variant bg-surface-container-lowest"
+											>
+												{#if drawnCutLine}
+													<CrossSectionPanel
+														scans={channel.scans}
+														{palette}
+														line={drawnCutLine}
+														maxHeightM={maxHeightKm * 1000}
+														markEndpoints={true}
+														onreadout={(r) => (crossLineReadout = r)}
+													/>
+												{:else}
+													<p class="px-4 text-center font-mono text-[10px] text-on-surface-variant">
+														Traza una línea en el mapa de la izquierda para ver el corte vertical.
+													</p>
+												{/if}
+											</div>
+
+											<!-- Dedicated readout for this panel, mirroring the map's bottom bar. -->
+											<div
+												class="grid grid-cols-3 gap-px border border-outline-variant bg-surface-container-low font-mono"
+											>
+												{#if crossLineReadout}
+													<div class="bg-surface-container-low p-2">
+														<p class="mb-0.5 text-label-caps text-on-surface-variant">
+															DISTANCIA (A→B)
+														</p>
+														<p class="text-label-mono text-on-surface">
+															{fmt(crossLineReadout.distanceM / 1000)} km
+														</p>
+													</div>
+													<div class="bg-surface-container-low p-2">
+														<p class="mb-0.5 text-label-caps text-on-surface-variant">ALTURA</p>
+														<p class="text-label-mono text-on-surface">
+															{fmt(crossLineReadout.heightM / 1000, 2)} km
+														</p>
+													</div>
+													<div class="bg-surface-container-low p-2">
+														<p class="mb-0.5 text-label-caps text-on-surface-variant">VALOR</p>
+														<p class="text-label-mono text-dbz-heavy">
+															{crossLineReadout.sample?.value == null
+																? '—'
+																: `${fmt(crossLineReadout.sample.value)}${momentUnit(channel?.moment ?? 'dBZ')}`}
+														</p>
+													</div>
+												{:else}
+													<div class="col-span-3 bg-surface-container-low p-2">
+														<p class="text-label-mono text-on-surface-variant">
+															Pasa el cursor sobre el corte para leer valores.
+														</p>
+													</div>
+												{/if}
+											</div>
+										</div>
+									</div>
+								{/if}
 							{:else if product === 'PROFILE' && profile}
 								<div class="flex gap-4 p-3">
 									<ProfilePanel
