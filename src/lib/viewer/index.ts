@@ -4,6 +4,8 @@ export { default as RhiAzimuthPicker } from './RhiAzimuthPicker.svelte';
 export { default as CrossSectionPanel } from './CrossSectionPanel.svelte';
 export { default as ProfilePanel } from './ProfilePanel.svelte';
 export { default as ScaleEditor } from './ScaleEditor.svelte';
+export { default as Modal } from './Modal.svelte';
+export { default as SiteLocationEditor } from './SiteLocationEditor.svelte';
 export { rasterToCanvas, rasterToDataURL } from './radarImage';
 export { ringFeatures, ringStyle, defaultRingsM } from './rings';
 export { readoutAt } from './readout';

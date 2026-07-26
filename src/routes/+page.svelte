@@ -19,11 +19,22 @@
 		RhiAzimuthPicker,
 		CrossSectionPanel,
 		ProfilePanel,
-		ScaleEditor
+		ScaleEditor,
+		Modal,
+		SiteLocationEditor
 	} from '$lib/viewer';
 	import { standardOverlays } from '$lib/overlays';
 	import type { Readout } from '$lib/viewer/readout';
 	import type { RhiReadout } from '$lib/render/rasterizeRHI';
+	import {
+		siteKey,
+		getSiteLocation,
+		setSiteLocation,
+		loadSiteData,
+		exportSiteData,
+		importSiteData,
+		loadKnownSitesSeed
+	} from '$lib/platform';
 
 	const { snapshot, send } = useMachine(observationMachine);
 
@@ -99,6 +110,8 @@
 
 	let palette = $state<Palette>(defaultDbzPalette);
 	let readout = $state<Readout | RhiReadout | null>(null);
+	let siteOverride = $state<{ lat: number; lon: number; altM: number } | null>(null);
+	let showLocationEditor = $state(false);
 
 	const observation = $derived($snapshot.context.observation);
 	const loading = $derived($snapshot.value === 'opening' || $snapshot.value === 'parsing');
@@ -109,6 +122,30 @@
 	const channel = $derived(channels[channelIndex]?.channel);
 	const elevations = $derived(channel ? listElevationsDeg(channel) : []);
 	const georef = $derived(observation ? hasGeoref(observation) : false);
+
+	// Formats that don't self-describe site position (NEXRAD L2, .obs) may have a
+	// previously-saved location for this site code -- load it once per new observation.
+	let siteLookupToken = 0;
+	$effect(() => {
+		const obs = observation;
+		siteOverride = null;
+		if (!obs || hasGeoref(obs)) return;
+		const token = ++siteLookupToken;
+		getSiteLocation(siteKey(obs.site)).then((loc) => {
+			if (token !== siteLookupToken || !loc) return; // superseded by a newer file
+			siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+		});
+	});
+
+	// Site position as carried by the parser, falling back to a user-entered/saved override
+	// for formats that don't self-describe it (NEXRAD L2, .obs).
+	const effectiveSite = $derived.by(() => {
+		if (!observation) return null;
+		if (observation.site.lat !== undefined && observation.site.lon !== undefined) {
+			return { lat: observation.site.lat, lon: observation.site.lon, altM: observation.site.altM };
+		}
+		return siteOverride;
+	});
 
 	const isGround = $derived(GROUND_KINDS.includes(product as GroundProductKind));
 	// Products that use a standalone canvas panel (no georeferencing required).
@@ -126,7 +163,7 @@
 	const deriveOpts = $derived<DeriveOptions>({
 		elevationDeg,
 		beamWidthDeg: channel?.beamWidthDeg ?? 1.0,
-		siteAltM: observation?.site.altM ?? 0,
+		siteAltM: effectiveSite?.altM ?? 0,
 		cappiBottomM: cappiBottomKm * 1000,
 		cappiTopM: cappiTopKm * 1000,
 		topsMinDbz,
@@ -169,20 +206,59 @@
 			yNorthM: profileYkm * 1000,
 			beamWidthDeg: channel.beamWidthDeg ?? 1.0,
 			topM: maxHeightKm * 1000,
-			siteAltM: observation?.site.altM ?? 0
+			siteAltM: effectiveSite?.altM ?? 0
 		});
 	});
 
-	const site = $derived(
-		observation && observation.site.lon !== undefined && observation.site.lat !== undefined
-			? { lon: observation.site.lon, lat: observation.site.lat }
-			: null
-	);
+	const site = $derived(effectiveSite ? { lon: effectiveSite.lon, lat: effectiveSite.lat } : null);
 
 	const overlays = standardOverlays();
 
 	function fmt(n: number | null | undefined, digits = 1): string {
 		return n === null || n === undefined ? '—' : n.toFixed(digits);
+	}
+
+	function openLocationEditor() {
+		showLocationEditor = true;
+	}
+	function cancelLocationEditor() {
+		showLocationEditor = false;
+	}
+	async function saveSiteLocation(loc: { lat: number; lon: number; altM: number }) {
+		siteOverride = loc;
+		showLocationEditor = false;
+		if (observation) await setSiteLocation(siteKey(observation.site), loc);
+	}
+
+	async function exportSiteDataFile() {
+		const store = await loadSiteData();
+		const blob = new Blob([exportSiteData(store)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'site_data.json';
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	async function importSiteDataFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		await importSiteData(await file.text());
+		input.value = '';
+		if (observation && !hasGeoref(observation)) {
+			const loc = await getSiteLocation(siteKey(observation.site));
+			if (loc) siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+		}
+	}
+
+	async function loadKnownSites() {
+		await loadKnownSitesSeed();
+		if (observation && !hasGeoref(observation)) {
+			const loc = await getSiteLocation(siteKey(observation.site));
+			if (loc) siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+		}
 	}
 </script>
 
@@ -217,6 +293,15 @@
 						class="rounded border border-primary-container/30 bg-surface-container-high px-2 py-0.5 text-primary-container"
 						>{observation.design}</span
 					>
+					{#if !georef && effectiveSite}
+						<span class="text-outline-variant">·</span>
+						<button
+							class="flex items-center gap-1 text-primary-container transition-opacity hover:opacity-80"
+							onclick={openLocationEditor}
+						>
+							<span class="material-symbols-outlined text-[16px]">edit_location</span> Editar ubicación
+						</button>
+					{/if}
 				</nav>
 			{/if}
 		</div>
@@ -614,7 +699,7 @@
 									</p>
 								</div>
 							{:else if isGround}
-								{#if !georef || !site}
+								{#if !site}
 									<!-- Format without a site position (e.g. NEXRAD L2 msg-31). -->
 									<div
 										class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
@@ -623,10 +708,17 @@
 											>wrong_location</span
 										>
 										<p class="max-w-md text-body-sm text-on-surface-variant">
-											Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31): no se puede
-											georreferenciar el <span class="text-on-surface">{productTitle}</span>. Cortes,
-											perfil y RHI sí funcionan.
+											Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31). Define la
+											ubicación para georreferenciar el <span class="text-on-surface">{productTitle}</span
+											>, o usa cortes, perfil y RHI (no la requieren).
 										</p>
+										<button
+											class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+											onclick={openLocationEditor}
+										>
+											<span class="material-symbols-outlined text-[18px]">add_location_alt</span> DEFINIR
+											UBICACIÓN
+										</button>
 										<div
 											class="flex flex-wrap items-center justify-center gap-2 font-mono text-label-mono"
 										>
@@ -751,7 +843,50 @@
 						</ul>
 					</section>
 				{/if}
+
+				<!-- Site-location store: export / import / seed the known radar network. -->
+				<section class="glass-panel overflow-hidden rounded-xl">
+					<div
+						class="flex items-center gap-2 border-b border-outline-variant bg-surface-container-high px-6 py-3"
+					>
+						<span class="material-symbols-outlined text-[18px] text-primary-container">pin_drop</span>
+						<h3 class="font-mono text-label-mono uppercase">Ubicaciones de sitio guardadas</h3>
+					</div>
+					<div class="flex flex-wrap gap-2 p-4 font-mono text-label-mono">
+						<button
+							class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 text-on-surface transition-colors hover:border-primary-container"
+							onclick={exportSiteDataFile}
+						>
+							<span class="material-symbols-outlined text-[16px]">download</span> Exportar
+						</button>
+						<label
+							class="flex cursor-pointer items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 text-on-surface transition-colors hover:border-primary-container"
+						>
+							<span class="material-symbols-outlined text-[16px]">upload</span> Importar
+							<input
+								type="file"
+								accept="application/json"
+								class="hidden"
+								onchange={importSiteDataFile}
+							/>
+						</label>
+						<button
+							class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 text-on-surface transition-colors hover:border-primary-container"
+							onclick={loadKnownSites}
+						>
+							<span class="material-symbols-outlined text-[16px]">public</span> Cargar red conocida
+						</button>
+					</div>
+				</section>
 			{/if}
 		</div>
 	</main>
+
+	<Modal open={showLocationEditor} title="Ubicación del sitio" onclose={cancelLocationEditor}>
+		<SiteLocationEditor
+			initial={siteOverride ?? undefined}
+			onsave={saveSiteLocation}
+			oncancel={cancelLocationEditor}
+		/>
+	</Modal>
 </div>

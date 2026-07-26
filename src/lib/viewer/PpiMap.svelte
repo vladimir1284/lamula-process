@@ -81,7 +81,9 @@
 
 		const token = ++renderToken;
 		const maxRangeM = maxGroundRangeM(s);
-		renderer.render(s, p, { sizePx: px }).then((result) => {
+		// Worker postMessage can't structured-clone a Svelte $state proxy (palette is one) --
+		// snapshot to a plain object before crossing the worker boundary.
+		renderer.render($state.snapshot(s), $state.snapshot(p), { sizePx: px }).then((result) => {
 			if (token !== renderToken || !radarLayer) return; // superseded
 			const extent = siteExtent3857(_site.lon, _site.lat, maxRangeM);
 			radarLayer.setSource(

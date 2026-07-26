@@ -5,7 +5,7 @@ export interface OpenedFile {
 	bytes: Uint8Array;
 }
 
-const ACCEPTED_EXTENSIONS = ['.vol', '.gz', '.ar2'];
+const ACCEPTED_EXTENSIONS = ['.vol', '.gz', '.ar2', '.obs'];
 
 // Tauri desktop file access (@tauri-apps/plugin-dialog + plugin-fs) isn't wired up yet -- no Rust
 // toolchain is available in this sandbox to build/verify the plugin registration, see
