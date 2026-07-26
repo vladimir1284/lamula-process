@@ -87,6 +87,11 @@ select {
 	color-scheme: dark;
 }
 
+select option {
+	background-color: var(--color-surface-container-high);
+	color: var(--color-on-surface);
+}
+
 /* ── Component utilities ───────────────────────────────────────────────────── */
 .material-symbols-outlined {
 	font-variation-settings:
