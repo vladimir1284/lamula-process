@@ -6,9 +6,9 @@ import Point from 'ol/geom/Point';
 import { standardOverlays, geoJsonLayer, coastStyle } from './geoLayer';
 
 describe('standardOverlays', () => {
-	it('returns the three named overlay layers', () => {
+	it('returns the named overlay layers', () => {
 		const layers = standardOverlays();
-		expect(layers.map((l) => l.get('name'))).toEqual(['coastline', 'rivers', 'borders']);
+		expect(layers.map((l) => l.get('name'))).toEqual(['rivers', 'borders']);
 	});
 });
 

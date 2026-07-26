@@ -46,10 +46,9 @@ export function geoJsonLayer(opts: GeoLayerOptions): VectorLayer<VectorSource> {
 	return layer;
 }
 
-/** The three standard overlays loading from the bundled static assets. */
+/** The standard overlays loading from the bundled static assets. */
 export function standardOverlays(base = '/geo'): VectorLayer<VectorSource>[] {
 	return [
-		geoJsonLayer({ name: 'coastline', url: `${base}/coastline.geojson`, style: coastStyle }),
 		geoJsonLayer({ name: 'rivers', url: `${base}/rivers.geojson`, style: riverStyle }),
 		geoJsonLayer({ name: 'borders', url: `${base}/borders.geojson`, style: borderStyle })
 	];
