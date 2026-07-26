@@ -13,3 +13,11 @@ export interface Palette {
 	smooth: boolean;
 	stops: PaletteStop[];
 }
+
+/**
+ * Palette-book assignment keys for derived ground products whose physical unit differs from any
+ * raw `MomentType` (height in metres, kg/m², mm/h, m/s) -- these can't share the source channel's
+ * moment palette (e.g. reflectivity's -30..85 dBZ ramp is meaningless for a 0..21000 m echo-top
+ * value). `MAXS_HEIGHT` and `TOPS` both report a height in metres, so they share `'TOPS_HEIGHT'`.
+ */
+export type ProductPaletteKey = 'TOPS_HEIGHT' | 'VIL' | 'RAIN' | 'WIND_SPEED';

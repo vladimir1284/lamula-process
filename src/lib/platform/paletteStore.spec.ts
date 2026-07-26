@@ -51,6 +51,16 @@ describe('paletteForMoment', () => {
 		const book = { ...seedPaletteBook(), assignments: { dBZ: 'does-not-exist' } };
 		expect(paletteForMoment(book, 'dBZ')).toBe(book.palettes[0]);
 	});
+
+	it('resolves derived-product keys to their own palette, distinct from any moment', () => {
+		const book = seedPaletteBook();
+		expect(paletteForMoment(book, 'TOPS_HEIGHT').name).toBe('Topes (altura)');
+		expect(paletteForMoment(book, 'VIL').name).toBe('VIL');
+		expect(paletteForMoment(book, 'RAIN').name).toBe('Intensidad de lluvia');
+		expect(paletteForMoment(book, 'WIND_SPEED').name).toBe('Velocidad del viento');
+		// heights and reflectivity are on very different scales -- must not collide
+		expect(paletteForMoment(book, 'TOPS_HEIGHT').name).not.toBe(paletteForMoment(book, 'dBZ').name);
+	});
 });
 
 describe('upsertPalette', () => {
@@ -75,6 +85,13 @@ describe('assignMomentPalette', () => {
 		const next = assignMomentPalette(book, 'dBZ', 'ZDR');
 		expect(next.assignments.dBZ).toBe('ZDR');
 		expect(next.assignments.V).toBe(book.assignments.V);
+	});
+
+	it('repoints a product key the same way', () => {
+		const book = seedPaletteBook();
+		const next = assignMomentPalette(book, 'VIL', 'Reflectividad');
+		expect(next.assignments.VIL).toBe('Reflectividad');
+		expect(next.assignments.TOPS_HEIGHT).toBe(book.assignments.TOPS_HEIGHT);
 	});
 });
 

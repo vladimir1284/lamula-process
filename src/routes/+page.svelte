@@ -11,7 +11,7 @@
 		type DeriveOptions
 	} from '$lib/pipeline';
 	import { eastWestLine, northSouthLine, computeProfile, volumeToRhiScan } from '$lib/products';
-	import type { Palette } from '$lib/palette/types';
+	import type { Palette, ProductPaletteKey } from '$lib/palette/types';
 	import type { Scan, MomentType } from '$lib/domain/types';
 	import { momentUnit } from '$lib/domain';
 	import {
@@ -51,6 +51,35 @@
 
 	// Every moment the app can decode, for the settings assignment UI (domain/types.ts MomentType).
 	const MOMENTS: MomentType[] = ['dBZ', 'dBuZ', 'V', 'W', 'ZDR', 'uPhiDP', 'RhoHV'];
+	// Ground products whose physical unit differs from any moment (palette/types.ts
+	// ProductPaletteKey), so they get their own settings assignment row instead of following the
+	// channel's moment.
+	const PRODUCT_PALETTE_KEYS: { key: ProductPaletteKey; label: string }[] = [
+		{ key: 'TOPS_HEIGHT', label: 'Topes / Alt. máx.' },
+		{ key: 'VIL', label: 'VIL' },
+		{ key: 'RAIN', label: 'Lluvia' },
+		{ key: 'WIND_SPEED', label: 'Viento' }
+	];
+
+	// Which palette-book key a given product's scan is colored with: ground products that report a
+	// different physical quantity than the channel's moment (echo tops/column-max height, VIL,
+	// rain rate, wind speed) get their own key; everything else (PPI/CAPPI/COLUMN_MAX and the
+	// cross-section/profile/RHI panels, which all show the raw moment) follows the moment.
+	function paletteKeyFor(p: ProductKind, moment: MomentType): string {
+		switch (p) {
+			case 'TOPS':
+			case 'MAXS_HEIGHT':
+				return 'TOPS_HEIGHT';
+			case 'VIL':
+				return 'VIL';
+			case 'RAIN':
+				return 'RAIN';
+			case 'WIND_SPEED':
+				return 'WIND_SPEED';
+			default:
+				return moment;
+		}
+	}
 
 	const { snapshot, send } = useMachine(observationMachine);
 
@@ -144,8 +173,12 @@
 
 	const channels = $derived(observation ? observationChannels(observation) : []);
 	const channel = $derived(channels[channelIndex]?.channel);
-	// Active palette follows the selected channel's moment, via the configurable assignment.
-	const palette = $derived(paletteForMoment(book, channel?.moment ?? 'dBZ'));
+	// Active palette follows the selected product: the channel's moment for PPI/CAPPI/COLUMN_MAX
+	// and the cross-section/profile/RHI panels, or a dedicated product key for ground products
+	// that report a different physical quantity (tops, VIL, rain rate, wind speed) -- see
+	// `paletteKeyFor`.
+	const paletteKey = $derived(paletteKeyFor(product, channel?.moment ?? 'dBZ'));
+	const palette = $derived(paletteForMoment(book, paletteKey));
 	const elevations = $derived(channel ? listElevationsDeg(channel) : []);
 	const georef = $derived(observation ? hasGeoref(observation) : false);
 
@@ -291,16 +324,16 @@
 		book = await loadPaletteBook();
 	});
 
-	// The scale editor edits the palette assigned to the current moment. Persist the edit and keep
-	// the moment pointed at it (so a rename doesn't detach the assignment from the edited palette).
+	// The scale editor edits the palette assigned to the active key (current moment or product).
+	// Persist the edit and keep the key pointed at it (so a rename doesn't detach the assignment
+	// from the edited palette).
 	function onPaletteChange(edited: Palette) {
-		const moment = channel?.moment ?? 'dBZ';
-		book = assignMomentPalette(upsertPalette(book, edited), moment, edited.name);
+		book = assignMomentPalette(upsertPalette(book, edited), paletteKey, edited.name);
 		void savePaletteBook(book);
 	}
 
-	function onAssign(moment: MomentType, paletteName: string) {
-		book = assignMomentPalette(book, moment, paletteName);
+	function onAssign(key: string, paletteName: string) {
+		book = assignMomentPalette(book, key, paletteName);
 		void savePaletteBook(book);
 	}
 
@@ -1078,6 +1111,38 @@
 									class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
 									value={book.assignments[m]}
 									onchange={(e) => onAssign(m, (e.currentTarget as HTMLSelectElement).value)}
+								>
+									{#each book.palettes as p (p.name)}
+										<option value={p.name}>{p.name}</option>
+									{/each}
+								</select>
+							</div>
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<div>
+				<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
+					Paletas por producto
+				</h3>
+				<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
+					Topes, VIL, lluvia y viento tienen su propia unidad física y no usan la paleta de la
+					variable de origen.
+				</p>
+				<div class="grid grid-cols-1 gap-2">
+					{#each PRODUCT_PALETTE_KEYS as pk (pk.key)}
+						<label class="flex items-center gap-3">
+							<span class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant"
+								>{pk.label}</span
+							>
+							<div
+								class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<select
+									class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
+									value={book.assignments[pk.key]}
+									onchange={(e) => onAssign(pk.key, (e.currentTarget as HTMLSelectElement).value)}
 								>
 									{#each book.palettes as p (p.name)}
 										<option value={p.name}>{p.name}</option>

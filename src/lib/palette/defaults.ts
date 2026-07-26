@@ -1,5 +1,5 @@
 import type { MomentType } from '$lib/domain/types';
-import type { Palette } from './types';
+import type { Palette, ProductPaletteKey } from './types';
 import { defaultDbzPalette } from './default';
 
 /**
@@ -119,6 +119,71 @@ const rhoHv: Palette = {
 	]
 };
 
+// Echo-top / column-max height, metres. `computeTops`/`computeMaxs` (products/tops.ts,
+// products/maxs.ts) report a height, not a moment, so it can't share the reflectivity ramp --
+// 1500 m of echo top isn't "5 dBZ". Thresholds from `hreet.lgd` (NEXRAD "echo top" legend: 14
+// levels, 5 kft steps up to 70 kft), converted to round 1500 m (~5 kft) steps; colors are
+// reflectivity's ramp index-paired onto the new thresholds (same severity-progression feel, see
+// [[project_palette_book]]).
+const topsHeight: Palette = {
+	name: 'Topes (altura)',
+	smooth: false,
+	stops: [
+		1500, 3000, 4500, 6000, 7500, 9000, 10500, 12000, 13500, 15000, 16500, 18000, 19500, 21000
+	].map((value, i) => ({ value, color: defaultDbzPalette.stops[i].color, caption: String(value) }))
+};
+
+// VIL (Vertically Integrated Liquid), kg/m². `computeVil` (products/vil.ts) integrates dBZ into a
+// different physical quantity, so it needs its own scale. Thresholds from `dvil_2.lgd` (NEXRAD
+// "Digital VIL" legend, exact kg/m² values for its 14 levels -- the nonlinear growth is the real
+// product's, not a guess); colors are reflectivity's ramp index-paired onto them, same rationale
+// as `topsHeight`.
+const vil: Palette = {
+	name: 'VIL',
+	smooth: false,
+	stops: [0.05, 0.19, 0.36, 0.66, 1.23, 2.11, 3.63, 6.23, 9.89, 15.7, 25.0, 36.7, 54.0, 80].map(
+		(value, i) => ({ value, color: defaultDbzPalette.stops[i].color, caption: String(value) })
+	)
+};
+
+// Rain rate, mm/h (products/rainRate.ts, Z-R relation). No legend proposal covered this product;
+// thresholds are the common light/moderate/heavy/violent rain-rate breakpoints, ramped blue (light)
+// through green/yellow/orange to red/magenta (extreme) like other published precip-rate scales.
+const rainRate: Palette = {
+	name: 'Intensidad de lluvia',
+	smooth: false,
+	stops: [
+		{ value: 1, color: [4, 233, 231], caption: '1' },
+		{ value: 2, color: [1, 159, 244], caption: '2' },
+		{ value: 5, color: [2, 253, 2], caption: '5' },
+		{ value: 10, color: [1, 197, 1], caption: '10' },
+		{ value: 20, color: [253, 248, 2], caption: '20' },
+		{ value: 30, color: [229, 188, 0], caption: '30' },
+		{ value: 50, color: [253, 149, 0], caption: '50' },
+		{ value: 75, color: [253, 0, 0], caption: '75' },
+		{ value: 100, color: [212, 0, 0], caption: '100' },
+		{ value: 150, color: [248, 0, 253], caption: '150' }
+	]
+};
+
+// Wind speed (products/wind.ts), m/s -- unsigned magnitude, unlike the bidirectional Doppler `V`
+// moment. Reuses the outbound (positive) half of the `velocity` ramp below: same unit, same
+// severity feel, no new colors invented.
+const windSpeed: Palette = {
+	name: 'Velocidad del viento',
+	smooth: false,
+	stops: [
+		{ value: 0, color: [160, 160, 160], caption: '0' },
+		{ value: 8, color: [255, 140, 140], caption: '8' },
+		{ value: 16, color: [255, 0, 0], caption: '16' },
+		{ value: 24, color: [210, 0, 0], caption: '24' },
+		{ value: 32, color: [160, 0, 0], caption: '32' },
+		{ value: 40, color: [255, 128, 0], caption: '40' },
+		{ value: 48, color: [255, 192, 0], caption: '48' },
+		{ value: 56, color: [255, 255, 0], caption: '56' }
+	]
+};
+
 /** The built-in palette library, in a stable display order. */
 export const defaultPalettes: Palette[] = [
 	reflectivity,
@@ -126,7 +191,11 @@ export const defaultPalettes: Palette[] = [
 	spectrumWidth,
 	zdr,
 	phiDp,
-	rhoHv
+	rhoHv,
+	topsHeight,
+	vil,
+	rainRate,
+	windSpeed
 ];
 
 /**
@@ -141,4 +210,16 @@ export const defaultAssignments: Record<MomentType, string> = {
 	ZDR: 'ZDR',
 	uPhiDP: 'PhiDP',
 	RhoHV: 'RhoHV'
+};
+
+/**
+ * Default assignment for derived ground products (see `ProductPaletteKey`). `COLUMN_MAX` isn't
+ * here -- it reports the source moment's own unit (`valueUnit: momentUnit(channel.moment)`), so it
+ * correctly keeps following the channel's moment assignment above.
+ */
+export const defaultProductAssignments: Record<ProductPaletteKey, string> = {
+	TOPS_HEIGHT: 'Topes (altura)',
+	VIL: 'VIL',
+	RAIN: 'Intensidad de lluvia',
+	WIND_SPEED: 'Velocidad del viento'
 };

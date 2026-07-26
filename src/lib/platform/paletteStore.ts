@@ -1,7 +1,10 @@
 import { isTauri } from '@tauri-apps/api/core';
-import type { MomentType } from '$lib/domain/types';
 import type { Palette } from '$lib/palette/types';
-import { defaultPalettes, defaultAssignments } from '$lib/palette/defaults';
+import {
+	defaultPalettes,
+	defaultAssignments,
+	defaultProductAssignments
+} from '$lib/palette/defaults';
 
 /**
  * The user's palette library plus the moment -> palette assignment, persisted in the browser.
@@ -32,7 +35,7 @@ function clonePalette(p: Palette): Palette {
 export function seedPaletteBook(): PaletteBook {
 	return {
 		palettes: defaultPalettes.map(clonePalette),
-		assignments: { ...defaultAssignments }
+		assignments: { ...defaultAssignments, ...defaultProductAssignments }
 	};
 }
 
@@ -44,8 +47,8 @@ function mergeSeed(stored: PaletteBook): PaletteBook {
 	}
 	return {
 		palettes: [...byName.values()],
-		// stored assignments win; seed only fills moments the user hasn't chosen yet.
-		assignments: { ...defaultAssignments, ...stored.assignments }
+		// stored assignments win; seed only fills moments/products the user hasn't chosen yet.
+		assignments: { ...defaultAssignments, ...defaultProductAssignments, ...stored.assignments }
 	};
 }
 
@@ -83,9 +86,14 @@ export async function savePaletteBook(book: PaletteBook): Promise<void> {
 	localStorage.setItem(STORAGE_KEY, JSON.stringify(book));
 }
 
-/** The palette assigned to a moment, falling back to the first palette in the library. */
-export function paletteForMoment(book: PaletteBook, moment: MomentType): Palette {
-	const name = book.assignments[moment];
+/**
+ * The palette assigned to a book key, falling back to the first palette in the library. `key` is
+ * a `MomentType` for raw moments or a `ProductPaletteKey` for derived ground products (tops, VIL,
+ * rain rate, wind speed) -- both live in the same flat `assignments` map, see
+ * `src/lib/palette/types.ts` `ProductPaletteKey`.
+ */
+export function paletteForMoment(book: PaletteBook, key: string): Palette {
+	const name = book.assignments[key];
 	return book.palettes.find((p) => p.name === name) ?? book.palettes[0];
 }
 
@@ -97,13 +105,13 @@ export function upsertPalette(book: PaletteBook, palette: Palette): PaletteBook 
 	return { ...book, palettes };
 }
 
-/** Point a moment at a palette by name. Pure -- returns a new book. */
+/** Point a moment or product key at a palette by name. Pure -- returns a new book. */
 export function assignMomentPalette(
 	book: PaletteBook,
-	moment: MomentType,
+	key: string,
 	paletteName: string
 ): PaletteBook {
-	return { ...book, assignments: { ...book.assignments, [moment]: paletteName } };
+	return { ...book, assignments: { ...book.assignments, [key]: paletteName } };
 }
 
 /** Serialize the whole book for a user-triggered download. */
