@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { useMachine } from '@xstate/svelte';
 	import { observationMachine } from '$lib/pipeline/observationMachine';
 	import {
@@ -10,9 +11,8 @@
 		type DeriveOptions
 	} from '$lib/pipeline';
 	import { eastWestLine, northSouthLine, computeProfile, volumeToRhiScan } from '$lib/products';
-	import { defaultDbzPalette } from '$lib/palette/default';
 	import type { Palette } from '$lib/palette/types';
-	import type { Scan } from '$lib/domain/types';
+	import type { Scan, MomentType } from '$lib/domain/types';
 	import {
 		PpiMap,
 		RhiPanel,
@@ -34,8 +34,20 @@
 		loadSiteData,
 		exportSiteData,
 		importSiteData,
-		loadKnownSitesSeed
+		loadKnownSitesSeed,
+		type PaletteBook,
+		seedPaletteBook,
+		loadPaletteBook,
+		savePaletteBook,
+		paletteForMoment,
+		upsertPalette,
+		assignMomentPalette,
+		exportPaletteBook,
+		importPaletteBook
 	} from '$lib/platform';
+
+	// Every moment the app can decode, for the settings assignment UI (domain/types.ts MomentType).
+	const MOMENTS: MomentType[] = ['dBZ', 'dBuZ', 'V', 'W', 'ZDR', 'uPhiDP', 'RhoHV'];
 
 	const { snapshot, send } = useMachine(observationMachine);
 
@@ -109,7 +121,9 @@
 	let profileYkm = $state(30);
 	let rhiAzimuthDeg = $state(0);
 
-	let palette = $state<Palette>(defaultDbzPalette);
+	// Per-variable palette group, persisted + configurable (platform/paletteStore.ts). Seeded
+	// synchronously so the first paint has colors; the stored/edited book loads in onMount.
+	let book = $state<PaletteBook>(seedPaletteBook());
 	let readout = $state<Readout | RhiReadout | null>(null);
 	let siteOverride = $state<{ lat: number; lon: number; altM: number } | null>(null);
 	let showLocationEditor = $state(false);
@@ -123,6 +137,8 @@
 
 	const channels = $derived(observation ? observationChannels(observation) : []);
 	const channel = $derived(channels[channelIndex]?.channel);
+	// Active palette follows the selected channel's moment, via the configurable assignment.
+	const palette = $derived(paletteForMoment(book, channel?.moment ?? 'dBZ'));
 	const elevations = $derived(channel ? listElevationsDeg(channel) : []);
 	const georef = $derived(observation ? hasGeoref(observation) : false);
 
@@ -262,6 +278,41 @@
 			const loc = await getSiteLocation(siteKey(observation.site));
 			if (loc) siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
 		}
+	}
+
+	onMount(async () => {
+		book = await loadPaletteBook();
+	});
+
+	// The scale editor edits the palette assigned to the current moment. Persist the edit and keep
+	// the moment pointed at it (so a rename doesn't detach the assignment from the edited palette).
+	function onPaletteChange(edited: Palette) {
+		const moment = channel?.moment ?? 'dBZ';
+		book = assignMomentPalette(upsertPalette(book, edited), moment, edited.name);
+		void savePaletteBook(book);
+	}
+
+	function onAssign(moment: MomentType, paletteName: string) {
+		book = assignMomentPalette(book, moment, paletteName);
+		void savePaletteBook(book);
+	}
+
+	function downloadPaletteBook() {
+		const blob = new Blob([exportPaletteBook(book)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'palettes.json';
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	async function onImportPaletteBook(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		book = await importPaletteBook(await file.text());
+		input.value = '';
 	}
 </script>
 
@@ -897,13 +948,58 @@
 
 	<Modal open={showScaleEditor} title="Editor de escala" onclose={() => (showScaleEditor = false)}>
 		<div class="p-4">
-			<ScaleEditor {palette} onchange={(p) => (palette = p)} />
+			<ScaleEditor {palette} onchange={onPaletteChange} />
 		</div>
 	</Modal>
 
 	<Modal open={showSettings} title="Configuración" onclose={() => (showSettings = false)}>
-		<div class="p-4 font-mono text-label-mono text-on-surface-variant">
-			Configuraciones generales — próximamente.
+		<div class="space-y-5 p-4">
+			<div>
+				<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
+					Paletas por variable
+				</h3>
+				<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
+					Cada variable se dibuja con la paleta asignada. Edita los colores con el ícono de paleta
+					sobre el visor; aquí eliges qué paleta usa cada variable.
+				</p>
+				<div class="grid grid-cols-1 gap-2">
+					{#each MOMENTS as m (m)}
+						<label class="flex items-center gap-3">
+							<span
+								class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant">{m}</span
+							>
+							<div
+								class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
+							>
+								<select
+									class="w-full cursor-pointer border-none bg-transparent p-0 font-mono text-label-mono text-on-surface focus:ring-0"
+									value={book.assignments[m]}
+									onchange={(e) => onAssign(m, (e.currentTarget as HTMLSelectElement).value)}
+								>
+									{#each book.palettes as p (p.name)}
+										<option value={p.name}>{p.name}</option>
+									{/each}
+								</select>
+							</div>
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<div class="flex flex-wrap gap-2 border-t border-outline-variant pt-4">
+				<button
+					class="flex items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+					onclick={downloadPaletteBook}
+				>
+					<span class="material-symbols-outlined text-[16px]">download</span> Exportar paletas
+				</button>
+				<label
+					class="flex cursor-pointer items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+				>
+					<span class="material-symbols-outlined text-[16px]">upload</span> Importar paletas
+					<input type="file" accept="application/json" class="hidden" onchange={onImportPaletteBook} />
+				</label>
+			</div>
 		</div>
 	</Modal>
 </div>

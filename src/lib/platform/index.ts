@@ -13,3 +13,14 @@ export {
 	importSiteData,
 	loadKnownSitesSeed
 } from './siteData';
+export type { PaletteBook } from './paletteStore';
+export {
+	seedPaletteBook,
+	loadPaletteBook,
+	savePaletteBook,
+	paletteForMoment,
+	upsertPalette,
+	assignMomentPalette,
+	exportPaletteBook,
+	importPaletteBook
+} from './paletteStore';
