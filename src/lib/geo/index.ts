@@ -7,3 +7,4 @@ export {
 } from './height';
 export { groundRangeM } from './groundRange';
 export { siteExtent3857, siteCenter3857, mercatorScaleAtLat } from './extent';
+export { haversineKm } from './distance';

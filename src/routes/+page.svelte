@@ -25,6 +25,7 @@
 		Modal,
 		SiteLocationEditor
 	} from '$lib/viewer';
+	import AwsExplorer from '$lib/aws-explorer/AwsExplorer.svelte';
 	import { standardOverlays } from '$lib/overlays';
 	import { BASE_MAP_IDS, BASE_MAP_LABELS, type BaseMapId } from '$lib/viewer/baseMaps';
 	import type { Readout } from '$lib/viewer/readout';
@@ -131,6 +132,7 @@
 	let showLocationEditor = $state(false);
 	let showScaleEditor = $state(false);
 	let showSettings = $state(false);
+	let showAwsExplorer = $state(false);
 	// Background map + radar (data) layer opacity for the PPI viewer.
 	let baseMap = $state<BaseMapId>('carto-dark');
 	let dataOpacity = $state(1);
@@ -374,6 +376,14 @@
 				{loading ? 'ABRIENDO…' : 'ABRIR ARCHIVO'}
 			</button>
 			<button
+				class="flex h-10 items-center gap-2 rounded border border-outline-variant px-4 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container hover:text-primary-container disabled:opacity-50"
+				onclick={() => (showAwsExplorer = true)}
+				disabled={loading}
+			>
+				<span class="material-symbols-outlined text-[18px]">cloud_download</span>
+				DESCARGAR (AWS)
+			</button>
+			<button
 				class="flex h-10 w-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 				onclick={() => (showSettings = true)}
 				aria-label="Configuración"
@@ -498,6 +508,14 @@
 					>
 						<span class="material-symbols-outlined text-[18px]">upload_file</span>
 						{loading ? 'ABRIENDO…' : 'ABRIR ARCHIVO'}
+					</button>
+					<button
+						class="flex h-10 items-center gap-2 rounded border border-outline-variant px-4 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container hover:text-primary-container disabled:opacity-50"
+						onclick={() => (showAwsExplorer = true)}
+						disabled={loading}
+					>
+						<span class="material-symbols-outlined text-[18px]">cloud_download</span>
+						DESCARGAR (AWS)
 					</button>
 				</div>
 			{:else}
@@ -1015,6 +1033,19 @@
 			initial={siteOverride ?? undefined}
 			onsave={saveSiteLocation}
 			oncancel={cancelLocationEditor}
+		/>
+	</Modal>
+
+	<Modal
+		open={showAwsExplorer}
+		title="Descargar observación (AWS)"
+		onclose={() => (showAwsExplorer = false)}
+	>
+		<AwsExplorer
+			onload={(picked) => {
+				showAwsExplorer = false;
+				send({ type: 'LOAD_REMOTE', picked });
+			}}
 		/>
 	</Modal>
 

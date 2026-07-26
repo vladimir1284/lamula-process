@@ -10,7 +10,8 @@ import type { Observation } from '$lib/domain/types';
  * states, cancellation handled as a first-class path (picker returns null → back to idle).
  *
  * Product selection / rendering stays reactive Svelte state in the page — only the load pipeline
- * lives here.
+ * lives here. `LOAD_REMOTE` (AWS S3 explorer) feeds the same `parsing` state as `OPEN` -- both
+ * just need a `Picked` {fileName, bytes}, wherever the bytes came from.
  */
 
 interface Picked {
@@ -28,7 +29,7 @@ interface Ctx {
 export const observationMachine = setup({
 	types: {
 		context: {} as Ctx,
-		events: {} as { type: 'OPEN' }
+		events: {} as { type: 'OPEN' } | { type: 'LOAD_REMOTE'; picked: Picked }
 	},
 	actors: {
 		openFile: fromPromise(async () => await openObservationFile()),
@@ -37,13 +38,19 @@ export const observationMachine = setup({
 			const config = await addRecentFile(input.fileName);
 			return { observation, recentFiles: config.recentFiles };
 		})
+	},
+	actions: {
+		assignRemotePicked: assign({
+			error: null,
+			picked: ({ event }) => (event as { picked: Picked }).picked
+		})
 	}
 }).createMachine({
 	id: 'observation',
 	initial: 'idle',
 	context: { observation: null, error: null, recentFiles: [], picked: null },
 	states: {
-		idle: { on: { OPEN: 'opening' } },
+		idle: { on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } } },
 		opening: {
 			entry: assign({ error: null }),
 			invoke: {
@@ -82,8 +89,8 @@ export const observationMachine = setup({
 				}
 			}
 		},
-		ready: { on: { OPEN: 'opening' } },
-		error: { on: { OPEN: 'opening' } }
+		ready: { on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } } },
+		error: { on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } } }
 	}
 });
 
