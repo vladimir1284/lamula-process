@@ -402,10 +402,7 @@
 	>
 		<div class="flex items-center gap-6">
 			<h1 class="flex items-center gap-2 font-headline text-headline-md font-bold text-primary">
-				<span
-					class="material-symbols-outlined text-primary-container"
-					style="font-variation-settings:'FILL' 1;">radar</span
-				>
+				<img src="/logo.svg" alt="" class="h-7 w-7" />
 				LAMULA <span class="font-normal text-on-surface-variant">Process</span>
 			</h1>
 			{#if observation}
