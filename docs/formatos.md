@@ -103,6 +103,16 @@ que en `.obs`/Level II, no resuelta aquí tampoco.
   exacta del ICD.
 - `test-fixtures/reference/nexrad-l2/l2_probe_py3.py` — nuestro decoder
   Python 3 verificado (ver abajo).
+- `test-fixtures/observations/nexrad-l2/KBYX20260726_113948_V06` — archivo
+  real descargado del bucket público `noaa-nexrad-level2` en AWS (radar
+  KBYX, Key West FL), sin envoltorio `.gz`, **bzip2-comprimido por registro**
+  (ver más abajo). A diferencia de los 3 KMLB, este es representativo de lo
+  que cualquier descarga real de ese bucket entrega hoy.
+- `test-fixtures/observations/nexrad-l3/` — dos productos Level III reales
+  (`BYX_N0B_...`/`BYX_N0G_...`, reflectividad/velocidad super-res) del mismo
+  volumen KBYX, del bucket público `unidata-nexrad-level3`, usados para
+  validar geometría de gates de forma independiente (ver
+  `test-fixtures/reference/nexrad-l3/l3_probe_py3.py`).
 
 **Verificado de verdad** (no solo leído del ICD): escribí+corrí
 `l2_probe_py3.py` (Python 3 stdlib) contra los 3 archivos KMLB reales
@@ -121,17 +131,44 @@ Layout confirmado (big-endian):
 | Msg 31 — Data Header Block | 68 B                                                                                                                                                                                                             | `'>4sIHHfBBHBBBBfBBH9I'`: radar_id, collection_time, mjd, azimuth_number/angle, compression_indicator, radial_length, elevation_number/angle, 9 punteros u32 (VOL/ELV/RAD/REF/VEL/SW/ZDR/PHI/RHO). **Corrección importante**: la posición de cada puntero es fija, pero qué momento hay en cada slot NO es confiable (cortes solo-vigilancia dual-pol usan el slot "VEL" para ZDR) — hay que identificar cada bloque por su propio tag de 4 bytes (`DREF`/`DVEL`/`DZDR`/etc.), nunca por posición de puntero. |
 | Msg 31 — Data Moment block | 28 B header + N gates                                                                                                                                                                                            | `'>4sIHHHHhBBff'`: tag, n_gates, range, interval, tover, snr_threshold (firmado — bug latente en el simulador de referencia que lo empaca sin signo), data_word_size (8/16 bit), scale, offset. Valor físico = `(raw-offset)/scale` para `raw>=2`; `raw=0`=bajo umbral, `raw=1`=range-folded.                                                                                                                                                                                                                 |
 
-**Compresión: NO usa bzip2** en estos 3 archivos — cero ocurrencias de la
-firma `BZh` en 43 MB, y el propio campo `compression_indicator` del header
-Msg 31 lee 0 ("uncompressed") en cada radial muestreado. Esto contradice la
-suposición común de que `AR2V0006` implica bzip2 — al menos para este
-sitio/build no aplica.
+**Compresión — corrección importante (2026-07-26):** los 3 fixtures KMLB
+originales **no** usan bzip2 (cero firmas `BZh`, `compression_indicator=0`
+en cada radial) — pero esto resultó ser la excepción, no la regla. Un
+archivo real recién bajado del bucket (`KBYX20260726_113948_V06`, ver
+arriba) sí viene comprimido: tras el Volume Header de 24 B, el archivo es
+una secuencia de registros `[4 B BE longitud][bzip2 "BZh..." de esa
+longitud]`, donde CADA registro es su propio stream bzip2 independiente
+(confirmado descomprimiendo con `bz2` de Python: 55 registros, 0 errores,
+offset final exacto al tamaño del archivo). El parser original **no tenía
+ningún soporte bzip2** — con un archivo real tiraba `no message-31 found` o
+peor, con la primera librería JS probada (`bzip2` de npm, decoder puro-JS de
+2014), truncaba silenciosamente cualquier registro que superara 900.000
+bytes descomprimidos (varios registros reales llegan a 1.4 MB), corrompiendo
+el resto del stream sin lanzar error. Solucionado migrando a `bzip2-wasm`
+(libbzip2 real compilado a WASM, mismo código C que usa el `bz2` de Python)
+— ver `src/lib/parsers/nexrad-l2/archive2Bzip2.ts` y su test de regresión
+específico para el bug de los 900k.
 
 **Sin resolver:** una corrida de ~177 KB de frames tipo 0 (no es tipo ICD
 válido) entre dos mensajes de metadata cerca del inicio del archivo — no
 rompe el parseo (el stride fijo de 2432 B lo atraviesa igual) pero la causa
 no está confirmada. Qué significa exactamente "0006" en `AR2V0006` — no
 está en el ICD 2620002P (ese documento no cubre el wrapper de archivo).
+
+**Validación cruzada de geometría de gates contra Level III (2026-07-26):**
+motivada por duda de que la distancia/gate no se estuviera leyendo bien.
+Con el bug de bzip2 arriba corregido, se descargó también Level III
+(reflectividad N0B + velocidad N0G, mismo volumen KBYX) para verificar
+`rangeToFirstGateM`/`gateLengthM` contra un producto RPG independiente, no
+solo re-derivar los mismos bytes de Level II. Decoder de referencia en
+`test-fixtures/reference/nexrad-l3/l3_probe_py3.py` (grounded contra
+Py-ART, no contra un ICD PDF — no hay uno de Level III en este repo).
+Tres coincidencias independientes contra el primer corte REF decodificado
+por Level II: cantidad de radiales (720 == 720), azimut del primer radial
+(358.25° L3 vs 358.248° L2) y espaciado de gate (`range_scale_raw × 0.25 =
+249.75m` L3 vs `250m` L2). Conclusión: la matemática de rango/gate de Level
+II (`message31.ts`) ya era correcta — el bug real era la falta de soporte
+bzip2 de arriba, no un error de unidades/off-by-one.
 
 ## Formato interno — `.obs` (Vesta)
 

@@ -1,6 +1,7 @@
 import type { Observation, MomentType, Channel, Scan } from '$lib/domain';
 import { isGzipMagic } from '../sniff';
 import { inflateGzip } from './gunzip';
+import { isArchive2Bzip2Compressed, inflateArchive2Bzip2 } from './archive2Bzip2';
 import { parseVolumeHeader, walkMessages } from './messages';
 import { parseDataHeaderBlock, decodeMomentBlock } from './message31';
 
@@ -33,7 +34,13 @@ interface OpenScan {
 }
 
 export async function parseNexradL2(bytes: Uint8Array): Promise<Observation> {
-	const buf = isGzipMagic(bytes) ? await inflateGzip(bytes) : bytes;
+	const gunzipped = isGzipMagic(bytes) ? await inflateGzip(bytes) : bytes;
+	// Real-world Archive II files pulled from the NOAA/AWS bucket are bzip2-record-compressed
+	// (see archive2Bzip2.ts); the KMLB fixtures predating this check happened to be uncompressed,
+	// which is the exception, not the rule.
+	const buf = isArchive2Bzip2Compressed(gunzipped)
+		? await inflateArchive2Bzip2(gunzipped)
+		: gunzipped;
 	const volumeHeader = parseVolumeHeader(buf);
 	const timestamp = julianMsToIso(volumeHeader.julianDate, volumeHeader.msOfDay);
 

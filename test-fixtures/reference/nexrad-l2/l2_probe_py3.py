@@ -183,6 +183,7 @@ The file is gunzip'd in memory if it ends in .gz (or is gzip-magic) --
 nothing is ever decompressed to disk.
 """
 
+import bz2
 import gzip
 import struct
 import sys
@@ -216,13 +217,37 @@ def julian_date_to_date(jd):
     return L2_EPOCH + timedelta(days=jd - 1)
 
 
+def inflate_archive2_bzip2(buf):
+    """Real-time Archive II files (e.g. anything off the NOAA/AWS bucket) are LDM-compressed:
+    after the 24-byte Volume Header, records follow as [4-byte BE length][that many bytes of a
+    self-contained bzip2 stream]. Concatenating every record's decompressed payload after the
+    (untouched) Volume Header reconstructs the exact uncompressed message stream -- verified
+    directly against real KBYX20260726_113948_V06 bytes (55 records, 0 decompression errors,
+    final offset lands exactly on EOF)."""
+    off = VOLUME_HEADER_SIZE
+    records = []
+    while off + 4 <= len(buf):
+        (reclen,) = struct.unpack('>i', buf[off:off + 4])
+        off += 4
+        abslen = abs(reclen)
+        if abslen == 0 or off + abslen > len(buf):
+            break
+        records.append(bz2.decompress(buf[off:off + abslen]))
+        off += abslen
+    return buf[:VOLUME_HEADER_SIZE] + b''.join(records)
+
+
 def read_source(path):
     with open(path, 'rb') as f:
         head = f.read(2)
         f.seek(0)
         if path.endswith('.gz') or head == b'\x1f\x8b':
-            return gzip.open(f, 'rb').read()
-        return f.read()
+            buf = gzip.open(f, 'rb').read()
+        else:
+            buf = f.read()
+    if len(buf) > 31 and buf[28:31] == b'BZh':
+        buf = inflate_archive2_bzip2(buf)
+    return buf
 
 
 def parse_volume_header(buf):
@@ -288,6 +313,7 @@ def decode_moment(buf, off):
     range_folded = sum(1 for r in raw if r == 1)
     return dict(name=name4.decode('ascii', 'replace'), n_gates=ngates, data_word_size=dws,
                 scale=scale, offset=offset, snr_threshold_signed=snr,
+                range_to_first_gate_m=mrange, gate_length_m=rinterval,
                 n_valid=len(valid), below_threshold=below_threshold, range_folded=range_folded,
                 min_value=min(valid) if valid else None, max_value=max(valid) if valid else None,
                 mean_value=(sum(valid) / len(valid)) if valid else None)
@@ -378,6 +404,8 @@ def main():
             if tag[:1] == b'D':
                 m = decode_moment(buf, boff)
                 print(f'    {m["name"]}: n_gates={m["n_gates"]} word_size={m["data_word_size"]} '
+                      f'range_to_first_gate_m={m["range_to_first_gate_m"]} '
+                      f'gate_length_m={m["gate_length_m"]} '
                       f'valid={m["n_valid"]} below_thresh={m["below_threshold"]} '
                       f'range_folded={m["range_folded"]} '
                       f'range=[{m["min_value"]:.3f}, {m["max_value"]:.3f}] '

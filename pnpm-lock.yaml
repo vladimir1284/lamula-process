@@ -14,6 +14,9 @@ importers:
       '@xstate/svelte':
         specifier: ^5.0.0
         version: 5.0.0(svelte@5.56.7(@typescript-eslint/types@8.65.0))(xstate@5.32.5)
+      bzip2-wasm:
+        specifier: ^1.0.1
+        version: 1.0.1
       ol:
         specifier: 10.9.0
         version: 10.9.0
@@ -672,6 +675,9 @@ packages:
   buffer-image-size@0.6.4:
     resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
     engines: {node: '>=4.0'}
+
+  bzip2-wasm@1.0.1:
+    resolution: {integrity: sha512-+5/Z07KHXa6UFi1Smwx374z6ImD2Qdvr3+mXBPSQ80xTdC/8mpE40DpNDrN3MsPodx9W56uTC/nRq2WnHJ890w==}
 
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
@@ -2104,6 +2110,8 @@ snapshots:
   buffer-image-size@0.6.4:
     dependencies:
       '@types/node': 22.20.1
+
+  bzip2-wasm@1.0.1: {}
 
   chai@6.2.2: {}
 

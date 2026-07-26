@@ -43,6 +43,7 @@
 	"dependencies": {
 		"@tauri-apps/api": "2.11.1",
 		"@xstate/svelte": "^5.0.0",
+		"bzip2-wasm": "^1.0.1",
 		"ol": "10.9.0",
 		"xstate": "5.32.5"
 	}

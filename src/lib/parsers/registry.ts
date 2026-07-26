@@ -15,7 +15,12 @@ export const PARSER_DESCRIPTORS: readonly ParserDescriptor[] = [
 		id: 'nexrad-l2',
 		label: 'NEXRAD Level II (Archive II)',
 		canParse: (input) =>
-			hasExtension(input.fileName, '.ar2', '.ar2.bz2', '.gz') || isGzipMagic(input.bytes),
+			// Real files pulled from the NOAA/AWS bucket have no extension at all (e.g.
+			// "KBYX20260726_113948_V06"), so the volume header's own "AR2V..." tape-id ASCII prefix
+			// is the only reliable sniff for that case.
+			hasExtension(input.fileName, '.ar2', '.ar2.bz2', '.gz') ||
+			isGzipMagic(input.bytes) ||
+			startsWithAscii(input.bytes, 'AR2V'),
 		load: () => import('./nexrad-l2').then((m) => m.nexradL2Parser)
 	},
 	{
