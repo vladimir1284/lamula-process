@@ -13,6 +13,7 @@
 	import { eastWestLine, northSouthLine, computeProfile, volumeToRhiScan } from '$lib/products';
 	import type { Palette } from '$lib/palette/types';
 	import type { Scan, MomentType } from '$lib/domain/types';
+	import { momentUnit } from '$lib/domain';
 	import {
 		PpiMap,
 		RhiPanel,
@@ -850,7 +851,7 @@
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">VALOR</p>
 									<p class="text-label-mono text-dbz-heavy">
-										{readout.value === null ? '—' : fmt(readout.value)}
+										{readout.value === null ? '—' : `${fmt(readout.value)}${ground?.unit ?? ''}`}
 									</p>
 								</div>
 								<div class="bg-surface-container-low p-3">
@@ -871,7 +872,9 @@
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">VALOR</p>
 									<p class="text-label-mono text-dbz-heavy">
-										{readout.value === null ? '—' : fmt(readout.value)}
+										{readout.value === null
+											? '—'
+											: `${fmt(readout.value)}${momentUnit(channel?.moment ?? 'dBZ')}`}
 									</p>
 								</div>
 								<div class="bg-surface-container-low p-3"></div>

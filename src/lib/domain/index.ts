@@ -9,4 +9,4 @@ export type {
 	Movement,
 	Observation
 } from './types';
-export { createCells, cellIndex, getCell, setCell, cellFlagCode } from './cells';
+export { createCells, cellIndex, getCell, setCell, cellFlagCode, momentUnit } from './cells';

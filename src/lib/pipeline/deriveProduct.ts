@@ -1,4 +1,5 @@
 import type { Channel, Scan } from '$lib/domain/types';
+import { momentUnit } from '$lib/domain';
 import { pickScanByElevation } from './select';
 import { computeCappi } from '$lib/products/cappi';
 import { computeTops } from '$lib/products/tops';
@@ -51,7 +52,10 @@ export function deriveGroundProduct(
 	const common = { beamWidthDeg: bw, siteAltM: opts.siteAltM };
 	switch (kind) {
 		case 'PPI':
-			return { scan: pickScanByElevation(channel, opts.elevationDeg), unit: channel.moment };
+			return {
+				scan: pickScanByElevation(channel, opts.elevationDeg),
+				unit: momentUnit(channel.moment)
+			};
 		case 'CAPPI': {
 			const r = computeCappi(channel.scans, {
 				bottomM: opts.cappiBottomM,
@@ -59,18 +63,18 @@ export function deriveGroundProduct(
 				moment: channel.moment,
 				...common
 			});
-			return { scan: r.scan, unit: channel.moment };
+			return { scan: r.scan, unit: momentUnit(channel.moment) };
 		}
 		case 'TOPS': {
 			const r = computeTops(channel.scans, { minValue: opts.topsMinDbz, ...common });
 			return { scan: r.scan, unit: r.unit };
 		}
 		case 'MAXS_HEIGHT': {
-			const r = computeMaxs(channel.scans, { ...common, valueUnit: channel.moment });
+			const r = computeMaxs(channel.scans, { ...common, valueUnit: momentUnit(channel.moment) });
 			return { scan: r.height.scan, unit: r.height.unit };
 		}
 		case 'COLUMN_MAX': {
-			const r = computeMaxs(channel.scans, { ...common, valueUnit: channel.moment });
+			const r = computeMaxs(channel.scans, { ...common, valueUnit: momentUnit(channel.moment) });
 			return { scan: r.columnMax.scan, unit: r.columnMax.unit };
 		}
 		case 'VIL': {

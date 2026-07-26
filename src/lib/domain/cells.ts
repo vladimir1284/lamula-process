@@ -1,4 +1,21 @@
-import type { CellFlag, Cells } from './types';
+import type { CellFlag, Cells, MomentType } from './types';
+
+// Physical unit each moment decodes into (see docs/formatos.md). RhoHV is a correlation
+// coefficient and carries no unit. Used for readout labels; ground products override with
+// their own derived unit (see products/types.ts).
+const MOMENT_UNIT: Record<MomentType, string> = {
+	dBZ: 'dBZ',
+	dBuZ: 'dBZ',
+	V: 'm/s',
+	W: 'm/s',
+	ZDR: 'dB',
+	uPhiDP: '°',
+	RhoHV: ''
+};
+
+export function momentUnit(moment: MomentType): string {
+	return MOMENT_UNIT[moment];
+}
 
 // Index must match this order; stored in Cells.flags as the numeric index rather than the string.
 const CELL_FLAGS: readonly CellFlag[] = ['ok', 'no-data', 'below-threshold', 'range-folded'];
