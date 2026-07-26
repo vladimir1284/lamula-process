@@ -828,9 +828,17 @@
 
 						<!-- Readout bar. -->
 						<div
-							class="grid grid-cols-2 gap-px border-t border-outline-variant bg-surface-container-low font-mono sm:grid-cols-4"
+							class="grid grid-cols-2 gap-px border-t border-outline-variant bg-surface-container-low font-mono sm:grid-cols-3 lg:grid-cols-6"
 						>
 							{#if readout && 'azimuthDeg' in readout}
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">LAT</p>
+									<p class="text-label-mono text-on-surface">{fmt(readout.lat, 4)}°</p>
+								</div>
+								<div class="bg-surface-container-low p-3">
+									<p class="mb-0.5 text-label-caps text-on-surface-variant">LON</p>
+									<p class="text-label-mono text-on-surface">{fmt(readout.lon, 4)}°</p>
+								</div>
 								<div class="bg-surface-container-low p-3">
 									<p class="mb-0.5 text-label-caps text-on-surface-variant">AZIMUT</p>
 									<p class="text-label-mono text-primary-container">{fmt(readout.azimuthDeg)}°</p>
@@ -868,7 +876,7 @@
 								</div>
 								<div class="bg-surface-container-low p-3"></div>
 							{:else}
-								<div class="col-span-2 bg-surface-container-low p-3 sm:col-span-4">
+								<div class="col-span-2 bg-surface-container-low p-3 sm:col-span-3 lg:col-span-6">
 									<p class="text-label-mono text-on-surface-variant">
 										Pasa el cursor sobre el visor para leer valores.
 									</p>

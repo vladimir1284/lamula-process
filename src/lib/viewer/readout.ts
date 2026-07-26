@@ -1,3 +1,4 @@
+import { toLonLat } from 'ol/proj';
 import type { Scan } from '$lib/domain/types';
 import { normDeg, sampleGround, type AzimuthLUT } from '$lib/render/scanSample';
 
@@ -13,6 +14,9 @@ export interface Readout {
 	azimuthDeg: number;
 	value: number | null;
 	flag: string | null;
+	/** Geographic position under the cursor (EPSG:4326). */
+	lon: number;
+	lat: number;
 }
 
 export function readoutAt(
@@ -27,10 +31,13 @@ export function readoutAt(
 	const rangeM = Math.hypot(gx, gy);
 	const azimuthDeg = normDeg((Math.atan2(gx, gy) * 180) / Math.PI);
 	const sample = sampleGround(scan, lut, gx, gy);
+	const [lon, lat] = toLonLat(coord3857);
 	return {
 		rangeM,
 		azimuthDeg,
 		value: sample ? sample.value : null,
-		flag: sample ? sample.flag : null
+		flag: sample ? sample.flag : null,
+		lon,
+		lat
 	};
 }
