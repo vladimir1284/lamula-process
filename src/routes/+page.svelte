@@ -434,13 +434,13 @@
 			{/if}
 
 			<div>
-				<p class="mb-2 px-1 font-mono text-[10px] tracking-widest text-outline uppercase">Producto</p>
+				<p class="mb-2 px-1 font-mono text-[10px] tracking-widest text-outline uppercase">
+					Producto
+				</p>
 				<div class="space-y-3 font-mono text-label-mono">
 					{#each PRODUCT_GROUPS as group (group.label)}
 						<div>
-							<p
-								class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase"
-							>
+							<p class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase">
 								{group.label}
 							</p>
 							{#each group.items as item (item.id)}
@@ -642,7 +642,14 @@
 								class="cyan-glow flex h-10 items-center gap-3 rounded border border-outline-variant bg-surface-container-high px-3"
 							>
 								<span class="font-mono text-[11px] text-on-surface-variant">AZIMUT</span>
-								<input type="range" class="w-40" bind:value={rhiAzimuthDeg} min="0" max="359" step="1" />
+								<input
+									type="range"
+									class="w-40"
+									bind:value={rhiAzimuthDeg}
+									min="0"
+									max="359"
+									step="1"
+								/>
 								<input
 									type="number"
 									class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
@@ -711,7 +718,8 @@
 								class="flex shrink-0 items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
 								><span class="material-symbols-outlined text-[18px] text-primary-container"
 									>my_location</span
-								> Visor · {productTitle}</span
+								>
+								Visor · {productTitle}</span
 							>
 							<div class="ml-auto flex items-center gap-3">
 								{#if isGround && site}
@@ -784,7 +792,8 @@
 									{/if}
 									<div class="min-w-[420px] flex-1">
 										<p class="mb-2 font-mono text-[10px] text-on-surface-variant">
-											RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación ({rhiScan.numRays}
+											RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación
+											({rhiScan.numRays}
 											tumbos). La resolución vertical la limita el número de elevaciones.
 										</p>
 										<RhiPanel
@@ -827,7 +836,8 @@
 										>
 										<p class="max-w-md text-body-sm text-on-surface-variant">
 											Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31). Define la
-											ubicación para georreferenciar el <span class="text-on-surface">{productTitle}</span
+											ubicación para georreferenciar el <span class="text-on-surface"
+												>{productTitle}</span
 											>, o usa cortes, perfil y RHI (no la requieren).
 										</p>
 										<button
@@ -941,7 +951,9 @@
 						<div
 							class="flex items-center gap-2 border-b border-outline-variant bg-surface-container-high px-6 py-3"
 						>
-							<span class="material-symbols-outlined text-[18px] text-primary-container">history</span>
+							<span class="material-symbols-outlined text-[18px] text-primary-container"
+								>history</span
+							>
 							<h3 class="font-mono text-label-mono uppercase">Archivos recientes</h3>
 						</div>
 						<ul class="divide-y divide-outline-variant/30 font-mono text-label-mono">
@@ -949,7 +961,8 @@
 								<li
 									class="flex items-center gap-3 px-6 py-3 text-on-surface-variant transition-colors hover:bg-surface-variant/20"
 								>
-									<span class="material-symbols-outlined text-[16px] text-outline">description</span>
+									<span class="material-symbols-outlined text-[16px] text-outline">description</span
+									>
 									<span class="text-on-surface">{name}</span>
 								</li>
 							{/each}
@@ -962,7 +975,9 @@
 					<div
 						class="flex items-center gap-2 border-b border-outline-variant bg-surface-container-high px-6 py-3"
 					>
-						<span class="material-symbols-outlined text-[18px] text-primary-container">pin_drop</span>
+						<span class="material-symbols-outlined text-[18px] text-primary-container"
+							>pin_drop</span
+						>
 						<h3 class="font-mono text-label-mono uppercase">Ubicaciones de sitio guardadas</h3>
 					</div>
 					<div class="flex flex-wrap gap-2 p-4 font-mono text-label-mono">
@@ -1022,8 +1037,8 @@
 				<div class="grid grid-cols-1 gap-2">
 					{#each MOMENTS as m (m)}
 						<label class="flex items-center gap-3">
-							<span
-								class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant">{m}</span
+							<span class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant"
+								>{m}</span
 							>
 							<div
 								class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
@@ -1054,7 +1069,12 @@
 					class="flex cursor-pointer items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 				>
 					<span class="material-symbols-outlined text-[16px]">upload</span> Importar paletas
-					<input type="file" accept="application/json" class="hidden" onchange={onImportPaletteBook} />
+					<input
+						type="file"
+						accept="application/json"
+						class="hidden"
+						onchange={onImportPaletteBook}
+					/>
 				</label>
 			</div>
 		</div>

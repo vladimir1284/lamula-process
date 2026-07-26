@@ -13,8 +13,8 @@ export const BASE_MAP_IDS = ['osm', 'carto-voyager', 'carto-positron', 'carto-da
 export type BaseMapId = (typeof BASE_MAP_IDS)[number] | 'off';
 
 export const BASE_MAP_LABELS: Record<BaseMapId, string> = {
-	'off': 'Sin mapa',
-	'osm': 'OSM',
+	off: 'Sin mapa',
+	osm: 'OSM',
 	'carto-voyager': 'CARTO Voyager',
 	'carto-positron': 'CARTO Claro',
 	'carto-dark': 'CARTO Oscuro'
@@ -30,7 +30,10 @@ const CARTO_ATTRIBUTION =
 // estilos raster de basemaps.cartocdn.com — voyager cuelga de rastertiles/,
 // positron/dark usan los nombres light_/dark_ del CDN
 const CARTO_STYLES: Record<string, { base: string; labels: string }> = {
-	'carto-voyager': { base: 'rastertiles/voyager_nolabels', labels: 'rastertiles/voyager_only_labels' },
+	'carto-voyager': {
+		base: 'rastertiles/voyager_nolabels',
+		labels: 'rastertiles/voyager_only_labels'
+	},
 	'carto-positron': { base: 'light_nolabels', labels: 'light_only_labels' },
 	'carto-dark': { base: 'dark_nolabels', labels: 'dark_only_labels' }
 };

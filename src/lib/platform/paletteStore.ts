@@ -22,7 +22,10 @@ const STORAGE_KEY = 'lamula-process:palette-book';
 
 /** Deep-ish clone so callers never mutate the shared built-in seed objects. */
 function clonePalette(p: Palette): Palette {
-	return { ...p, stops: p.stops.map((s) => ({ ...s, color: [...s.color] as [number, number, number] })) };
+	return {
+		...p,
+		stops: p.stops.map((s) => ({ ...s, color: [...s.color] as [number, number, number] }))
+	};
 }
 
 /** The default book (built-in palettes + default assignments), no persistence. */
@@ -90,9 +93,7 @@ export function paletteForMoment(book: PaletteBook, moment: MomentType): Palette
 export function upsertPalette(book: PaletteBook, palette: Palette): PaletteBook {
 	const idx = book.palettes.findIndex((p) => p.name === palette.name);
 	const palettes =
-		idx >= 0
-			? book.palettes.map((p, i) => (i === idx ? palette : p))
-			: [...book.palettes, palette];
+		idx >= 0 ? book.palettes.map((p, i) => (i === idx ? palette : p)) : [...book.palettes, palette];
 	return { ...book, palettes };
 }
 

@@ -37,7 +37,9 @@
 					<span
 						class="flex items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
 					>
-						<span class="material-symbols-outlined text-[18px] text-primary-container">edit_location</span>
+						<span class="material-symbols-outlined text-[18px] text-primary-container"
+							>edit_location</span
+						>
 						{title}
 					</span>
 					<button

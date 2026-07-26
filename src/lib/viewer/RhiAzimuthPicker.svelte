@@ -73,7 +73,7 @@
 		const py = ((ev.clientY - rect.top) / rect.height) * SIZE;
 		const east = px - C;
 		const north = C - py;
-		return normDeg((Math.atan2(east, north) / DEG));
+		return normDeg(Math.atan2(east, north) / DEG);
 	}
 
 	function emit(ev: PointerEvent) {
