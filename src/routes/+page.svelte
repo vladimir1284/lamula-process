@@ -114,6 +114,7 @@
 	let siteOverride = $state<{ lat: number; lon: number; altM: number } | null>(null);
 	let showLocationEditor = $state(false);
 	let showScaleEditor = $state(false);
+	let showSettings = $state(false);
 
 	const observation = $derived($snapshot.context.observation);
 	const loading = $derived($snapshot.value === 'opening' || $snapshot.value === 'parsing');
@@ -307,7 +308,7 @@
 				</nav>
 			{/if}
 		</div>
-		<div class="flex items-center gap-4">
+		<div class="flex items-center gap-3">
 			<button
 				class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
 				onclick={() => send({ type: 'OPEN' })}
@@ -315,6 +316,14 @@
 			>
 				<span class="material-symbols-outlined text-[18px]">upload_file</span>
 				{loading ? 'ABRIENDO…' : 'ABRIR ARCHIVO'}
+			</button>
+			<button
+				class="flex h-10 w-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+				onclick={() => (showSettings = true)}
+				aria-label="Configuración"
+				title="Configuración"
+			>
+				<span class="material-symbols-outlined text-[20px]">settings</span>
 			</button>
 		</div>
 	</header>
@@ -650,12 +659,12 @@
 							>
 							<ScaleLegend {palette} />
 							<button
-								class="flex shrink-0 items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-on-surface"
+								class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 								onclick={() => (showScaleEditor = true)}
 								aria-label="Editar escala"
 								title="Editar escala"
 							>
-								<span class="material-symbols-outlined text-[16px]">tune</span>
+								<span class="material-symbols-outlined text-[16px]">palette</span>
 							</button>
 						</div>
 
@@ -887,6 +896,12 @@
 	<Modal open={showScaleEditor} title="Editor de escala" onclose={() => (showScaleEditor = false)}>
 		<div class="p-4">
 			<ScaleEditor {palette} onchange={(p) => (palette = p)} />
+		</div>
+	</Modal>
+
+	<Modal open={showSettings} title="Configuración" onclose={() => (showSettings = false)}>
+		<div class="p-4 font-mono text-label-mono text-on-surface-variant">
+			Configuraciones generales — próximamente.
 		</div>
 	</Modal>
 </div>

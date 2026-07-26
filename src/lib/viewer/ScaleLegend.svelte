@@ -16,12 +16,12 @@
 	let stops = $derived(palette.stops);
 </script>
 
-<div class="flex flex-1 items-center gap-3 overflow-hidden">
-	<span class="shrink-0 font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
+<div class="flex items-center gap-2 overflow-hidden">
+	<span class="shrink-0 font-mono text-[9px] tracking-widest text-on-surface-variant uppercase"
 		>{palette.name}</span
 	>
-	<div class="flex min-w-0 flex-1 flex-col">
-		<div class="flex h-3.5 overflow-hidden rounded-sm border border-outline-variant">
+	<div class="flex w-40 min-w-0 flex-col sm:w-56">
+		<div class="flex h-2 overflow-hidden rounded-sm border border-outline-variant">
 			{#each stops as stop, i (i)}
 				<div
 					class="flex-1"
@@ -30,10 +30,10 @@
 				></div>
 			{/each}
 		</div>
-		<div class="flex font-mono text-[9px] text-on-surface-variant tabular-nums">
+		<div class="flex font-mono text-[8px] leading-tight text-on-surface-variant tabular-nums">
 			{#each stops as stop, i (i)}
 				<span class="flex-1 text-center">
-					{i === 0 || i === stops.length - 1 || i % Math.ceil(stops.length / 8) === 0
+					{i === 0 || i === stops.length - 1 || i % Math.ceil(stops.length / 6) === 0
 						? stop.value
 						: ''}
 				</span>
