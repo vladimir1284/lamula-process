@@ -50,7 +50,9 @@ export const observationMachine = setup({
 	initial: 'idle',
 	context: { observation: null, error: null, recentFiles: [], picked: null },
 	states: {
-		idle: { on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } } },
+		idle: {
+			on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } }
+		},
 		opening: {
 			entry: assign({ error: null }),
 			invoke: {
@@ -89,8 +91,12 @@ export const observationMachine = setup({
 				}
 			}
 		},
-		ready: { on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } } },
-		error: { on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } } }
+		ready: {
+			on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } }
+		},
+		error: {
+			on: { OPEN: 'opening', LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' } }
+		}
 	}
 });
 

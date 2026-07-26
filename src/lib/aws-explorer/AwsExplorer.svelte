@@ -69,8 +69,8 @@
 
 	// Re-list whenever the site or date settles on a new value.
 	$effect(() => {
-		selectedSite;
-		dateStr;
+		void selectedSite;
+		void dateStr;
 		loadScans();
 	});
 
@@ -111,8 +111,7 @@
 		</div>
 		{#if geocodeStatus === 'not-found'}
 			<p class="flex items-center gap-1 text-[11px] text-dbz-heavy">
-				<span class="material-symbols-outlined text-[14px]">warning</span> No se encontró ese código
-				postal.
+				<span class="material-symbols-outlined text-[14px]">warning</span> No se encontró ese código postal.
 			</p>
 		{/if}
 
@@ -144,9 +143,7 @@
 	{#if selectedSite}
 		<section class="flex flex-col gap-2 border-t border-outline-variant pt-3">
 			<label class="flex flex-col gap-1">
-				<span class="text-[11px] text-on-surface-variant"
-					>Fecha (UTC) — sitio {selectedSite}</span
-				>
+				<span class="text-[11px] text-on-surface-variant">Fecha (UTC) — sitio {selectedSite}</span>
 				<input
 					type="date"
 					class="cyan-glow w-44 rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-primary-container focus:ring-0"
@@ -158,7 +155,8 @@
 				<p class="text-[11px] text-on-surface-variant">Buscando observaciones…</p>
 			{:else if scansStatus === 'error'}
 				<p class="flex items-center gap-1 text-[11px] text-dbz-heavy">
-					<span class="material-symbols-outlined text-[14px]">warning</span> {scansError}
+					<span class="material-symbols-outlined text-[14px]">warning</span>
+					{scansError}
 				</p>
 			{:else if scansStatus === 'ready' && scans.length === 0}
 				<p class="text-[11px] text-on-surface-variant">
@@ -188,7 +186,8 @@
 
 			{#if loadError}
 				<p class="flex items-center gap-1 text-[11px] text-dbz-heavy">
-					<span class="material-symbols-outlined text-[14px]">warning</span> {loadError}
+					<span class="material-symbols-outlined text-[14px]">warning</span>
+					{loadError}
 				</p>
 			{/if}
 		</section>

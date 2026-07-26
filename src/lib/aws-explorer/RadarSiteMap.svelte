@@ -82,8 +82,8 @@
 
 	// Re-style markers whenever the highlighted/selected set changes (new zip search, new pick).
 	$effect(() => {
-		selected;
-		highlighted;
+		void selected;
+		void highlighted;
 		markerSource?.getFeatures().forEach((feature) => {
 			const code = feature.get('code');
 			const site = US_RADAR_SITES.find((s) => s.code === code);
@@ -92,4 +92,7 @@
 	});
 </script>
 
-<div bind:this={mapEl} class="h-80 w-full overflow-hidden rounded border border-outline-variant"></div>
+<div
+	bind:this={mapEl}
+	class="h-80 w-full overflow-hidden rounded border border-outline-variant"
+></div>

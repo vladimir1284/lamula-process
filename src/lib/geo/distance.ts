@@ -8,8 +8,7 @@ export function haversineKm(
 	const dLon = toRad(b.lon - a.lon);
 	const sinLat = Math.sin(dLat / 2);
 	const sinLon = Math.sin(dLon / 2);
-	const h =
-		sinLat * sinLat + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLon * sinLon;
+	const h = sinLat * sinLat + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLon * sinLon;
 	return 2 * R * Math.asin(Math.sqrt(h));
 }
 

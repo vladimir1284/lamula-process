@@ -43,7 +43,10 @@ describe('geocodeZip', () => {
 	});
 
 	it('returns null when no result is found', async () => {
-		globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => [] })) as unknown as typeof fetch;
+		globalThis.fetch = vi.fn(async () => ({
+			ok: true,
+			json: async () => []
+		})) as unknown as typeof fetch;
 		expect(await geocodeZip('00000')).toBeNull();
 	});
 
