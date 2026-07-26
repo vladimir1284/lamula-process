@@ -20,6 +20,7 @@
 		CrossSectionPanel,
 		ProfilePanel,
 		ScaleEditor,
+		ScaleLegend,
 		Modal,
 		SiteLocationEditor
 	} from '$lib/viewer';
@@ -112,6 +113,7 @@
 	let readout = $state<Readout | RhiReadout | null>(null);
 	let siteOverride = $state<{ lat: number; lon: number; altM: number } | null>(null);
 	let showLocationEditor = $state(false);
+	let showScaleEditor = $state(false);
 
 	const observation = $derived($snapshot.context.observation);
 	const loading = $derived($snapshot.value === 'opening' || $snapshot.value === 'parsing');
@@ -632,20 +634,29 @@
 					</div>
 				</div>
 
-				<!-- Viewer hero + scale rail. -->
-				<div class="grid grid-cols-1 gap-gutter 2xl:grid-cols-[1fr_320px]">
+				<!-- Viewer hero (full width; scale = legend in header, editing via modal). -->
+				<div>
 					<section
 						class="glass-panel flex flex-col overflow-hidden rounded-xl border-primary-container/30 shadow-[0_0_24px_rgba(0,240,255,0.05)]"
 					>
 						<div
-							class="flex items-center justify-between border-b border-outline-variant bg-surface-container-high px-4 py-2.5"
+							class="flex items-center gap-4 border-b border-outline-variant bg-surface-container-high px-4 py-2.5"
 						>
 							<span
-								class="flex items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
+								class="flex shrink-0 items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
 								><span class="material-symbols-outlined text-[18px] text-primary-container"
 									>my_location</span
 								> Visor · {productTitle}</span
 							>
+							<ScaleLegend {palette} />
+							<button
+								class="flex shrink-0 items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-on-surface"
+								onclick={() => (showScaleEditor = true)}
+								aria-label="Editar escala"
+								title="Editar escala"
+							>
+								<span class="material-symbols-outlined text-[16px]">tune</span>
+							</button>
 						</div>
 
 						<div class="relative h-[620px] overflow-auto bg-black">
@@ -803,23 +814,6 @@
 							{/if}
 						</div>
 					</section>
-
-					<!-- Scale editor rail. -->
-					<section class="glass-panel flex flex-col self-start overflow-hidden rounded-xl">
-						<div
-							class="flex items-center justify-between border-b border-outline-variant bg-surface-container-high px-4 py-2.5"
-						>
-							<span
-								class="flex items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
-								><span class="material-symbols-outlined text-[18px] text-primary-container"
-									>gradient</span
-								> Editor de escala</span
-							>
-						</div>
-						<div class="p-4">
-							<ScaleEditor {palette} onchange={(p) => (palette = p)} />
-						</div>
-					</section>
 				</div>
 
 				<!-- Recientes. -->
@@ -888,5 +882,11 @@
 			onsave={saveSiteLocation}
 			oncancel={cancelLocationEditor}
 		/>
+	</Modal>
+
+	<Modal open={showScaleEditor} title="Editor de escala" onclose={() => (showScaleEditor = false)}>
+		<div class="p-4">
+			<ScaleEditor {palette} onchange={(p) => (palette = p)} />
+		</div>
 	</Modal>
 </div>
