@@ -726,27 +726,27 @@
 											{/if}
 
 											{#if item.id === 'CROSS_LINE'}
-										<p class="px-1 font-mono text-[10px] text-on-surface-variant">
-											{drawnCutLine
-												? 'Línea trazada.'
-												: 'Haz clic en el mapa para marcar 2 puntos.'}
-										</p>
-										{#if drawnCutLine}
-											<button
-												type="button"
-												class="flex h-8 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high font-mono text-[11px] text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
-												onclick={() => {
-												drawnCutLine = null;
-												crossLineReadout = null;
-											}}
-											>
-												<span class="material-symbols-outlined text-[14px]">restart_alt</span> Rehacer
-												línea
-											</button>
-										{/if}
-									{/if}
+												<p class="px-1 font-mono text-[10px] text-on-surface-variant">
+													{drawnCutLine
+														? 'Línea trazada.'
+														: 'Haz clic en el mapa para marcar 2 puntos.'}
+												</p>
+												{#if drawnCutLine}
+													<button
+														type="button"
+														class="flex h-8 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high font-mono text-[11px] text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+														onclick={() => {
+															drawnCutLine = null;
+															crossLineReadout = null;
+														}}
+													>
+														<span class="material-symbols-outlined text-[14px]">restart_alt</span> Rehacer
+														línea
+													</button>
+												{/if}
+											{/if}
 
-									{#if item.id === 'CROSS_EW' || item.id === 'CROSS_NS' || item.id === 'CROSS_LINE' || item.id === 'PROFILE' || item.id === 'RHI'}
+											{#if item.id === 'CROSS_EW' || item.id === 'CROSS_NS' || item.id === 'CROSS_LINE' || item.id === 'PROFILE' || item.id === 'RHI'}
 												<label
 													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
 												>
@@ -992,9 +992,7 @@
 														onreadout={(r) => (crossLineReadout = r)}
 													/>
 												{:else}
-													<p
-														class="px-4 text-center font-mono text-[10px] text-on-surface-variant"
-													>
+													<p class="px-4 text-center font-mono text-[10px] text-on-surface-variant">
 														Traza una línea en el mapa de la izquierda para ver el corte vertical.
 													</p>
 												{/if}
@@ -1006,7 +1004,9 @@
 											>
 												{#if crossLineReadout}
 													<div class="bg-surface-container-low p-2">
-														<p class="mb-0.5 text-label-caps text-on-surface-variant">DISTANCIA (A→B)</p>
+														<p class="mb-0.5 text-label-caps text-on-surface-variant">
+															DISTANCIA (A→B)
+														</p>
 														<p class="text-label-mono text-on-surface">
 															{fmt(crossLineReadout.distanceM / 1000)} km
 														</p>
