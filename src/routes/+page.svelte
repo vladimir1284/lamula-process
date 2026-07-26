@@ -407,7 +407,7 @@
 		if (product === 'RHI') {
 			const canvas = rhiPanelRef?.getCanvas();
 			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
-		} else if (product === 'CROSS_EW' || product === 'CROSS_NS') {
+		} else if (product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'CROSS_LINE') {
 			const canvas = crossSectionRef?.getCanvas();
 			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
 		} else if (product === 'PROFILE') {
@@ -1030,6 +1030,7 @@
 											>
 												{#if drawnCutLine}
 													<CrossSectionPanel
+														bind:this={crossSectionRef}
 														scans={channel.scans}
 														{palette}
 														line={drawnCutLine}
