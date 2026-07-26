@@ -23,7 +23,11 @@
 		ScaleEditor,
 		ScaleLegend,
 		Modal,
-		SiteLocationEditor
+		SiteLocationEditor,
+		exportMapToCanvas,
+		flattenOnBlack,
+		downloadCanvasAsPng,
+		buildExportFilename
 	} from '$lib/viewer';
 	import AwsExplorer from '$lib/aws-explorer/AwsExplorer.svelte';
 	import { standardOverlays } from '$lib/overlays';
@@ -165,6 +169,13 @@
 	// Background map + radar (data) layer opacity for the PPI viewer.
 	let baseMap = $state<BaseMapId>('carto-dark');
 	let dataOpacity = $state(1);
+
+	// Refs to the currently-mounted view, for "export image" (only one of these is non-null at a
+	// time, mirroring the {#if}/{:else if} chain that mounts them).
+	let ppiMapRef: ReturnType<typeof PpiMap> | undefined = $state();
+	let rhiPanelRef: ReturnType<typeof RhiPanel> | undefined = $state();
+	let crossSectionRef: ReturnType<typeof CrossSectionPanel> | undefined = $state();
+	let profileRef: ReturnType<typeof ProfilePanel> | undefined = $state();
 
 	const observation = $derived($snapshot.context.observation);
 	const loading = $derived($snapshot.value === 'opening' || $snapshot.value === 'parsing');
@@ -353,6 +364,34 @@
 		if (!file) return;
 		book = await importPaletteBook(await file.text());
 		input.value = '';
+	}
+
+	// Export whatever's currently on screen as a PNG. Ground products (PPI/CAPPI/…) render on an
+	// OpenLayers map (composited layer-by-layer, see exportImage.ts); RHI/cross-section/profile are
+	// plain <canvas> elements exposed via getCanvas(). Exactly one ref is mounted at a time.
+	async function exportCurrentImage() {
+		const nameParts = [
+			observation?.site.name,
+			observation?.timestamp,
+			product,
+			channel?.moment,
+			product === 'RHI' ? `az${rhiAzimuthDeg}` : usesElevation ? `el${elevationDeg}` : undefined
+		];
+		const filename = buildExportFilename(nameParts);
+
+		if (product === 'RHI') {
+			const canvas = rhiPanelRef?.getCanvas();
+			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
+		} else if (product === 'CROSS_EW' || product === 'CROSS_NS') {
+			const canvas = crossSectionRef?.getCanvas();
+			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
+		} else if (product === 'PROFILE') {
+			const canvas = profileRef?.getCanvas();
+			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
+		} else if (isGround) {
+			const map = ppiMapRef?.getMap();
+			if (map) downloadCanvasAsPng(await exportMapToCanvas(map), filename);
+		}
 	}
 </script>
 
@@ -828,6 +867,14 @@
 								<ScaleLegend {palette} />
 								<button
 									class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+									onclick={exportCurrentImage}
+									aria-label="Exportar imagen"
+									title="Exportar imagen"
+								>
+									<span class="material-symbols-outlined text-[16px]">download</span>
+								</button>
+								<button
+									class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 									onclick={() => (showScaleEditor = true)}
 									aria-label="Editar escala"
 									title="Editar escala"
@@ -860,6 +907,7 @@
 											tumbos). La resolución vertical la limita el número de elevaciones.
 										</p>
 										<RhiPanel
+											bind:this={rhiPanelRef}
 											scan={rhiScan}
 											{palette}
 											maxHeightM={maxHeightKm * 1000}
@@ -874,6 +922,7 @@
 										posición de sitio).
 									</p>
 									<CrossSectionPanel
+										bind:this={crossSectionRef}
 										scans={channel.scans}
 										{palette}
 										line={cutLine}
@@ -882,7 +931,11 @@
 								</div>
 							{:else if product === 'PROFILE' && profile}
 								<div class="flex gap-4 p-3">
-									<ProfilePanel {profile} valueLabel={channel?.moment ?? 'dBZ'} />
+									<ProfilePanel
+										bind:this={profileRef}
+										{profile}
+										valueLabel={channel?.moment ?? 'dBZ'}
+									/>
 									<p class="font-mono text-[10px] text-on-surface-variant">
 										Perfil vertical en (E {profileXkm} km, N {profileYkm} km): una muestra por elevación,
 										interpolada por spline cúbico.
@@ -934,6 +987,7 @@
 									</div>
 								{:else if ground}
 									<PpiMap
+										bind:this={ppiMapRef}
 										scan={ground.scan}
 										{palette}
 										{site}

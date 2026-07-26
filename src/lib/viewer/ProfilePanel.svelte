@@ -76,6 +76,10 @@
 			ctx.fill();
 		}
 	});
+
+	export function getCanvas(): HTMLCanvasElement | undefined {
+		return canvas;
+	}
 </script>
 
 <canvas

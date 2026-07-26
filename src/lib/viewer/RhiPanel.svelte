@@ -85,6 +85,10 @@
 		const heightM = (1 - cy / PLOT_H) * maxHeightM;
 		onreadout(rhiReadoutAt(groundM, heightM, scan));
 	}
+
+	export function getCanvas(): HTMLCanvasElement | undefined {
+		return canvas;
+	}
 </script>
 
 <canvas

@@ -100,6 +100,10 @@
 		map?.setTarget(undefined);
 	});
 
+	export function getMap(): Map | undefined {
+		return map;
+	}
+
 	// Re-render the radar image whenever the scan, palette, site, or resolution changes.
 	$effect(() => {
 		// track dependencies

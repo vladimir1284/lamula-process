@@ -96,6 +96,10 @@
 		const sample = sampleCrossSection(buildScanMeta(scans), x, y, heightM);
 		onreadout({ distanceM, heightM, sample });
 	}
+
+	export function getCanvas(): HTMLCanvasElement | undefined {
+		return canvas;
+	}
 </script>
 
 <canvas

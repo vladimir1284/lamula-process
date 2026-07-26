@@ -44,7 +44,8 @@ function cartoSource(style: string): XYZ {
 	return new XYZ({
 		url: `https://{a-d}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}${retina ? '@2x' : ''}.png`,
 		tilePixelRatio: retina ? 2 : 1,
-		attributions: CARTO_ATTRIBUTION
+		attributions: CARTO_ATTRIBUTION,
+		crossOrigin: 'anonymous'
 	});
 }
 
@@ -56,7 +57,10 @@ export interface BaseMapSources {
 
 export function createBaseMapSources(id: BaseMapId): BaseMapSources {
 	if (id === 'off') return { base: null, labels: null };
-	if (id === 'osm') return { base: new OSM(), labels: null };
+	// crossOrigin: 'anonymous' fetches tiles via CORS (both OSM and CARTO's CDN send a permissive
+	// Access-Control-Allow-Origin) instead of as opaque cross-origin resources -- without it, the
+	// map canvas is "tainted" and exportImage.ts's canvas.toBlob() throws a SecurityError.
+	if (id === 'osm') return { base: new OSM({ crossOrigin: 'anonymous' }), labels: null };
 	const style = CARTO_STYLES[id]!;
 	return { base: cartoSource(style.base), labels: cartoSource(style.labels) };
 }
