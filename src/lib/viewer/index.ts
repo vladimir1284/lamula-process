@@ -3,6 +3,8 @@ export { default as RhiPanel } from './RhiPanel.svelte';
 export { default as RhiAzimuthPicker } from './RhiAzimuthPicker.svelte';
 export { default as CrossSectionPanel } from './CrossSectionPanel.svelte';
 export { default as ProfilePanel } from './ProfilePanel.svelte';
+export { default as VadPanel } from './VadPanel.svelte';
+export { default as VadModal } from './VadModal.svelte';
 export { default as ScaleEditor } from './ScaleEditor.svelte';
 export { default as ScaleLegend } from './ScaleLegend.svelte';
 export { default as Modal } from './Modal.svelte';

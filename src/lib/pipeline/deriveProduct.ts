@@ -36,6 +36,10 @@ export interface DeriveOptions {
 	vilC2: number;
 	zrA: number;
 	zrB: number;
+	vadMinSamples?: number;
+	vadThreshVelocity?: number;
+	vadNumFitTests?: number;
+	vadSymmetry?: number;
 }
 
 export interface DerivedProduct {
@@ -94,7 +98,12 @@ export function deriveGroundProduct(
 		}
 		case 'WIND_SPEED': {
 			const src = pickScanByElevation(channel, opts.elevationDeg);
-			const r = computeWind(src);
+			const r = computeWind(src, {
+				minSamples: opts.vadMinSamples,
+				threshVelocity: opts.vadThreshVelocity,
+				numFitTests: opts.vadNumFitTests,
+				symmetry: opts.vadSymmetry
+			});
 			return { scan: r.speed.scan, unit: r.speed.unit };
 		}
 	}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { useMachine } from '@xstate/svelte';
 	import { observationMachine } from '$lib/pipeline/observationMachine';
 	import {
@@ -27,6 +27,8 @@
 		RhiAzimuthPicker,
 		CrossSectionPanel,
 		ProfilePanel,
+		VadPanel,
+		VadModal,
 		ScaleEditor,
 		ScaleLegend,
 		Modal,
@@ -36,6 +38,7 @@
 		downloadCanvasAsPng,
 		buildExportFilename
 	} from '$lib/viewer';
+	import { computeVadProfile } from '$lib/products/vadProfile';
 	import AwsExplorer from '$lib/aws-explorer/AwsExplorer.svelte';
 	import { MenuBar, type MenuDef } from '$lib/nav';
 	import { loadConfig, type RecentFileEntry } from '$lib/platform';
@@ -184,6 +187,12 @@
 	let showScaleEditor = $state(false);
 	let showSettings = $state(false);
 	let showAwsExplorer = $state(false);
+	let showVadModal = $state(false);
+
+	const vadProfile = $derived.by(() => {
+		if (!channel || channel.scans.length === 0) return null;
+		return computeVadProfile(channel, {}, effectiveSite?.altM ?? 0);
+	});
 
 	// App-wide settings (platform/settingsStore.ts): unit system + default base map, persisted in
 	// localStorage. Seeded synchronously with the defaults so the first paint is consistent; the
@@ -192,7 +201,7 @@
 	const unitSystem = $derived(settings.unitSystem);
 	let settingsLoaded = false;
 	async function updateSettings(patch: Partial<AppSettings>) {
-		settings = { ...settings, ...patch };
+		settings = { ...untrack(() => settings), ...patch };
 		await saveSettings(settings);
 	}
 	// Settings modal: which section is active, and (for "Sitios") which saved site is being
@@ -214,17 +223,17 @@
 	$effect(() => {
 		const bm = baseMap;
 		if (!settingsLoaded) return;
-		void updateSettings({ baseMap: bm });
+		untrack(() => void updateSettings({ baseMap: bm }));
 	});
 	$effect(() => {
 		const sr = showRings;
 		if (!settingsLoaded) return;
-		void updateSettings({ showRings: sr });
+		untrack(() => void updateSettings({ showRings: sr }));
 	});
 	$effect(() => {
 		const sr = showRadials;
 		if (!settingsLoaded) return;
-		void updateSettings({ showRadials: sr });
+		untrack(() => void updateSettings({ showRadials: sr }));
 	});
 
 	// Refs to the currently-mounted view, for "export image" (only one of these is non-null at a
@@ -1263,11 +1272,23 @@
 										</div>
 									</div>
 								{:else if ground}
-									<PpiMap
-										bind:this={ppiMapRef}
-										scan={ground.scan}
-										{palette}
-										{site}
+									<div class="relative h-full w-full">
+										{#if product === 'WIND_SPEED'}
+											<div class="absolute top-3 right-3 z-30">
+												<button
+													class="flex items-center gap-2 rounded-lg border border-primary-container/60 bg-surface-container-high/90 px-3 py-2 font-mono text-label-mono text-primary-container shadow-xl backdrop-blur-md transition-all hover:bg-primary-container hover:text-on-primary-container active:scale-95"
+													onclick={() => (showVadModal = true)}
+												>
+													<span class="material-symbols-outlined text-[20px]">air</span>
+													VER PERFIL DE VIENTO VAD (MODAL)
+												</button>
+											</div>
+										{/if}
+										<PpiMap
+											bind:this={ppiMapRef}
+											scan={ground.scan}
+											{palette}
+											{site}
 										{baseMap}
 										{dataOpacity}
 										{showRings}
@@ -1276,6 +1297,7 @@
 										{unitSystem}
 										onreadout={(r) => (readout = r)}
 									/>
+									</div>
 								{/if}
 							{/if}
 						</div>
@@ -1614,4 +1636,6 @@
 			{/if}
 		</div>
 	</Modal>
+
+	<VadModal open={showVadModal} profile={vadProfile} onclose={() => (showVadModal = false)} />
 </div>

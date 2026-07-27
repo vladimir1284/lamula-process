@@ -1,0 +1,509 @@
+
+# Mesocyclone Products
+  Prod_Schedule.mdaprod.disabled	value = Yes;
+					type = string;
+					range = { No, Yes };
+					enum = 0, 1;
+					description = Should product(s) be disabled?;
+					default = No;
+
+  Prod_Schedule.mdaprod.prod_id		value = -1;
+					type = int;
+					range = [-1, 2999];
+					description = Product(s) to be disabled ... -1 = all;
+					default = -1;
+
+  Prod_Schedule.mdaprod.vcp		value = -12, -212;
+					type = int;
+					range = [-999, 999];
+					description = Volume Coverage Pattern (VCP);
+					default = 0;
+
+# TVS Products 
+  Prod_Schedule.tvsprod.disabled        value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.tvsprod.prod_id         value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.tvsprod.vcp             value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Composite Reflectivity Products
+  Prod_Schedule.cmprflct.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.cmprflct.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.cmprflct.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# Composite Reflectivity Products
+  Prod_Schedule.cmprfcg.disabled        value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.cmprfcg.prod_id         value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.cmprfcg.vcp             value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Composite Reflectivity AP-Removed Products
+  Prod_Schedule.crapeprd.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.crapeprd.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.crapeprd.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# Vertical Cross Section
+  Prod_Schedule.vertxsct.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.vertxsct.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.vertxsct.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Echo Tops Table and VIL Table
+  Prod_Schedule.viletalg.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.viletalg.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.viletalg.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# VIL Product
+  Prod_Schedule.vilprod.disabled        value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.vilprod.prod_id         value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.vilprod.vcp             value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Echo Tops Product
+  Prod_Schedule.ecotppro.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.ecotppro.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.ecotppro.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Layer Composite Reflectivity Product
+  Prod_Schedule.lcrflct.disabled        value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.lcrflct.prod_id         value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.lcrflct.vcp             value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Layer Composite Reflectivity AP-removed Polar Grid
+  Prod_Schedule.lcrappg.disabled        value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.lcrappg.prod_id         value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.lcrappg.vcp             value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# Layer Composite Reflectivity AP-removed Product
+  Prod_Schedule.lcrap.disabled          value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.lcrap.prod_id           value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.lcrap.vcp               value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# High Resolution VIL
+  Prod_Schedule.hiresvil.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.hiresvil.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.hiresvil.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# High Resolution Echo Tops
+  Prod_Schedule.hireseet.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.hireseet.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.hireseet.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# User Selectable LRM
+  Prod_Schedule.user_sel_LRM.disabled   value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.user_sel_LRM.prod_id    value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.user_sel_LRM.vcp        value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Segments Algorithm
+  Prod_Schedule.segmtalg.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+  
+  Prod_Schedule.segmtalg.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+  
+  Prod_Schedule.segmtalg.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999]; 
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# Storm-Track Product
+  Prod_Schedule.stmtrprd.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.stmtrprd.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.stmtrprd.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# HAIL Product
+  Prod_Schedule.hailprod.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.hailprod.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.hailprod.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# Storm Structure Product
+  Prod_Schedule.strucprod.disabled      value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.strucprod.prod_id       value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.strucprod.vcp           value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Vertical Wind Profile
+  Prod_Schedule.vwindpro.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.vwindpro.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.vwindpro.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Velocity Azimuth Display
+  Prod_Schedule.vad.disabled            value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.vad.prod_id             value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.vad.vcp                 value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+
+# NEXRAD Turbulence Detection Product
+  Prod_Schedule.ntda_fp.disabled        value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.ntda_fp.prod_id         value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.ntda_fp.vcp             value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Icing Hazard Product
+  Prod_Schedule.icing_hazard.disabled   value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.icing_hazard.prod_id    value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.icing_hazard.vcp        value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Hail Hazard Product
+  Prod_Schedule.hail_hazard.disabled    value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.hail_hazard.prod_id     value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.hail_hazard.vcp         value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+
+# Radar Coded Message Product
+  Prod_Schedule.radcdmsg.disabled       value = Yes;
+                                        type = string;
+                                        range = { No, Yes };
+                                        enum = 0, 1;
+                                        description = Should product(s) be disabled?;
+                                        default = No;
+
+  Prod_Schedule.radcdmsg.prod_id        value = -1;
+                                        type = int;
+                                        range = [-1, 2999];
+                                        description = Product(s) to be disabled ... -1 = all;
+                                        default = -1;
+
+  Prod_Schedule.radcdmsg.vcp            value = -12, -212;
+                                        type = int;
+                                        range = [-999, 999];
+                                        description = Volume Coverage Pattern (VCP);
+                                        default = 0;
+

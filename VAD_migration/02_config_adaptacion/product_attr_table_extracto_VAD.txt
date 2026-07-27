@@ -1,0 +1,9 @@
+480:	desc		"VWP VAD Wind Profile"
+1227:	prod_id			97	VADTMHGT
+1237:	desc		" VAD Time-Height Table"
+1240:	path			kinematic/vadtmhgt.lb
+1463:	prod_id			110	VAD
+1465:	gen_task		vad
+1471:#	dependent products:	VADTMHGT 
+1473:	desc		"VAD Velocity Azimuth Display: 8 level/5 kts"
+1476:	path			kinematic/vad.lb
