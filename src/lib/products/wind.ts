@@ -361,6 +361,7 @@ export function computeWind(scan: Scan, opts: WindOptions = {}): WindResult {
 			if (scan.cells.flags[idx] !== CELL_FLAG_OK) continue;
 
 			if (hasSectorFilter) {
+				const aDeg = azDeg[a];
 				const inSector =
 					startAz < endAz ? aDeg >= startAz && aDeg <= endAz : aDeg >= startAz || aDeg <= endAz;
 				if (!inSector) continue;
