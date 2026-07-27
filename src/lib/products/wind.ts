@@ -240,12 +240,7 @@ export function vadFitTest(
 }
 
 /** Symmetry check (`A317k2_sym_chk`). */
-export function checkSymmetry(
-	cf1: number,
-	cf2: number,
-	cf3: number,
-	tsmy: number
-): boolean {
+export function checkSymmetry(cf1: number, cf2: number, cf3: number, tsmy: number): boolean {
 	const speed = Math.hypot(cf2, cf3);
 	return Math.abs(cf1) < tsmy && Math.abs(cf1) - speed <= 0;
 }
@@ -285,7 +280,7 @@ export function fitRingVad(
 	}
 
 	let lastFit: { cf1: number; cf2: number; cf3: number; npt: number } | null = null;
-	let lastHwdDeg = 0;
+	let lastHwdDeg: number;
 	let lastRms = Infinity;
 
 	for (let pass = 0; pass < numFitTests; pass++) {
@@ -366,13 +361,8 @@ export function computeWind(scan: Scan, opts: WindOptions = {}): WindResult {
 			if (scan.cells.flags[idx] !== CELL_FLAG_OK) continue;
 
 			if (hasSectorFilter) {
-				const aDeg = azDeg[a];
-				let inSector = false;
-				if (startAz < endAz) {
-					inSector = aDeg >= startAz && aDeg <= endAz;
-				} else {
-					inSector = aDeg >= startAz || aDeg <= endAz;
-				}
+				const inSector =
+					startAz < endAz ? aDeg >= startAz && aDeg <= endAz : aDeg >= startAz || aDeg <= endAz;
 				if (!inSector) continue;
 			}
 
@@ -400,4 +390,3 @@ export function computeWind(scan: Scan, opts: WindOptions = {}): WindResult {
 		direction: { scan: finalizeGroundScan(dims, dirCells), unit: '°', skipped: 0 }
 	};
 }
-

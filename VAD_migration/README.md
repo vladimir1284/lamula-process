@@ -43,16 +43,16 @@ Vertical Wind Profile).
 
 ### Dónde vive cada pieza (carpeta `01_algoritmo_vwindpro/`)
 
-| Archivo | Contenido |
-|---|---|
-| `vwindpro_main.c` | Punto de entrada de la tarea `vwindpro`. Registra el proceso como "volume based" y engancha los callbacks de adaptación (líneas 36-40 del original). |
-| `vwindpro_alg.c` | **Núcleo matemático VAD clásico** (ajuste de Fourier, RMS, test de simetría, velocidad vertical/divergencia). |
-| `vwindpro_s_alg.c` | Lógica **Enhanced VAD (EVWP)**: VADs suplementarios en múltiples rangos y selección del mejor por altura. |
-| `vwindpro_prod.c` | **Generación del producto gráfico VWP** (rejilla, ejes, barbas de viento, bloque alfanumérico). |
-| `vwindpro_aux.c` | Aritmética compleja auxiliar usada por el ajuste de Fourier. |
-| `vwindpro.h` | Estructuras de datos de resultados (`A317vd_t`, `A317ve_t`, `A317vs_t`) y constantes (`MISSING = -666.0f`, `VADRMS`, etc.). |
-| `vwindpro.doc` | Descripción funcional corta del algoritmo (manpage interna). |
-| `hplots.4` | Descripción del buffer alfanumérico interno "HPLOTS" (alimenta un producto de hodógrafa separado, no incluido aquí). |
+| Archivo            | Contenido                                                                                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vwindpro_main.c`  | Punto de entrada de la tarea `vwindpro`. Registra el proceso como "volume based" y engancha los callbacks de adaptación (líneas 36-40 del original). |
+| `vwindpro_alg.c`   | **Núcleo matemático VAD clásico** (ajuste de Fourier, RMS, test de simetría, velocidad vertical/divergencia).                                        |
+| `vwindpro_s_alg.c` | Lógica **Enhanced VAD (EVWP)**: VADs suplementarios en múltiples rangos y selección del mejor por altura.                                            |
+| `vwindpro_prod.c`  | **Generación del producto gráfico VWP** (rejilla, ejes, barbas de viento, bloque alfanumérico).                                                      |
+| `vwindpro_aux.c`   | Aritmética compleja auxiliar usada por el ajuste de Fourier.                                                                                         |
+| `vwindpro.h`       | Estructuras de datos de resultados (`A317vd_t`, `A317ve_t`, `A317vs_t`) y constantes (`MISSING = -666.0f`, `VADRMS`, etc.).                          |
+| `vwindpro.doc`     | Descripción funcional corta del algoritmo (manpage interna).                                                                                         |
+| `hplots.4`         | Descripción del buffer alfanumérico interno "HPLOTS" (alimenta un producto de hodógrafa separado, no incluido aquí).                                 |
 
 ---
 
@@ -63,6 +63,7 @@ espectral, por radial), consumido en modo "volume based" — procesa radial a ra
 según llega cada corte de elevación del volumen (`vwindpro_main.c`, `vwindpro_alg.c:58`).
 
 Por cada radial se usa:
+
 - `azimuth` (grados) y `elevation` (grados) del radial.
 - Offsets a los arrays de momentos Doppler de velocidad y reflectividad.
 - Primer bin Doppler, número de bins, resolución de velocidad.
@@ -70,6 +71,7 @@ Por cada radial se usa:
   adaptable (`anal_range`, ver sección 4).
 
 Filtros aplicados antes del ajuste:
+
 - Sector azimutal configurable (`start_azimuth`/`end_azimuth`), con manejo correcto
   del cruce 0°/360°.
 - En modo "aire despejado" (clear air), se promedian 3 bins de rango adyacentes.
@@ -204,21 +206,21 @@ estimación es la mejor:
 
 ### 4.1 `vad.alg` — 13 parámetros del algoritmo VAD
 
-| Parámetro (código) | Nombre ICD | Tipo | Default | Rango | Unidad |
-|---|---|---|---|---|---|
-| `thresh_velocity` | RMS Threshold [THV] | double | 5.0 | 0.0 – 15.0 | m/s |
-| `num_fit_tests` | Number Of Passes [FT] | int | 2 | 1 – 5 | – |
-| `min_samples` | Data Points Threshold [NPTS] | int | 25 | 1 – 360 | – |
-| `anal_range` | VAD Analysis Slant Range [VAD] | double | 30.0 | 1.0 – 230.0 | km |
-| `start_azimuth` | Beginning Azimuth Angle [TBZ] | double | 0.0 | 0.0 – 359.9 | grados |
-| `end_azimuth` | Ending Azimuth Angle [TEZ] | double | 0.0 | 0.0 – 359.9 | grados |
-| `symmetry` | Symmetry Threshold [THY] | double | 7.0 | 0.0 – 20.0 | m/s |
-| `enhanced_vad` | Enables Enhanced VAD logic | enum | Yes | {No, Yes} | – |
-| `min_points` | EVWP Min Points Threshold | int | 25 | 0 – 100 | – |
-| `min_symmetry` | EVWP Minimum Symmetry Value | float | -6.0 | -10.0 – -1.0 | – |
-| `scale_rms` | EVWP RMS Scaling Factor | float | 2.0 | 1.0 – 5.0 | – |
-| `min_proc_range` | EVWP Minimum Processing Range | float | 10.0 | 5.0 – 30.0 | km |
-| `max_proc_range` | EVWP Maximum Processing Range | float | 120.0 | 30.0 – 120.0 | km |
+| Parámetro (código) | Nombre ICD                     | Tipo   | Default | Rango        | Unidad |
+| ------------------ | ------------------------------ | ------ | ------- | ------------ | ------ |
+| `thresh_velocity`  | RMS Threshold [THV]            | double | 5.0     | 0.0 – 15.0   | m/s    |
+| `num_fit_tests`    | Number Of Passes [FT]          | int    | 2       | 1 – 5        | –      |
+| `min_samples`      | Data Points Threshold [NPTS]   | int    | 25      | 1 – 360      | –      |
+| `anal_range`       | VAD Analysis Slant Range [VAD] | double | 30.0    | 1.0 – 230.0  | km     |
+| `start_azimuth`    | Beginning Azimuth Angle [TBZ]  | double | 0.0     | 0.0 – 359.9  | grados |
+| `end_azimuth`      | Ending Azimuth Angle [TEZ]     | double | 0.0     | 0.0 – 359.9  | grados |
+| `symmetry`         | Symmetry Threshold [THY]       | double | 7.0     | 0.0 – 20.0   | m/s    |
+| `enhanced_vad`     | Enables Enhanced VAD logic     | enum   | Yes     | {No, Yes}    | –      |
+| `min_points`       | EVWP Min Points Threshold      | int    | 25      | 0 – 100      | –      |
+| `min_symmetry`     | EVWP Minimum Symmetry Value    | float  | -6.0    | -10.0 – -1.0 | –      |
+| `scale_rms`        | EVWP RMS Scaling Factor        | float  | 2.0     | 1.0 – 5.0    | –      |
+| `min_proc_range`   | EVWP Minimum Processing Range  | float  | 10.0    | 5.0 – 30.0   | km     |
+| `max_proc_range`   | EVWP Maximum Processing Range  | float  | 120.0   | 30.0 – 120.0 | km     |
 
 > Nota: el propio `vad.alg` declara `min_points` con `value = 25.0` pero `type = int`
 > — inconsistencia presente en el archivo fuente original, no una interpretación.
@@ -315,6 +317,7 @@ p->wind_spd = round(ws * MPS_TO_KTS);    // nudos
 ```
 
 Convenciones de dibujo (ver `make_windbarb.c`):
+
 - Asta orientada según `wind_dir`.
 - Banderín triangular = 50 kt.
 - Barba completa = 10 kt.
@@ -327,11 +330,11 @@ tabla de color adaptable indexada por RMS en nudos (`VADRMS`).
 
 ### 6.3 Estructura de "packets" gráficos usados
 
-| Packet | Rol en VWP | Archivos en este paquete |
-|---|---|---|
-| 8 (texto/símbolo con color) | Etiquetas de eje (horas, alturas), texto "ND" | `packet_8.c`, `packet_8_cvg.h` |
-| 10 (vector no enlazado, valor uniforme) | Rejilla de fondo: bordes, eje de altura, eje de tiempo | `packet_10.c/h` |
-| 4 (barba de viento) | Cada símbolo de viento por celda | `packet_4.c/h` |
+| Packet                                  | Rol en VWP                                             | Archivos en este paquete       |
+| --------------------------------------- | ------------------------------------------------------ | ------------------------------ |
+| 8 (texto/símbolo con color)             | Etiquetas de eje (horas, alturas), texto "ND"          | `packet_8.c`, `packet_8_cvg.h` |
+| 10 (vector no enlazado, valor uniforme) | Rejilla de fondo: bordes, eje de altura, eje de tiempo | `packet_10.c/h`                |
+| 4 (barba de viento)                     | Cada símbolo de viento por celda                       | `packet_4.c/h`                 |
 
 ### 6.4 Decodificación en el cliente (XPDT)
 
@@ -383,6 +386,7 @@ notación — no usar como fuente principal para portar el algoritmo ni el produ
 ## 8. Guía práctica de migración
 
 **Para (A) portar el cálculo del perfil de viento:**
+
 1. Reescribir `A317h2_vad_lsf` (sección 3.2) — es autocontenido, solo necesita un
    array de `(azimuth, velocidad_radial)` por corte/altura y devuelve CF1/CF2/CF3.
 2. Envolver con velocidad/dirección (3.3), RMS (3.4), fit-test iterativo (3.5),
@@ -396,6 +400,7 @@ notación — no usar como fuente principal para portar el algoritmo ni el produ
    propia fuente de datos de radar.
 
 **Para (B) portar la salida visual:**
+
 1. Si el proyecto nuevo necesita el mismo formato NEXRAD exacto (barba de viento,
    grilla tiempo-altura, colores por RMS): usar sección 6 completa como spec —
    `make_windbarb.c` tiene la lógica de dibujo de barbas lista para portar a

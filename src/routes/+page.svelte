@@ -27,7 +27,6 @@
 		RhiAzimuthPicker,
 		CrossSectionPanel,
 		ProfilePanel,
-		VadPanel,
 		VadModal,
 		ScaleEditor,
 		ScaleLegend,
@@ -1289,14 +1288,14 @@
 											scan={ground.scan}
 											{palette}
 											{site}
-										{baseMap}
-										{dataOpacity}
-										{showRings}
-										{showRadials}
-										extraLayers={overlays}
-										{unitSystem}
-										onreadout={(r) => (readout = r)}
-									/>
+											{baseMap}
+											{dataOpacity}
+											{showRings}
+											{showRadials}
+											extraLayers={overlays}
+											{unitSystem}
+											onreadout={(r) => (readout = r)}
+										/>
 									</div>
 								{/if}
 							{/if}

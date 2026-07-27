@@ -1,7 +1,6 @@
 <script lang="ts">
 	import {
 		type VadProfileResult,
-		type VadProfileLevel,
 		type HeightBinStep,
 		binVadLevels
 	} from '$lib/products/vadProfile';
@@ -294,12 +293,23 @@
 
 <div class="flex flex-col gap-3 font-sans text-on-surface">
 	<!-- Top Bar / Controls -->
-	<div class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant pb-2">
+	<div
+		class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant pb-2"
+	>
 		<div class="flex items-center gap-2">
 			<span class="material-symbols-outlined text-[22px] text-primary-container">air</span>
-			<h2 class="font-mono text-title-md font-semibold text-primary-container">
+			<h2 class="text-title-md font-mono font-semibold text-primary-container">
 				Perfil de Viento VAD (Velocity Azimuth Display)
 			</h2>
+			{#if onclose}
+				<button
+					class="ml-2 rounded p-1 text-on-surface-variant hover:bg-surface-container-highest"
+					onclick={onclose}
+					aria-label="Cerrar"
+				>
+					<span class="material-symbols-outlined text-[20px]">close</span>
+				</button>
+			{/if}
 		</div>
 
 		<!-- Step Bin & View Tabs Controls -->
@@ -307,7 +317,7 @@
 			<label class="flex items-center gap-2 font-mono text-xs text-on-surface-variant">
 				<span>Paso de Altura:</span>
 				<select
-					class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs text-primary-container focus:ring-0 cursor-pointer"
+					class="cursor-pointer rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs text-primary-container focus:ring-0"
 					bind:value={heightStep}
 				>
 					<option value="1kft">1 kft (~300m NEXRAD)</option>
@@ -324,7 +334,7 @@
 				<button
 					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
 					'barbs'
-						? 'bg-primary-container text-on-primary-container font-semibold shadow'
+						? 'bg-primary-container font-semibold text-on-primary-container shadow'
 						: 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => (activeTab = 'barbs')}
 				>
@@ -334,7 +344,7 @@
 				<button
 					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
 					'hodograph'
-						? 'bg-primary-container text-on-primary-container font-semibold shadow'
+						? 'bg-primary-container font-semibold text-on-primary-container shadow'
 						: 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => (activeTab = 'hodograph')}
 				>
@@ -344,7 +354,7 @@
 				<button
 					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
 					'table'
-						? 'bg-primary-container text-on-primary-container font-semibold shadow'
+						? 'bg-primary-container font-semibold text-on-primary-container shadow'
 						: 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => (activeTab = 'table')}
 				>
@@ -373,9 +383,12 @@
 				<div class="relative overflow-hidden rounded-lg border border-outline-variant bg-[#0b0f14]">
 					<canvas bind:this={barbsCanvas} width={820} height={420} class="w-full"></canvas>
 				</div>
-				<div class="flex items-center justify-between font-mono text-[11px] text-on-surface-variant">
+				<div
+					class="flex items-center justify-between font-mono text-[11px] text-on-surface-variant"
+				>
 					<span>
-						📌 Barbas meteorológicas (hacia origen del viento): Banderín = 50 kt, Barba = 10 kt, Media = 5 kt, Círculo = Calma.
+						📌 Barbas meteorológicas (hacia origen del viento): Banderín = 50 kt, Barba = 10 kt,
+						Media = 5 kt, Círculo = Calma.
 					</span>
 					<span class="text-primary-container">
 						Mostrando {binnedLevels.length} niveles ({heightStep})
@@ -407,9 +420,9 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-outline-variant/30">
-						{#each binnedLevels as lvl, i}
+						{#each binnedLevels as lvl, i (lvl.heightM)}
 							<tr
-								class="transition-colors hover:bg-surface-container-highest cursor-pointer {hoverLevelIndex ===
+								class="cursor-pointer transition-colors hover:bg-surface-container-highest {hoverLevelIndex ===
 								i
 									? 'bg-primary-container/20 font-semibold'
 									: ''}"

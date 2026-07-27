@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getCell, setCell } from '$lib/domain/cells';
 import { makeScan } from '$lib/render/scanFixtures';
-import { computeWind, windDirectionDeg, fitRingVad, vadLsf, computeVadRms, checkSymmetry } from './wind';
+import { computeWind, windDirectionDeg, fitRingVad } from './wind';
 
 const DEG = Math.PI / 180;
 
@@ -133,4 +133,3 @@ describe('computeWind', () => {
 		expect(getCell(speed.scan.cells, 0, 1).flag).toBe('ok');
 	});
 });
-
