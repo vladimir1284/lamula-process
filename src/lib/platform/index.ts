@@ -1,7 +1,7 @@
-export type { AppConfig } from './config';
+export type { AppConfig, RecentFileEntry } from './config';
 export { loadConfig, saveConfig, addRecentFile } from './config';
 export type { OpenedFile } from './openFile';
-export { openObservationFile } from './openFile';
+export { openObservationFile, reopenLocalFile, getRememberedFileHandle } from './openFile';
 export type { SiteLocation, SiteDataStore } from './siteData';
 export {
 	siteKey,

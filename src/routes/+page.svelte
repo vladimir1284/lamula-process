@@ -37,6 +37,8 @@
 		buildExportFilename
 	} from '$lib/viewer';
 	import AwsExplorer from '$lib/aws-explorer/AwsExplorer.svelte';
+	import { MenuBar, type MenuDef } from '$lib/nav';
+	import { loadConfig, type RecentFileEntry } from '$lib/platform';
 	import { standardOverlays } from '$lib/overlays';
 	import { BASE_MAP_IDS, BASE_MAP_LABELS, type BaseMapId } from '$lib/viewer/baseMaps';
 	import type { Readout } from '$lib/viewer/readout';
@@ -237,6 +239,42 @@
 	const error = $derived($snapshot.context.error);
 	const recentFiles = $derived($snapshot.context.recentFiles);
 
+	function reopenRecent(entry: RecentFileEntry) {
+		send({ type: 'OPEN_RECENT', entry });
+	}
+
+	const menus = $derived<MenuDef[]>([
+		{
+			label: 'Archivo',
+			items: [
+				{
+					label: loading ? 'Abriendo…' : 'Abrir archivo',
+					icon: 'upload_file',
+					disabled: loading,
+					onclick: () => send({ type: 'OPEN' })
+				},
+				{
+					label: 'Descargar (AWS)',
+					icon: 'cloud_download',
+					disabled: loading,
+					onclick: () => (showAwsExplorer = true)
+				},
+				{
+					label: 'Abrir reciente',
+					icon: 'history',
+					submenu:
+						recentFiles.length > 0
+							? recentFiles.map((entry) => ({
+									label: entry.label,
+									icon: entry.source === 'aws' ? 'cloud' : 'description',
+									onclick: () => reopenRecent(entry)
+								}))
+							: [{ label: 'Sin archivos recientes', disabled: true }]
+				}
+			]
+		}
+	]);
+
 	const channels = $derived(observation ? observationChannels(observation) : []);
 	const channel = $derived(channels[channelIndex]?.channel);
 	// Active palette follows the selected product: the channel's moment for PPI/CAPPI/COLUMN_MAX
@@ -423,6 +461,8 @@
 		showRadials = settings.showRadials;
 		settingsLoaded = true;
 		await refreshSiteList();
+		const config = await loadConfig();
+		send({ type: 'RECENT_FILES_LOADED', recentFiles: config.recentFiles });
 	});
 
 	// The scale editor edits the palette assigned to the active key (current moment or product).
@@ -495,6 +535,7 @@
 				<img src="/logo.svg" alt="" class="h-7 w-7" />
 				LAMULA <span class="font-normal text-on-surface-variant">Process</span>
 			</h1>
+			<MenuBar {menus} />
 			{#if observation}
 				<nav class="hidden items-center gap-5 font-mono text-label-mono lg:flex">
 					<span class="flex items-center gap-2"
@@ -526,22 +567,6 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-3">
-			<button
-				class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-				onclick={() => send({ type: 'OPEN' })}
-				disabled={loading}
-			>
-				<span class="material-symbols-outlined text-[18px]">upload_file</span>
-				{loading ? 'ABRIENDO…' : 'ABRIR ARCHIVO'}
-			</button>
-			<button
-				class="flex h-10 items-center gap-2 rounded border border-outline-variant px-4 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container hover:text-primary-container disabled:opacity-50"
-				onclick={() => (showAwsExplorer = true)}
-				disabled={loading}
-			>
-				<span class="material-symbols-outlined text-[18px]">cloud_download</span>
-				DESCARGAR (AWS)
-			</button>
 			<button
 				class="flex h-10 w-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 				onclick={() => (showSettings = true)}
@@ -1328,31 +1353,6 @@
 						</div>
 					</section>
 				</div>
-
-				<!-- Recientes. -->
-				{#if recentFiles.length > 0}
-					<section class="glass-panel overflow-hidden rounded-xl">
-						<div
-							class="flex items-center gap-2 border-b border-outline-variant bg-surface-container-high px-6 py-3"
-						>
-							<span class="material-symbols-outlined text-[18px] text-primary-container"
-								>history</span
-							>
-							<h3 class="font-mono text-label-mono uppercase">Archivos recientes</h3>
-						</div>
-						<ul class="divide-y divide-outline-variant/30 font-mono text-label-mono">
-							{#each recentFiles as name (name)}
-								<li
-									class="flex items-center gap-3 px-6 py-3 text-on-surface-variant transition-colors hover:bg-surface-variant/20"
-								>
-									<span class="material-symbols-outlined text-[16px] text-outline">description</span
-									>
-									<span class="text-on-surface">{name}</span>
-								</li>
-							{/each}
-						</ul>
-					</section>
-				{/if}
 			{/if}
 		</div>
 	</main>
@@ -1366,7 +1366,7 @@
 			{unitSystem}
 			onload={(picked) => {
 				showAwsExplorer = false;
-				send({ type: 'LOAD_REMOTE', picked });
+				send({ type: 'LOAD_REMOTE', picked: { ...picked, source: 'aws' } });
 			}}
 		/>
 	</Modal>

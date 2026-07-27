@@ -7,6 +7,7 @@
 	interface Picked {
 		fileName: string;
 		bytes: Uint8Array;
+		s3Key: string;
 	}
 
 	interface Props {
@@ -82,7 +83,7 @@
 		loadError = null;
 		try {
 			const picked = await fetchVolumeScanBytes(scan.key);
-			onload(picked);
+			onload({ ...picked, s3Key: scan.key });
 		} catch (err) {
 			loadError = err instanceof Error ? err.message : String(err);
 		} finally {

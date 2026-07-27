@@ -17,6 +17,30 @@ export async function openObservationFile(): Promise<OpenedFile | null> {
 
 interface FileSystemFileHandleLike {
 	getFile(): Promise<File>;
+	queryPermission?(opts: { mode: 'read' }): Promise<'granted' | 'denied' | 'prompt'>;
+	requestPermission?(opts: { mode: 'read' }): Promise<'granted' | 'denied' | 'prompt'>;
+}
+
+// In-memory only (lost on reload) -- lets "Abrir reciente" silently re-read a local file picked
+// via showOpenFilePicker this session instead of re-prompting the native dialog. Entries from a
+// prior session (restored from localStorage by config.ts) have no handle here, so reopenLocalFile
+// throws and the caller falls back to a fresh "Abrir archivo".
+const rememberedHandles = new Map<string, FileSystemFileHandleLike>();
+
+export function getRememberedFileHandle(fileName: string): FileSystemFileHandleLike | undefined {
+	return rememberedHandles.get(fileName);
+}
+
+export async function reopenLocalFile(handle: FileSystemFileHandleLike): Promise<OpenedFile> {
+	if (handle.queryPermission && handle.requestPermission) {
+		const status = await handle.queryPermission({ mode: 'read' });
+		if (status !== 'granted') {
+			const granted = await handle.requestPermission({ mode: 'read' });
+			if (granted !== 'granted') throw new Error('Permiso denegado para reabrir el archivo.');
+		}
+	}
+	const file = await handle.getFile();
+	return { fileName: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
 }
 
 async function openViaWebPicker(): Promise<OpenedFile | null> {
@@ -39,6 +63,7 @@ async function openViaWebPicker(): Promise<OpenedFile | null> {
 				]
 			});
 			const file = await handle.getFile();
+			rememberedHandles.set(file.name, handle);
 			return { fileName: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return null; // user cancelled

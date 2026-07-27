@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createActor, fromPromise } from 'xstate';
 import type { Observation } from '$lib/domain/types';
-import type { OpenedFile } from '$lib/platform';
+import type { OpenedFile, RecentFileEntry } from '$lib/platform';
 import { observationMachine } from './observationMachine';
 
 // Mock actor return types must match the real actors' output exactly for .provide().
-type OpenOut = OpenedFile | null;
-type ParseOut = { observation: Observation; recentFiles: string[] };
+type OpenOut = (OpenedFile & { source: 'local' | 'aws'; s3Key?: string }) | null;
+type ParseOut = { observation: Observation; recentFiles: RecentFileEntry[] };
+type ResolveOut = { fileName: string; bytes: Uint8Array; source: 'local' | 'aws'; s3Key?: string };
 
 const fakeObs: Observation = {
 	id: 'obs',
@@ -34,11 +35,12 @@ describe('observationMachine', () => {
 			actors: {
 				openFile: fromPromise(async (): Promise<OpenOut> => ({
 					fileName: 'a.vol',
-					bytes: new Uint8Array()
+					bytes: new Uint8Array(),
+					source: 'local'
 				})),
 				parseFile: fromPromise(async (): Promise<ParseOut> => ({
 					observation: fakeObs,
-					recentFiles: ['a.vol']
+					recentFiles: [{ label: 'a.vol', source: 'local' }]
 				}))
 			}
 		});
@@ -46,7 +48,7 @@ describe('observationMachine', () => {
 		actor.send({ type: 'OPEN' });
 		await waitFor(actor, 'ready');
 		expect(actor.getSnapshot().context.observation?.id).toBe('obs');
-		expect(actor.getSnapshot().context.recentFiles).toEqual(['a.vol']);
+		expect(actor.getSnapshot().context.recentFiles).toEqual([{ label: 'a.vol', source: 'local' }]);
 	});
 
 	it('returns to idle when the picker is cancelled', async () => {
@@ -74,7 +76,8 @@ describe('observationMachine', () => {
 			actors: {
 				openFile: fromPromise(async (): Promise<OpenOut> => ({
 					fileName: 'bad',
-					bytes: new Uint8Array()
+					bytes: new Uint8Array(),
+					source: 'local'
 				})),
 				parseFile: fromPromise(async (): Promise<ParseOut> => {
 					throw new Error('No parser recognizes file');
@@ -85,5 +88,50 @@ describe('observationMachine', () => {
 		actor.send({ type: 'OPEN' });
 		await waitFor(actor, 'error');
 		expect(actor.getSnapshot().context.error).toBe('No parser recognizes file');
+	});
+
+	it('OPEN_RECENT reopens a recent entry and lands in ready', async () => {
+		const machine = observationMachine.provide({
+			actors: {
+				resolveRecent: fromPromise(async (): Promise<ResolveOut> => ({
+					fileName: 'a.vol',
+					bytes: new Uint8Array(),
+					source: 'local'
+				})),
+				parseFile: fromPromise(async (): Promise<ParseOut> => ({
+					observation: fakeObs,
+					recentFiles: [{ label: 'a.vol', source: 'local' }]
+				}))
+			}
+		});
+		const actor = createActor(machine).start();
+		actor.send({ type: 'OPEN_RECENT', entry: { label: 'a.vol', source: 'local' } });
+		expect(actor.getSnapshot().value).toBe('reopening'); // synchronous transition
+		await waitFor(actor, 'ready');
+		expect(actor.getSnapshot().context.observation?.id).toBe('obs');
+	});
+
+	it('OPEN_RECENT captures an error when the entry cannot be resolved (e.g. handle lost on reload)', async () => {
+		const machine = observationMachine.provide({
+			actors: {
+				resolveRecent: fromPromise(async (): Promise<ResolveOut> => {
+					throw new Error('No se pudo reabrir "a.vol" automáticamente -- usa "Abrir archivo".');
+				})
+			}
+		});
+		const actor = createActor(machine).start();
+		actor.send({ type: 'OPEN_RECENT', entry: { label: 'a.vol', source: 'local' } });
+		await waitFor(actor, 'error');
+		expect(actor.getSnapshot().context.error).toMatch(/no se pudo reabrir/i);
+	});
+
+	it('RECENT_FILES_LOADED hydrates recentFiles without disturbing the current state', async () => {
+		const actor = createActor(observationMachine).start();
+		actor.send({
+			type: 'RECENT_FILES_LOADED',
+			recentFiles: [{ label: 'a.vol', source: 'local' }]
+		});
+		expect(actor.getSnapshot().value).toBe('idle');
+		expect(actor.getSnapshot().context.recentFiles).toEqual([{ label: 'a.vol', source: 'local' }]);
 	});
 });

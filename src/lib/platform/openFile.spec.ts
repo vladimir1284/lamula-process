@@ -4,7 +4,7 @@ import { isTauri } from '@tauri-apps/api/core';
 
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: vi.fn(() => false) }));
 
-import { openObservationFile } from './openFile';
+import { openObservationFile, reopenLocalFile } from './openFile';
 
 beforeEach(() => {
 	vi.mocked(isTauri).mockReturnValue(false);
@@ -57,5 +57,51 @@ describe('openObservationFile (web, input fallback)', () => {
 		};
 
 		expect(await openObservationFile()).toBeNull();
+	});
+});
+
+// The remembered-handle map that backs these is populated only by the showOpenFilePicker branch
+// of openObservationFile(), which happy-dom can't exercise (see the describe block above) -- so
+// reopenLocalFile is tested directly against a fake handle instead.
+describe('reopenLocalFile', () => {
+	function fakeHandle(bytes: number[], name = 'scan.vol') {
+		return { getFile: async () => new File([new Uint8Array(bytes)], name) };
+	}
+
+	it('re-reads the file when there is no permission API (already-granted access)', async () => {
+		const result = await reopenLocalFile(fakeHandle([1, 2, 3]));
+		expect(result.fileName).toBe('scan.vol');
+		expect(Array.from(result.bytes)).toEqual([1, 2, 3]);
+	});
+
+	it('skips requestPermission when queryPermission already reports granted', async () => {
+		const requestPermission = vi.fn();
+		const handle = {
+			...fakeHandle([9]),
+			queryPermission: vi.fn(async () => 'granted' as const),
+			requestPermission
+		};
+		await reopenLocalFile(handle);
+		expect(requestPermission).not.toHaveBeenCalled();
+	});
+
+	it('requests permission when not yet granted, then re-reads on success', async () => {
+		const handle = {
+			...fakeHandle([4, 5]),
+			queryPermission: vi.fn(async () => 'prompt' as const),
+			requestPermission: vi.fn(async () => 'granted' as const)
+		};
+		const result = await reopenLocalFile(handle);
+		expect(handle.requestPermission).toHaveBeenCalledWith({ mode: 'read' });
+		expect(Array.from(result.bytes)).toEqual([4, 5]);
+	});
+
+	it('throws when permission is denied', async () => {
+		const handle = {
+			...fakeHandle([1]),
+			queryPermission: vi.fn(async () => 'prompt' as const),
+			requestPermission: vi.fn(async () => 'denied' as const)
+		};
+		await expect(reopenLocalFile(handle)).rejects.toThrow(/permiso denegado/i);
 	});
 });

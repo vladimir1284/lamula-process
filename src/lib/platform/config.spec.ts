@@ -4,7 +4,9 @@ import { isTauri } from '@tauri-apps/api/core';
 
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: vi.fn(() => false) }));
 
-import { loadConfig, saveConfig, addRecentFile } from './config';
+import { loadConfig, saveConfig, addRecentFile, type RecentFileEntry } from './config';
+
+const local = (label: string): RecentFileEntry => ({ label, source: 'local' });
 
 beforeEach(() => {
 	localStorage.clear();
@@ -33,34 +35,52 @@ describe('loadConfig', () => {
 		localStorage.setItem('lamula-process:config', JSON.stringify({ recentFiles: 'nope' }));
 		expect(await loadConfig()).toEqual({ recentFiles: [] });
 	});
+
+	it('falls back to the default on the pre-migration plain-string shape', async () => {
+		localStorage.setItem(
+			'lamula-process:config',
+			JSON.stringify({ recentFiles: ['a.vol', 'b.gz'] })
+		);
+		expect(await loadConfig()).toEqual({ recentFiles: [] });
+	});
 });
 
 describe('saveConfig / loadConfig round-trip', () => {
 	it('persists across a save/load cycle', async () => {
-		await saveConfig({ recentFiles: ['a.vol', 'b.gz'] });
-		expect(await loadConfig()).toEqual({ recentFiles: ['a.vol', 'b.gz'] });
+		await saveConfig({ recentFiles: [local('a.vol'), local('b.gz')] });
+		expect(await loadConfig()).toEqual({ recentFiles: [local('a.vol'), local('b.gz')] });
+	});
+
+	it('keeps the s3Key on an aws entry', async () => {
+		const entry: RecentFileEntry = {
+			label: 'KBYX_V06',
+			source: 'aws',
+			s3Key: '2026/07/26/KBYX/KBYX_V06'
+		};
+		await saveConfig({ recentFiles: [entry] });
+		expect(await loadConfig()).toEqual({ recentFiles: [entry] });
 	});
 });
 
 describe('addRecentFile', () => {
 	it('adds a new file to the front', async () => {
-		await saveConfig({ recentFiles: ['a.vol'] });
-		const updated = await addRecentFile('b.gz');
-		expect(updated.recentFiles).toEqual(['b.gz', 'a.vol']);
+		await saveConfig({ recentFiles: [local('a.vol')] });
+		const updated = await addRecentFile(local('b.gz'));
+		expect(updated.recentFiles).toEqual([local('b.gz'), local('a.vol')]);
 	});
 
 	it('moves an already-present file to the front instead of duplicating it', async () => {
-		await saveConfig({ recentFiles: ['a.vol', 'b.gz', 'c.vol'] });
-		const updated = await addRecentFile('b.gz');
-		expect(updated.recentFiles).toEqual(['b.gz', 'a.vol', 'c.vol']);
+		await saveConfig({ recentFiles: [local('a.vol'), local('b.gz'), local('c.vol')] });
+		const updated = await addRecentFile(local('b.gz'));
+		expect(updated.recentFiles).toEqual([local('b.gz'), local('a.vol'), local('c.vol')]);
 	});
 
 	it('caps the list at 10 entries', async () => {
-		const initial = Array.from({ length: 10 }, (_, i) => `f${i}.vol`);
+		const initial = Array.from({ length: 10 }, (_, i) => local(`f${i}.vol`));
 		await saveConfig({ recentFiles: initial });
-		const updated = await addRecentFile('new.vol');
+		const updated = await addRecentFile(local('new.vol'));
 		expect(updated.recentFiles).toHaveLength(10);
-		expect(updated.recentFiles[0]).toBe('new.vol');
-		expect(updated.recentFiles).not.toContain('f9.vol');
+		expect(updated.recentFiles[0]).toEqual(local('new.vol'));
+		expect(updated.recentFiles).not.toContainEqual(local('f9.vol'));
 	});
 });
