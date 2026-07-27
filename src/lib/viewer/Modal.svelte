@@ -4,11 +4,12 @@
 	interface Props {
 		open: boolean;
 		title?: string;
+		maxWidthClass?: string;
 		onclose: () => void;
 		children: Snippet;
 	}
 
-	let { open, title, onclose, children }: Props = $props();
+	let { open, title, maxWidthClass = 'max-w-2xl', onclose, children }: Props = $props();
 
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
@@ -25,7 +26,7 @@
 			aria-label="Cerrar"
 		></button>
 		<div
-			class="glass-panel relative max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.6)]"
+			class="glass-panel relative max-h-[90vh] w-full {maxWidthClass} overflow-auto rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.6)]"
 			role="dialog"
 			aria-modal="true"
 			aria-label={title}

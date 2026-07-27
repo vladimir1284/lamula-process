@@ -1,5 +1,10 @@
 <script lang="ts">
-	import type { VadProfileResult, VadProfileLevel } from '$lib/products/vadProfile';
+	import {
+		type VadProfileResult,
+		type VadProfileLevel,
+		type HeightBinStep,
+		binVadLevels
+	} from '$lib/products/vadProfile';
 
 	interface Props {
 		profile: VadProfileResult;
@@ -9,10 +14,13 @@
 	let { profile, onclose }: Props = $props();
 
 	let activeTab = $state<'barbs' | 'hodograph' | 'table'>('barbs');
+	let heightStep = $state<HeightBinStep>('1kft');
 	let hoverLevelIndex = $state<number | null>(null);
 
 	let barbsCanvas: HTMLCanvasElement | undefined = $state();
 	let hodoCanvas: HTMLCanvasElement | undefined = $state();
+
+	const binnedLevels = $derived(binVadLevels(profile.levels, heightStep));
 
 	const DEG = Math.PI / 180;
 
@@ -27,13 +35,10 @@
 	) {
 		ctx.save();
 		ctx.translate(x, y);
-		// Meteorological wind direction: angle wind comes FROM.
-		// Barb staff points toward origin from the source direction.
 		const rotRad = dirDeg * DEG;
 		ctx.rotate(rotRad);
 
 		if (spdKts <= 2.5) {
-			// Calm: draw small circle
 			ctx.beginPath();
 			ctx.arc(0, 0, 4 * scale, 0, Math.PI * 2);
 			ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
@@ -43,18 +48,16 @@
 			return;
 		}
 
-		const staffLen = 32 * scale;
+		const staffLen = 30 * scale;
 		ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
 		ctx.lineWidth = 1.5 * scale;
 
-		// Staff pointing up (North-relative in rotated frame)
 		ctx.beginPath();
 		ctx.moveTo(0, 0);
 		ctx.lineTo(0, -staffLen);
 		ctx.stroke();
 
-		// Calculate flags (50 kt), full barbs (10 kt), half barbs (5 kt)
 		let rem = Math.round(spdKts / 5) * 5;
 		const numFlags = Math.floor(rem / 50);
 		rem %= 50;
@@ -63,10 +66,9 @@
 		const numHalfBarbs = Math.floor(rem / 5);
 
 		let pos = -staffLen;
-		const barbLen = 10 * scale;
+		const barbLen = 9 * scale;
 		const barbGap = 4 * scale;
 
-		// Draw 50-kt flags (triangles)
 		for (let i = 0; i < numFlags; i++) {
 			ctx.beginPath();
 			ctx.moveTo(0, pos);
@@ -77,7 +79,6 @@
 			pos += 7 * scale;
 		}
 
-		// Draw 10-kt barbs
 		for (let i = 0; i < numBarbs; i++) {
 			ctx.beginPath();
 			ctx.moveTo(0, pos);
@@ -86,9 +87,8 @@
 			pos += barbGap;
 		}
 
-		// Draw 5-kt half barb
 		for (let i = 0; i < numHalfBarbs; i++) {
-			if (pos === -staffLen) pos += barbGap; // offset if first item on staff
+			if (pos === -staffLen) pos += barbGap;
 			ctx.beginPath();
 			ctx.moveTo(0, pos);
 			ctx.lineTo(barbLen * 0.5, pos - 1.5 * scale);
@@ -110,23 +110,23 @@
 		const H = canvas.height;
 		ctx.clearRect(0, 0, W, H);
 
-		// Background
+		// Dark background
 		ctx.fillStyle = '#0b0f14';
 		ctx.fillRect(0, 0, W, H);
 
-		const PAD = { top: 30, bottom: 40, left: 60, right: 60 };
+		const PAD = { top: 30, bottom: 40, left: 70, right: 190 };
 		const plotW = W - PAD.left - PAD.right;
 		const plotH = H - PAD.top - PAD.bottom;
 
-		const { levels, maxHeightM, maxSpeedMs } = profile;
-		const maxH = Math.max(maxHeightM, 3000);
-		const maxSpd = Math.max(maxSpeedMs, 10);
+		const levels = binnedLevels;
+		const maxH = Math.max(profile.maxHeightM, 3000);
+		const maxSpd = Math.max(profile.maxSpeedMs, 10);
 
 		const yOf = (h: number) => PAD.top + plotH - (h / maxH) * plotH;
 		const xOf = (spd: number) => PAD.left + (spd / maxSpd) * plotW;
 
 		// Grid lines for height (every 2 km)
-		ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+		ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
 		ctx.lineWidth = 1;
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
 		ctx.font = '11px monospace';
@@ -141,7 +141,7 @@
 
 			const km = (h / 1000).toFixed(0);
 			const kft = (h * 0.00328084).toFixed(0);
-			ctx.fillText(`${km} km (${kft}kft)`, PAD.left - 8, y + 4);
+			ctx.fillText(`${km}km (${kft}kft)`, PAD.left - 8, y + 4);
 		}
 
 		// Grid lines for speed (every 5 m/s)
@@ -155,7 +155,7 @@
 			ctx.fillText(`${s} m/s`, x, PAD.top + plotH + 18);
 		}
 
-		// Connect points with speed profile line
+		// Speed profile curve
 		if (levels.length > 0) {
 			ctx.strokeStyle = '#4ea1ff';
 			ctx.lineWidth = 2;
@@ -170,31 +170,37 @@
 			ctx.stroke();
 		}
 
-		// Draw points and wind barbs
+		// Draw points, barbs, and text labels (with vertical overlap guard)
+		let lastLabelY = -Infinity;
+
 		for (let i = 0; i < levels.length; i++) {
 			const lvl = levels[i];
 			const x = xOf(lvl.speedMs);
 			const y = yOf(lvl.heightM);
 			const isHover = hoverLevelIndex === i;
 
-			// Draw level point
+			// Draw point
 			ctx.beginPath();
 			ctx.arc(x, y, isHover ? 6 : 4, 0, Math.PI * 2);
 			ctx.fillStyle = isHover ? '#00f2ff' : '#ffd166';
 			ctx.fill();
 
-			// Draw wind barb offset to the right
-			drawWindBarb(ctx, x + 35, y, lvl.speedKts, lvl.directionDeg, 0.95);
+			// Draw wind barb at a fixed right-hand column offset
+			const barbX = PAD.left + plotW + 30;
+			drawWindBarb(ctx, barbX, y, lvl.speedKts, lvl.directionDeg, 0.9);
 
-			// Label direction & speed
-			ctx.fillStyle = isHover ? '#00f2ff' : 'rgba(255, 255, 255, 0.7)';
-			ctx.font = '10px monospace';
-			ctx.textAlign = 'left';
-			ctx.fillText(
-				`${lvl.cardinalDir} ${lvl.speedMs.toFixed(1)}m/s (${lvl.speedKts.toFixed(0)}kt)`,
-				x + 55,
-				y + 3
-			);
+			// Draw text label if vertical gap is >= 18px or hovered
+			if (Math.abs(y - lastLabelY) >= 18 || isHover) {
+				ctx.fillStyle = isHover ? '#00f2ff' : 'rgba(255, 255, 255, 0.85)';
+				ctx.font = isHover ? 'bold 11px monospace' : '10px monospace';
+				ctx.textAlign = 'left';
+				ctx.fillText(
+					`${lvl.cardinalDir} ${lvl.speedMs.toFixed(1)}m/s (${lvl.speedKts.toFixed(0)}kt)`,
+					barbX + 22,
+					y + 3
+				);
+				lastLabelY = y;
+			}
 		}
 	});
 
@@ -242,7 +248,7 @@
 		ctx.lineTo(cx, cy + radius);
 		ctx.stroke();
 
-		// Labels N, E, S, W
+		// Direction labels
 		ctx.font = 'bold 12px monospace';
 		ctx.fillStyle = '#4ea1ff';
 		ctx.fillText('N', cx, cy - radius - 8);
@@ -250,15 +256,14 @@
 		ctx.fillText('E', cx + radius + 12, cy + 4);
 		ctx.fillText('W', cx - radius - 12, cy + 4);
 
-		// Plot hodograph line (connecting Vx, Vy points in height order)
-		const { levels } = profile;
+		// Hodograph curve
+		const levels = binnedLevels;
 		if (levels.length > 0) {
 			ctx.strokeStyle = '#00f2ff';
 			ctx.lineWidth = 2;
 			ctx.beginPath();
 			for (let i = 0; i < levels.length; i++) {
 				const lvl = levels[i];
-				// vx is East (+X), vy is North (+Y -> invert canvas Y)
 				const px = cx + lvl.vx * scale;
 				const py = cy - lvl.vy * scale;
 				if (i === 0) ctx.moveTo(px, py);
@@ -266,7 +271,6 @@
 			}
 			ctx.stroke();
 
-			// Points along hodograph
 			for (let i = 0; i < levels.length; i++) {
 				const lvl = levels[i];
 				const px = cx + lvl.vx * scale;
@@ -290,7 +294,7 @@
 
 <div class="flex flex-col gap-3 font-sans text-on-surface">
 	<!-- Top Bar / Controls -->
-	<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+	<div class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant pb-2">
 		<div class="flex items-center gap-2">
 			<span class="material-symbols-outlined text-[22px] text-primary-container">air</span>
 			<h2 class="font-mono text-title-md font-semibold text-primary-container">
@@ -298,44 +302,60 @@
 			</h2>
 		</div>
 
-		<!-- View Tabs -->
-		<div
-			class="flex rounded-lg border border-outline-variant bg-surface-container-high p-1 text-label-mono"
-		>
-			<button
-				class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
-				'barbs'
-					? 'bg-primary-container text-on-primary-container font-semibold shadow'
-					: 'text-on-surface-variant hover:text-on-surface'}"
-				onclick={() => (activeTab = 'barbs')}
+		<!-- Step Bin & View Tabs Controls -->
+		<div class="flex flex-wrap items-center gap-3">
+			<label class="flex items-center gap-2 font-mono text-xs text-on-surface-variant">
+				<span>Paso de Altura:</span>
+				<select
+					class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs text-primary-container focus:ring-0 cursor-pointer"
+					bind:value={heightStep}
+				>
+					<option value="1kft">1 kft (~300m NEXRAD)</option>
+					<option value="500m">500 m</option>
+					<option value="1km">1 km</option>
+					<option value="2km">2 km</option>
+					<option value="all">Todos ({profile.levels.length} anillos)</option>
+				</select>
+			</label>
+
+			<div
+				class="flex rounded-lg border border-outline-variant bg-surface-container-high p-1 text-label-mono"
 			>
-				<span class="material-symbols-outlined text-[16px]">show_chart</span>
-				PERFIL & BARBAS
-			</button>
-			<button
-				class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
-				'hodograph'
-					? 'bg-primary-container text-on-primary-container font-semibold shadow'
-					: 'text-on-surface-variant hover:text-on-surface'}"
-				onclick={() => (activeTab = 'hodograph')}
-			>
-				<span class="material-symbols-outlined text-[16px]">radar</span>
-				HODÓGRAFA
-			</button>
-			<button
-				class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
-				'table'
-					? 'bg-primary-container text-on-primary-container font-semibold shadow'
-					: 'text-on-surface-variant hover:text-on-surface'}"
-				onclick={() => (activeTab = 'table')}
-			>
-				<span class="material-symbols-outlined text-[16px]">table_rows</span>
-				TABLA ({profile.levels.length})
-			</button>
+				<button
+					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
+					'barbs'
+						? 'bg-primary-container text-on-primary-container font-semibold shadow'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => (activeTab = 'barbs')}
+				>
+					<span class="material-symbols-outlined text-[16px]">show_chart</span>
+					PERFIL & BARBAS
+				</button>
+				<button
+					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
+					'hodograph'
+						? 'bg-primary-container text-on-primary-container font-semibold shadow'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => (activeTab = 'hodograph')}
+				>
+					<span class="material-symbols-outlined text-[16px]">radar</span>
+					HODÓGRAFA
+				</button>
+				<button
+					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
+					'table'
+						? 'bg-primary-container text-on-primary-container font-semibold shadow'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => (activeTab = 'table')}
+				>
+					<span class="material-symbols-outlined text-[16px]">table_rows</span>
+					TABLA ({binnedLevels.length})
+				</button>
+			</div>
 		</div>
 	</div>
 
-	<!-- Content Area -->
+	<!-- Main Content Display -->
 	<div class="min-h-[420px] w-full">
 		{#if profile.levels.length === 0}
 			<div
@@ -351,24 +371,28 @@
 		{:else if activeTab === 'barbs'}
 			<div class="flex flex-col gap-2">
 				<div class="relative overflow-hidden rounded-lg border border-outline-variant bg-[#0b0f14]">
-					<canvas bind:this={barbsCanvas} width={680} height={400} class="w-full"></canvas>
+					<canvas bind:this={barbsCanvas} width={820} height={420} class="w-full"></canvas>
 				</div>
-				<p class="font-mono text-[11px] text-on-surface-variant">
-					📌 Barbas de viento orientadas meteorológicamente (hacia el origen de donde viene el
-					viento). Banderín = 50 kt, barba = 10 kt, media barba = 5 kt, círculo = calma (&le; 2 kt).
-				</p>
+				<div class="flex items-center justify-between font-mono text-[11px] text-on-surface-variant">
+					<span>
+						📌 Barbas meteorológicas (hacia origen del viento): Banderín = 50 kt, Barba = 10 kt, Media = 5 kt, Círculo = Calma.
+					</span>
+					<span class="text-primary-container">
+						Mostrando {binnedLevels.length} niveles ({heightStep})
+					</span>
+				</div>
 			</div>
 		{:else if activeTab === 'hodograph'}
 			<div class="flex flex-col items-center gap-2">
 				<div class="relative overflow-hidden rounded-lg border border-outline-variant bg-[#0b0f14]">
-					<canvas bind:this={hodoCanvas} width={520} height={400}></canvas>
+					<canvas bind:this={hodoCanvas} width={560} height={420}></canvas>
 				</div>
 				<p class="font-mono text-[11px] text-on-surface-variant">
-					🧭 Hodógrafa de viento: trayectoria vectorial (Vx Este, Vy Norte) según la altura AGL.
+					🧭 Hodógrafa de viento: trayectoria vectorial (Vx Este, Vy Norte) según la altura.
 				</p>
 			</div>
 		{:else if activeTab === 'table'}
-			<div class="max-h-[400px] overflow-auto rounded-lg border border-outline-variant">
+			<div class="max-h-[420px] overflow-auto rounded-lg border border-outline-variant">
 				<table class="w-full text-left font-mono text-xs">
 					<thead class="sticky top-0 bg-surface-container-high text-on-surface-variant">
 						<tr class="border-b border-outline-variant">
@@ -383,7 +407,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-outline-variant/30">
-						{#each profile.levels as lvl, i}
+						{#each binnedLevels as lvl, i}
 							<tr
 								class="transition-colors hover:bg-surface-container-highest cursor-pointer {hoverLevelIndex ===
 								i

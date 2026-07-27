@@ -139,3 +139,35 @@ export function computeVadProfile(
 		maxHeightM
 	};
 }
+
+export type HeightBinStep = '1kft' | '500m' | '1km' | '2km' | 'all';
+
+export function binVadLevels(levels: VadProfileLevel[], step: HeightBinStep): VadProfileLevel[] {
+	if (step === 'all' || levels.length === 0) return levels;
+
+	let binSizeM = 500;
+	if (step === '1kft') binSizeM = 304.8;
+	else if (step === '500m') binSizeM = 500;
+	else if (step === '1km') binSizeM = 1000;
+	else if (step === '2km') binSizeM = 2000;
+
+	const bins = new Map<number, VadProfileLevel[]>();
+	for (const lvl of levels) {
+		const binIdx = Math.floor(lvl.heightM / binSizeM);
+		const list = bins.get(binIdx) ?? [];
+		list.push(lvl);
+		bins.set(binIdx, list);
+	}
+
+	const result: VadProfileLevel[] = [];
+	for (const [, list] of bins) {
+		list.sort((a, b) => {
+			if (a.rmsMs !== b.rmsMs) return a.rmsMs - b.rmsMs;
+			return b.npt - a.npt;
+		});
+		result.push(list[0]);
+	}
+
+	result.sort((a, b) => a.heightM - b.heightM);
+	return result;
+}

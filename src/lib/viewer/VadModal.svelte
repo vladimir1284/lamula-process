@@ -12,7 +12,7 @@
 	let { open, profile, onclose }: Props = $props();
 </script>
 
-<Modal {open} title="PERFIL DE VIENTO VAD (VELOCITY AZIMUTH DISPLAY)" {onclose}>
+<Modal {open} title="PERFIL DE VIENTO VAD (VELOCITY AZIMUTH DISPLAY)" maxWidthClass="max-w-5xl" {onclose}>
 	{#if profile}
 		<VadPanel {profile} {onclose} />
 	{:else}
