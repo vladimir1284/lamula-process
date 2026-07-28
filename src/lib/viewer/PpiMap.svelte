@@ -48,6 +48,10 @@
 		drawEnabled?: boolean;
 		/** Called with the drawn line converted to site-relative ground metres. */
 		onCutLine?: (line: CutLine) => void;
+		/** When true, a single-point pick interaction is active on the map. */
+		pointSelectEnabled?: boolean;
+		/** Called with the picked point converted to site-relative ground metres. */
+		onPointSelect?: (point: { xEastM: number; yNorthM: number }) => void;
 		/** Unit system for range-ring labels. Default metric (km). */
 		unitSystem?: UnitSystem;
 		/** Show distance-from-radar range rings. Default true. */
@@ -67,6 +71,8 @@
 		onreadout,
 		drawEnabled = false,
 		onCutLine,
+		pointSelectEnabled = false,
+		onPointSelect,
 		unitSystem = 'metric',
 		showRings = true,
 		showRadials = false
@@ -81,6 +87,7 @@
 	let radialsLayer: VectorLayer<VectorSource> | undefined;
 	let drawLayer: VectorLayer<VectorSource> | undefined;
 	let draw: Draw | undefined;
+	let pointDraw: Draw | undefined;
 	let extraGroup: BaseLayer[] = [];
 	const renderer = new PpiRenderer();
 	let renderToken = 0;
@@ -92,6 +99,14 @@
 
 	const drawStyle = new Style({
 		stroke: new Stroke({ color: '#00f0ff', width: 2 })
+	});
+
+	const pointStyle = new Style({
+		image: new CircleStyle({
+			radius: 7,
+			fill: new Fill({ color: '#00f0ff' }),
+			stroke: new Stroke({ color: '#0b0f14', width: 2 })
+		})
 	});
 
 	function endpointStyle(label: string, color: string): Style {
@@ -287,6 +302,33 @@
 		});
 		map.addInteraction(interaction);
 		draw = interaction;
+	});
+
+	// Single-point pick interaction for the vertical-profile tool. Same lifecycle pattern as the
+	// line-draw interaction above; the two are mutually exclusive in practice (different products)
+	// but tracked with separate interaction handles so either can toggle independently.
+	$effect(() => {
+		const enabled = pointSelectEnabled;
+		if (!map || !drawLayer) return;
+		if (pointDraw) {
+			map.removeInteraction(pointDraw);
+			pointDraw = undefined;
+		}
+		if (!enabled) return;
+		const source = drawLayer.getSource()!;
+		const interaction = new Draw({ source, type: 'Point' });
+		interaction.on('drawstart', () => source.clear());
+		interaction.on('drawend', (ev) => {
+			const [x, y] = (ev.feature.getGeometry() as Point).getCoordinates();
+			ev.feature.setStyle(pointStyle);
+
+			if (!onPointSelect) return;
+			const s3857 = siteXY();
+			const sc = scale();
+			onPointSelect({ xEastM: (x - s3857[0]) / sc, yNorthM: (y - s3857[1]) / sc });
+		});
+		map.addInteraction(interaction);
+		pointDraw = interaction;
 	});
 
 	// Keep the map's extra layers in sync if the prop changes.

@@ -172,8 +172,7 @@
 	let zrA = $state(300);
 	let zrB = $state(1.4);
 	let maxHeightKm = $state(18);
-	let profileXkm = $state(0);
-	let profileYkm = $state(30);
+	let profilePoint = $state<{ xEastM: number; yNorthM: number } | null>(null);
 	let rhiAzimuthDeg = $state(0);
 	let drawnCutLine = $state<CutLine | null>(null);
 	let crossLineReadout = $state<CrossSectionReadout | null>(null);
@@ -385,11 +384,25 @@
 		}
 	});
 
+	// Same reasoning as crossLineBaseScan: a column-max composite as the plan-view background to
+	// pick the profile point on.
+	const profileBaseScan = $derived.by((): Scan | null => {
+		if (product !== 'PROFILE' || !channel || channel.scans.length === 0) return null;
+		return deriveGroundProduct(channel, 'COLUMN_MAX', deriveOpts).scan;
+	});
+
+	// Drop the picked point whenever the user leaves the PROFILE tool, so coming back starts fresh.
+	$effect(() => {
+		if (product !== 'PROFILE') {
+			profilePoint = null;
+		}
+	});
+
 	const profile = $derived.by(() => {
-		if (!channel || product !== 'PROFILE') return null;
+		if (!channel || product !== 'PROFILE' || !profilePoint) return null;
 		return computeProfile(channel.scans, {
-			xEastM: profileXkm * 1000,
-			yNorthM: profileYkm * 1000,
+			xEastM: profilePoint.xEastM,
+			yNorthM: profilePoint.yNorthM,
 			beamWidthDeg: channel.beamWidthDeg ?? 1.0,
 			topM: maxHeightKm * 1000,
 			siteAltM: effectiveSite?.altM ?? 0
@@ -829,34 +842,21 @@
 											{/if}
 
 											{#if item.id === 'PROFILE'}
-												<label
-													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-												>
-													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
-														>X ESTE</span
+												<p class="px-1 font-mono text-[10px] text-on-surface-variant">
+													{profilePoint
+														? 'Punto marcado.'
+														: 'Haz clic en el mapa para marcar el punto del perfil.'}
+												</p>
+												{#if profilePoint}
+													<button
+														type="button"
+														class="flex h-8 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high font-mono text-[11px] text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+														onclick={() => (profilePoint = null)}
 													>
-													<input
-														type="number"
-														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-														bind:value={profileXkm}
-														step="1"
-													/>
-													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-												</label>
-												<label
-													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
-												>
-													<span class="w-12 font-mono text-[11px] text-on-surface-variant"
-														>Y NORTE</span
-													>
-													<input
-														type="number"
-														class="w-14 border-none bg-transparent p-0 font-mono text-label-mono text-primary-container focus:ring-0"
-														bind:value={profileYkm}
-														step="1"
-													/>
-													<span class="font-mono text-[11px] text-on-surface-variant">km</span>
-												</label>
+														<span class="material-symbols-outlined text-[14px]">restart_alt</span> Rehacer
+														punto
+													</button>
+												{/if}
 											{/if}
 
 											{#if item.id === 'CROSS_LINE'}
@@ -1214,18 +1214,77 @@
 										</div>
 									</div>
 								{/if}
-							{:else if product === 'PROFILE' && profile}
-								<div class="flex gap-4 p-3">
-									<ProfilePanel
-										bind:this={profileRef}
-										{profile}
-										valueLabel={channel?.moment ?? 'dBZ'}
-									/>
-									<p class="font-mono text-[10px] text-on-surface-variant">
-										Perfil vertical en (E {profileXkm} km, N {profileYkm} km): una muestra por elevación,
-										interpolada por spline cúbico.
-									</p>
-								</div>
+							{:else if product === 'PROFILE'}
+								{#if !site}
+									<div
+										class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
+									>
+										<span class="material-symbols-outlined text-[40px] text-dbz-heavy"
+											>wrong_location</span
+										>
+										<p class="max-w-md text-body-sm text-on-surface-variant">
+											El perfil vertical se marca sobre el mapa y necesita la posición del sitio.
+											Define la ubicación.
+										</p>
+										<button
+											class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+											onclick={openLocationEditor}
+										>
+											<span class="material-symbols-outlined text-[18px]">add_location_alt</span> DEFINIR
+											UBICACIÓN
+										</button>
+									</div>
+								{:else if profileBaseScan && channel}
+									<div class="flex h-full gap-3 p-3">
+										<!-- Left: map to pick the profile point on. -->
+										<div class="flex min-w-0 flex-1 flex-col gap-1">
+											<p class="font-mono text-[10px] text-on-surface-variant">
+												Fondo: máximo de columna. Haz clic para marcar el punto del perfil.
+											</p>
+											<div
+												class="min-h-0 flex-1 overflow-hidden rounded border border-outline-variant"
+											>
+												<PpiMap
+													scan={profileBaseScan}
+													{palette}
+													{site}
+													{baseMap}
+													{dataOpacity}
+													{showRings}
+													{showRadials}
+													extraLayers={overlays}
+													pointSelectEnabled={true}
+													{unitSystem}
+													onPointSelect={(p) => (profilePoint = p)}
+													onreadout={(r) => (readout = r)}
+												/>
+											</div>
+										</div>
+
+										<!-- Right: the vertical profile itself. -->
+										<div class="flex min-w-0 flex-1 flex-col gap-1">
+											<p class="font-mono text-[10px] text-on-surface-variant">
+												Perfil vertical en el punto marcado: una muestra por elevación, interpolada
+												por spline cúbico.
+											</p>
+											<div
+												class="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded border border-outline-variant bg-surface-container-lowest"
+											>
+												{#if profile}
+													<ProfilePanel
+														bind:this={profileRef}
+														{profile}
+														valueLabel={channel?.moment ?? 'dBZ'}
+													/>
+												{:else}
+													<p class="px-4 text-center font-mono text-[10px] text-on-surface-variant">
+														Haz clic en el mapa de la izquierda para ver el perfil vertical.
+													</p>
+												{/if}
+											</div>
+										</div>
+									</div>
+								{/if}
 							{:else if isGround}
 								{#if !site}
 									<!-- Format without a site position (e.g. NEXRAD L2 msg-31). -->
