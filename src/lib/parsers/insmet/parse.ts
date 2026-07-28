@@ -116,14 +116,22 @@ export async function parseInsmet(bytes: Uint8Array): Promise<Observation> {
 		// see docs/formatos.md.
 		const numGates = ppiHeader.unpackedSize / numRays;
 
-		const { values, flags } = decodeCells(raw, desc.measureCode, numRays, numGates);
-
 		const channelDesc = channelDescs[desc.channel];
 		if (!channelDesc) {
 			throw new Error(
 				`PPI references channel ${desc.channel}, but only ${channelDescs.length} channel descriptors present`
 			);
 		}
+
+		const { values, flags } = decodeCells(
+			raw,
+			desc.measureCode,
+			numRays,
+			numGates,
+			desc.measureCode === 1
+				? { cellLengthM: channelDesc.cellLengthM, metPotential: channelDesc.metPotential }
+				: undefined
+		);
 
 		// .obs stores one start/finish azimuth pair for the whole PPI plus a sector count, not a
 		// per-ray angle array like Rainbow5/NEXRAD L2. Every real fixture has start=0/finish=360 with

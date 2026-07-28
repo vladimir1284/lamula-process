@@ -96,6 +96,35 @@ describe('parseInsmet (c01y0815.obs, VCP_31, rdCamaguey1)', () => {
 	});
 });
 
+describe('parseInsmet (p15g1530.obs, older format, unDB measure)', () => {
+	it('decodes site/design/timestamp for the 2007 rdPilon single-channel fixture', async () => {
+		const obs = await parseInsmet(readFixture('p15g1530.obs'));
+
+		expect(obs.site).toEqual({ name: 'rdPilon', code: 'rdPilon' });
+		expect(obs.design).toBe('VOL02_15');
+		expect(obs.timestamp).toBe('2007-08-15T15:30:21.562Z');
+		expect(obs.movements[0].channels).toHaveLength(1);
+		expect(obs.movements[0].channels[0].moment).toBe('dBZ');
+	});
+
+	it('range-corrects unDB to dBZ via byte + met_potential + max(0, 20*log10(range_km))', async () => {
+		const obs = await parseInsmet(readFixture('p15g1530.obs'));
+		const channel = obs.movements[0].channels[0];
+
+		expect(channel.calibration?.metPotential).toBeCloseTo(-35.0997, 3);
+		expect(channel.scans[0].numRays).toBe(256);
+		expect(channel.scans[0].numGates).toBe(1500);
+		expect(channel.scans[0].gateLengthM).toBeCloseTo(300);
+
+		// Ground truth from independently re-implementing dB2dBZ() in Python against the raw bytes
+		// (test-fixtures/reference/insmet/Obs_Parser.py's formula), not from this parser itself.
+		const { count, min, max } = stats(channel, 0);
+		expect(count).toBe(6459);
+		expect(min).toBeCloseTo(-13.1932, 3);
+		expect(max).toBeCloseTo(56.3653, 3);
+	});
+});
+
 describe('parseInsmet (c27a0815VCP31.obs, single physical channel)', () => {
 	it('decodes dBZ/V/W all sourced from the one channel descriptor', async () => {
 		const obs = await parseInsmet(readFixture('c27a0815VCP31.obs'));

@@ -205,7 +205,7 @@ Layout confirmado (little-endian, empacado, sin padding automático de
 | Channel desc (×`channel_count`) | 32 B c/u            | `<2Bh3I3fI`      | wave_length, pulse, dummy, number_of_cells, cell_length_m, num_of_sectors, beam_width_deg, met_potential, delta_potential, index                                    |
 | PPI Desc (×`ppi_count`)         | 28 B                | `<3BxdI2B3hI`    | radar, speed, dummy, **pad**, time, channel, kind (H/V), measure (código→`dMeasure`), angle/start_az/finish_az (código 16-bit→grados, `code*360/4096`), sectorCount |
 | PPI Header                      | 12 B (tras el Desc) | `<BxH2I`         | pack_method (0/1/2, 2=zlib), **pad**, dummy, packed_size, unpacked_size                                                                                             |
-| PPI data                        | `packed_size` B     | zlib             | descomprime a `unpacked_size` bytes → array `(sectors, gates)` de `uint8`; `dBZ = byte-80`, `m/s (MS/SW) = (byte-128)/2`                                            |
+| PPI data                        | `packed_size` B     | zlib             | descomprime a `unpacked_size` bytes → array `(sectors, gates)` de `uint8`; `dBZ (unDBZ) = byte-80`, `m/s (MS/SW) = (byte-128)/2`, `dBZ (unDB) = byte + met_potential + max(0, 20·log10(rango_km))` |
 
 Confirmado en los 4 fixtures reales (`c01y0815.obs`, `c02y1830.obs`,
 `c27a0815VCP31.obs`, `c27a2100VCP11.obs`): radar único `rdCamaguey1`,
@@ -251,14 +251,25 @@ listos primero.
   inventado, pero tampoco literal por-rayo; revisar si aparece algún
   fixture con sector parcial. `rangeToFirstGateM` se asume 0 (no hay campo
   para esto en el contenedor).
-- Medidas soportadas: solo `unDBZ` (byte-80), `unMS`→`V` y `unSW`→`W`
-  (ambas `(byte-128)/2`) — las únicas ejercitadas por fixtures reales.
-  `unDB` (necesita la corrección `dB2dBZ()` con rango, nunca vista en
-  datos reales) y el resto (`ZDR`/`uPhiDP`/`RhoHV`/`KDP`/...) lanzan error
-  en vez de adivinar una fórmula. El propio `Obs_Parser.py` invierte el
-  signo de `unMS` con un comentario `# TODO speed sign correction` del
-  autor original — no se replica esa inversión aquí por ser una duda del
-  propio autor, no una convención confirmada.
+- Medidas soportadas: `unDBZ` (byte-80), `unDB`→`dBZ` (corregida por rango,
+  ver abajo), `unMS`→`V` y `unSW`→`W` (ambas `(byte-128)/2`). El resto
+  (`ZDR`/`uPhiDP`/`RhoHV`/`KDP`/...) lanza error en vez de adivinar una
+  fórmula. El propio `Obs_Parser.py` invierte el signo de `unMS` con un
+  comentario `# TODO speed sign correction` del autor original — no se
+  replica esa inversión aquí por ser una duda del propio autor, no una
+  convención confirmada.
+- `unDB` es reflectividad sin corregir por rango: a diferencia de
+  `unDBZ`/`unMS`/`unSW`, `Obs_Parser.py` **no** transforma el byte crudo en
+  su bucle de carga — solo lo hace en el método aparte `dB2dBZ()`, nunca
+  invocado por su propio `__init__`. Portado aquí como parte normal del
+  decode: `dBZ = byte + met_potential + max(0, 20·log10(rango_km))`, con
+  `rango_km` por gate = `cell_length_m/1000 * (gate_index + 1)` (1-indexed,
+  replica `linspace(cellLength, ncell*cellLength, ncell)` del original).
+  `delta_potential` no se usa en esta fórmula (tampoco en el original).
+  Confirmado contra `test-fixtures/observations/insmet/p15g1530.obs` (radar
+  `rdPilon`, 2007, formato de contenedor más antiguo — mismo layout de
+  bytes, header versión `7.7.0.6` vs `10.10.0.1` de los 4 fixtures VCP,
+  single-channel, `design="VOL02_15"` en vez de nomenclatura `VCP_*`).
 - `wave_length` es un código (`dWaveLength` en `Obs_Parser.py`:
   `0=wl3cm, 1=wl10cm, 2=wl5cm`), no metros directos — el parser traduce el
   código, no asume que el byte crudo ya está en metros.
