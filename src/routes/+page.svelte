@@ -116,7 +116,7 @@
 		'RAIN',
 		'WIND_SPEED'
 	];
-	type ProductKind = GroundProductKind | 'CROSS_EW' | 'CROSS_NS' | 'CROSS_LINE' | 'PROFILE' | 'RHI';
+	type ProductKind = GroundProductKind | 'CROSS_LINE' | 'PROFILE' | 'RHI';
 
 	// Sidebar catalog — mirrors the optgroups the app has always exposed.
 	const PRODUCT_GROUPS: {
@@ -149,8 +149,6 @@
 		{
 			label: 'Cortes',
 			items: [
-				{ id: 'CROSS_EW', label: 'Corte Este-Oeste', icon: 'swap_horiz' },
-				{ id: 'CROSS_NS', label: 'Corte Norte-Sur', icon: 'swap_vert' },
 				{ id: 'CROSS_LINE', label: 'Corte (línea libre)', icon: 'timeline' },
 				{ id: 'PROFILE', label: 'Perfil vertical', icon: 'monitoring' },
 				{ id: 'RHI', label: 'RHI', icon: 'radar' }
@@ -363,11 +361,14 @@
 		return deriveGroundProduct(channel, 'COLUMN_MAX', deriveOpts).scan;
 	});
 
-	const cutLine = $derived.by(() => {
-		if (!channel || (product !== 'CROSS_EW' && product !== 'CROSS_NS')) return null;
+	// Draws the full-range E-W / N-S preset lines for the free-line cut tool (through the site,
+	// spanning the loaded volume's max range on each side) -- shortcuts for tracing, not separate
+	// products.
+	function presetCutLine(orientation: 'EW' | 'NS'): CutLine | null {
+		if (!channel) return null;
 		const half = maxRangeM(channel);
-		return product === 'CROSS_EW' ? eastWestLine(0, half) : northSouthLine(0, half);
-	});
+		return orientation === 'EW' ? eastWestLine(0, half) : northSouthLine(0, half);
+	}
 
 	// Free-hand cut: a column-max composite as the plan-view background to draw the line on (same
 	// reasoning as rhiBaseScan -- always shows real echo regardless of which tilt holds it).
@@ -533,7 +534,7 @@
 		if (product === 'RHI') {
 			const canvas = rhiPanelRef?.getCanvas();
 			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
-		} else if (product === 'CROSS_EW' || product === 'CROSS_NS' || product === 'CROSS_LINE') {
+		} else if (product === 'CROSS_LINE') {
 			const canvas = crossSectionRef?.getCanvas();
 			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
 		} else if (product === 'PROFILE') {
@@ -863,8 +864,32 @@
 												<p class="px-1 font-mono text-[10px] text-on-surface-variant">
 													{drawnCutLine
 														? 'Línea trazada.'
-														: 'Haz clic en el mapa para marcar 2 puntos.'}
+														: 'Haz clic en el mapa para marcar 2 puntos, o usa un comodín.'}
 												</p>
+												<div class="flex gap-2 px-1">
+													<button
+														type="button"
+														class="flex h-8 flex-1 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high font-mono text-[11px] text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+														disabled={!channel}
+														onclick={() => {
+															drawnCutLine = presetCutLine('EW');
+															crossLineReadout = null;
+														}}
+													>
+														<span class="material-symbols-outlined text-[14px]">swap_horiz</span> Este-Oeste
+													</button>
+													<button
+														type="button"
+														class="flex h-8 flex-1 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high font-mono text-[11px] text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+														disabled={!channel}
+														onclick={() => {
+															drawnCutLine = presetCutLine('NS');
+															crossLineReadout = null;
+														}}
+													>
+														<span class="material-symbols-outlined text-[14px]">swap_vert</span> Norte-Sur
+													</button>
+												</div>
 												{#if drawnCutLine}
 													<button
 														type="button"
@@ -880,7 +905,7 @@
 												{/if}
 											{/if}
 
-											{#if item.id === 'CROSS_EW' || item.id === 'CROSS_NS' || item.id === 'CROSS_LINE' || item.id === 'PROFILE' || item.id === 'RHI'}
+											{#if item.id === 'CROSS_LINE' || item.id === 'PROFILE' || item.id === 'RHI'}
 												<label
 													class="cyan-glow flex h-9 items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3"
 												>
@@ -1080,21 +1105,6 @@
 										/>
 									</div>
 								</div>
-							{:else if (product === 'CROSS_EW' || product === 'CROSS_NS') && cutLine && channel}
-								<div class="p-3">
-									<p class="mb-2 font-mono text-[10px] text-on-surface-variant">
-										Corte vertical (muestreo inverso por píxel; no georreferenciado, funciona sin
-										posición de sitio).
-									</p>
-									<CrossSectionPanel
-										bind:this={crossSectionRef}
-										scans={channel.scans}
-										{palette}
-										line={cutLine}
-										maxHeightM={maxHeightKm * 1000}
-										{unitSystem}
-									/>
-								</div>
 							{:else if product === 'CROSS_LINE'}
 								{#if !site}
 									<div
@@ -1105,7 +1115,7 @@
 										>
 										<p class="max-w-md text-body-sm text-on-surface-variant">
 											El corte de línea libre se traza sobre el mapa y necesita la posición del
-											sitio. Define la ubicación o usa Corte E-O / N-S (no la requieren).
+											sitio. Define la ubicación para poder trazar el corte.
 										</p>
 										<button
 											class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95"
@@ -1138,6 +1148,7 @@
 													{showRadials}
 													extraLayers={overlays}
 													drawEnabled={true}
+													presetLine={drawnCutLine}
 													{unitSystem}
 													onCutLine={(l) => (drawnCutLine = l)}
 													onreadout={(r) => (readout = r)}

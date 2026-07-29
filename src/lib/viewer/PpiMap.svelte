@@ -8,7 +8,7 @@
 	import VectorLayer from 'ol/layer/Vector';
 	import VectorSource from 'ol/source/Vector';
 	import Draw from 'ol/interaction/Draw';
-	import type LineString from 'ol/geom/LineString';
+	import LineString from 'ol/geom/LineString';
 	import Feature from 'ol/Feature';
 	import Point from 'ol/geom/Point';
 	import { Style, Stroke, Circle as CircleStyle, Fill, Text } from 'ol/style';
@@ -48,6 +48,8 @@
 		drawEnabled?: boolean;
 		/** Called with the drawn line converted to site-relative ground metres. */
 		onCutLine?: (line: CutLine) => void;
+		/** A preset line (e.g. E-W/N-S full-range shortcut) to render in place of a hand-drawn one. */
+		presetLine?: CutLine | null;
 		/** When true, a single-point pick interaction is active on the map. */
 		pointSelectEnabled?: boolean;
 		/** Called with the picked point converted to site-relative ground metres. */
@@ -71,6 +73,7 @@
 		onreadout,
 		drawEnabled = false,
 		onCutLine,
+		presetLine = null,
 		pointSelectEnabled = false,
 		onPointSelect,
 		unitSystem = 'metric',
@@ -302,6 +305,26 @@
 		});
 		map.addInteraction(interaction);
 		draw = interaction;
+	});
+
+	// Render a preset line (E-W/N-S full-range shortcuts) in place of a hand-drawn one -- same
+	// A/B endpoint styling, just placed by the site/orientation math instead of a pointer drag.
+	$effect(() => {
+		const line = presetLine;
+		if (!map || !drawLayer) return;
+		const source = drawLayer.getSource()!;
+		source.clear();
+		if (!line) return;
+		const s3857 = siteXY();
+		const sc = scale();
+		const start: [number, number] = [line.ax * sc + s3857[0], line.ay * sc + s3857[1]];
+		const end: [number, number] = [line.bx * sc + s3857[0], line.by * sc + s3857[1]];
+		source.addFeature(new Feature(new LineString([start, end])));
+		const startFeature = new Feature(new Point(start));
+		startFeature.setStyle(endpointStyle('A', CUT_START_COLOR));
+		const endFeature = new Feature(new Point(end));
+		endFeature.setStyle(endpointStyle('B', CUT_END_COLOR));
+		source.addFeatures([startFeature, endFeature]);
 	});
 
 	// Single-point pick interaction for the vertical-profile tool. Same lifecycle pattern as the
