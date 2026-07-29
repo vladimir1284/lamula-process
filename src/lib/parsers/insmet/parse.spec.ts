@@ -125,6 +125,36 @@ describe('parseInsmet (p15g1530.obs, older format, unDB measure)', () => {
 	});
 });
 
+describe('parseInsmet (b12g2100.obs, pmNone/uncompressed pack method)', () => {
+	it('decodes site/design/timestamp for the 2004 rdCasablanca uncompressed fixture', async () => {
+		const obs = await parseInsmet(readFixture('b12g2100.obs'));
+
+		expect(obs.site).toEqual({ name: 'rdCasablanca', code: 'rdCasablanca' });
+		expect(obs.design).toBe('Huracan');
+		expect(obs.timestamp).toBe('2004-08-12T21:00:06.728Z');
+		expect(obs.movements[0].channels).toHaveLength(1);
+		expect(obs.movements[0].channels[0].moment).toBe('dBZ');
+		expect(obs.movements[0].channels[0].scans).toHaveLength(25);
+	});
+
+	it('reads raw uncompressed PPI bytes (pack method 0) and range-corrects unDB', async () => {
+		const obs = await parseInsmet(readFixture('b12g2100.obs'));
+		const channel = obs.movements[0].channels[0];
+
+		expect(channel.calibration?.metPotential).toBeCloseTo(-33.58, 2);
+		expect(channel.scans[0].numRays).toBe(256);
+		expect(channel.scans[0].numGates).toBe(1500);
+		expect(channel.scans[0].gateLengthM).toBeCloseTo(300);
+
+		// Ground truth from independently re-reading the raw (uncompressed) bytes in Python and
+		// applying dB2dBZ(), not from this parser itself.
+		const { count, min, max } = stats(channel, 0);
+		expect(count).toBe(125303);
+		expect(min).toBeCloseTo(-20.58, 2);
+		expect(max).toBeCloseTo(76.8438, 3);
+	});
+});
+
 describe('parseInsmet (c27a0815VCP31.obs, single physical channel)', () => {
 	it('decodes dBZ/V/W all sourced from the one channel descriptor', async () => {
 		const obs = await parseInsmet(readFixture('c27a0815VCP31.obs'));

@@ -89,15 +89,18 @@ export async function parseInsmet(bytes: Uint8Array): Promise<Observation> {
 		}
 
 		const ppiHeader = readPpiHeader(view, loc + PPI_DESC_SIZE);
-		if (ppiHeader.packMethod !== 2) {
+		if (ppiHeader.packMethod !== 0 && ppiHeader.packMethod !== 2) {
 			throw new Error(
-				`.obs pack method ${ppiHeader.packMethod} (only zlib/2 verified against real fixtures)`
+				`.obs pack method ${ppiHeader.packMethod} (only pmNone/0 and pmZLib/2 verified against real fixtures)`
 			);
 		}
 
 		const dataOff = loc + PPI_DESC_SIZE + PPI_HEADER_SIZE;
 		const packed = bytes.subarray(dataOff, dataOff + ppiHeader.packedSize);
-		const raw = await inflateZlib(packed);
+		// pmNone (0): stored uncompressed, packed bytes are already the payload -- ported from
+		// Obs_Parser.py's dVestaPackMethod, which reserves pmDAS (1) as a third method it itself
+		// never implements ("Unhadled compression method"), so only 0/2 are handled here too.
+		const raw = ppiHeader.packMethod === 0 ? new Uint8Array(packed) : await inflateZlib(packed);
 		if (raw.length !== ppiHeader.unpackedSize) {
 			throw new Error(
 				`PPI at offset ${loc}: decompressed ${raw.length} bytes, header declares ${ppiHeader.unpackedSize}`
