@@ -561,7 +561,9 @@
 	}
 </script>
 
-<div class="radar-grid-bg flex h-screen flex-col overflow-hidden bg-surface-container-lowest text-on-surface">
+<div
+	class="radar-grid-bg flex h-screen flex-col overflow-hidden bg-surface-container-lowest text-on-surface"
+>
 	<!-- ── TopAppBar ─────────────────────────────────────────────────────────── -->
 	<header
 		class="fixed top-0 right-0 left-0 z-50 flex h-16 items-center justify-between border-b border-outline-variant bg-surface-container px-margin-desktop"
@@ -1071,8 +1073,8 @@
 									</label>
 								{/if}
 								<ScaleLegend {palette} />
-									{#if isSplitProduct}
-										<div class="relative">
+								{#if isSplitProduct}
+									<div class="relative">
 										<button
 											class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 											onclick={() => (showExportMenu = !showExportMenu)}
@@ -1188,8 +1190,8 @@
 										<!-- Right: the RHI itself. -->
 										<div class="flex min-w-0 flex-1 flex-col gap-1">
 											<p class="font-mono text-[10px] text-on-surface-variant">
-												RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación
-												({rhiScan.numRays}
+												RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por
+												elevación ({rhiScan.numRays}
 												tumbos). La resolución vertical la limita el número de elevaciones.
 											</p>
 											<div

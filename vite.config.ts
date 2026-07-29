@@ -5,7 +5,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
 	server: {
-        allowedHosts: true
+		allowedHosts: true
 	},
 	plugins: [
 		tailwindcss(),
