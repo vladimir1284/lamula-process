@@ -54,6 +54,12 @@
 		pointSelectEnabled?: boolean;
 		/** Called with the picked point converted to site-relative ground metres. */
 		onPointSelect?: (point: { xEastM: number; yNorthM: number }) => void;
+		/** When true, a click-to-pick-azimuth interaction is active on the map. */
+		azimuthSelectEnabled?: boolean;
+		/** Current RHI cut azimuth (deg from north, clockwise); drawn as a radial from the site. */
+		azimuthDeg?: number | null;
+		/** Called with the picked azimuth (deg from north, clockwise). */
+		onAzimuthSelect?: (azDeg: number) => void;
 		/** Unit system for range-ring labels. Default metric (km). */
 		unitSystem?: UnitSystem;
 		/** Show distance-from-radar range rings. Default true. */
@@ -76,6 +82,9 @@
 		presetLine = null,
 		pointSelectEnabled = false,
 		onPointSelect,
+		azimuthSelectEnabled = false,
+		azimuthDeg = null,
+		onAzimuthSelect,
 		unitSystem = 'metric',
 		showRings = true,
 		showRadials = false
@@ -91,6 +100,7 @@
 	let drawLayer: VectorLayer<VectorSource> | undefined;
 	let draw: Draw | undefined;
 	let pointDraw: Draw | undefined;
+	let azimuthDraw: Draw | undefined;
 	let extraGroup: BaseLayer[] = [];
 	const renderer = new PpiRenderer();
 	let renderToken = 0;
@@ -110,6 +120,11 @@
 			fill: new Fill({ color: '#00f0ff' }),
 			stroke: new Stroke({ color: '#0b0f14', width: 2 })
 		})
+	});
+
+	// Matches RhiAzimuthPicker's old dial-line color, kept for visual continuity.
+	const azimuthLineStyle = new Style({
+		stroke: new Stroke({ color: '#ffcc00', width: 2 })
 	});
 
 	function endpointStyle(label: string, color: string): Style {
@@ -352,6 +367,55 @@
 		});
 		map.addInteraction(interaction);
 		pointDraw = interaction;
+	});
+
+	// Click-to-pick-azimuth interaction for the RHI tool. Same lifecycle as the point-pick
+	// interaction above; the radial itself is drawn by the azimuthDeg effect below, not here, so a
+	// slider/number-input change (no map click involved) also moves the line.
+	$effect(() => {
+		const enabled = azimuthSelectEnabled;
+		if (!map || !drawLayer) return;
+		if (azimuthDraw) {
+			map.removeInteraction(azimuthDraw);
+			azimuthDraw = undefined;
+		}
+		if (!enabled) return;
+		const source = drawLayer.getSource()!;
+		const interaction = new Draw({ source, type: 'Point' });
+		interaction.on('drawend', (ev) => {
+			const [x, y] = (ev.feature.getGeometry() as Point).getCoordinates();
+			source.clear(); // drop the raw pick point; the azimuthDeg effect redraws the radial
+			if (!onAzimuthSelect) return;
+			const s3857 = siteXY();
+			const dx = x - s3857[0];
+			const dy = y - s3857[1];
+			const az = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360;
+			onAzimuthSelect(Math.round(az));
+		});
+		map.addInteraction(interaction);
+		azimuthDraw = interaction;
+	});
+
+	// Draws the current RHI azimuth as a radial from the site to the scan's max range. Reacts to
+	// azimuthDeg directly (not just to map clicks) so the sidebar slider/number-input also moves it.
+	$effect(() => {
+		if (!azimuthSelectEnabled || !map || !drawLayer) return;
+		const az = azimuthDeg;
+		const s = scan;
+		const source = drawLayer.getSource()!;
+		source.clear();
+		if (az == null) return;
+		const s3857 = siteXY();
+		const sc = scale();
+		const maxRangeM = maxGroundRangeM(s);
+		const rad = (az * Math.PI) / 180;
+		const end: [number, number] = [
+			s3857[0] + Math.sin(rad) * maxRangeM * sc,
+			s3857[1] + Math.cos(rad) * maxRangeM * sc
+		];
+		const feature = new Feature(new LineString([s3857, end]));
+		feature.setStyle(azimuthLineStyle);
+		source.addFeature(feature);
 	});
 
 	// Keep the map's extra layers in sync if the prop changes.

@@ -24,7 +24,6 @@
 	import {
 		PpiMap,
 		RhiPanel,
-		RhiAzimuthPicker,
 		CrossSectionPanel,
 		ProfilePanel,
 		VadModal,
@@ -840,6 +839,9 @@
 													/>
 													<span class="font-mono text-[11px] text-on-surface-variant">°</span>
 												</label>
+												<p class="px-1 font-mono text-[10px] text-on-surface-variant">
+													Haz clic en el mapa para marcar el azimut, o usa el control de arriba.
+												</p>
 											{/if}
 
 											{#if item.id === 'PROFILE'}
@@ -1074,37 +1076,76 @@
 						</div>
 
 						<div class="relative h-[620px] overflow-auto bg-black">
-							{#if product === 'RHI' && rhiScan}
-								<div class="flex flex-wrap gap-4 p-3">
-									{#if rhiBaseScan}
-										<div class="flex flex-col gap-1">
-											<span class="font-mono text-[10px] text-on-surface-variant"
-												>Azimut del corte (arrastra) · fondo: máx de columna</span
-											>
-											<RhiAzimuthPicker
-												scan={rhiBaseScan}
-												{palette}
-												azimuthDeg={rhiAzimuthDeg}
-												onchange={(a) => (rhiAzimuthDeg = a)}
-											/>
-										</div>
-									{/if}
-									<div class="min-w-[420px] flex-1">
-										<p class="mb-2 font-mono text-[10px] text-on-surface-variant">
-											RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación
-											({rhiScan.numRays}
-											tumbos). La resolución vertical la limita el número de elevaciones.
+							{#if product === 'RHI'}
+								{#if !site}
+									<div
+										class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
+									>
+										<span class="material-symbols-outlined text-[40px] text-dbz-heavy"
+											>wrong_location</span
+										>
+										<p class="max-w-md text-body-sm text-on-surface-variant">
+											El azimut del RHI se marca sobre el mapa y necesita la posición del sitio.
+											Define la ubicación.
 										</p>
-										<RhiPanel
-											bind:this={rhiPanelRef}
-											scan={rhiScan}
-											{palette}
-											maxHeightM={maxHeightKm * 1000}
-											{unitSystem}
-											onreadout={(r) => (readout = r)}
-										/>
+										<button
+											class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+											onclick={openLocationEditor}
+										>
+											<span class="material-symbols-outlined text-[18px]">add_location_alt</span> DEFINIR
+											UBICACIÓN
+										</button>
 									</div>
-								</div>
+								{:else if rhiBaseScan && rhiScan}
+									<div class="flex h-full gap-3 p-3">
+										<!-- Left: map to pick the RHI azimuth on. -->
+										<div class="flex min-w-0 flex-1 flex-col gap-1">
+											<p class="font-mono text-[10px] text-on-surface-variant">
+												Fondo: máximo de columna. Haz clic para marcar el azimut del RHI.
+											</p>
+											<div
+												class="min-h-0 flex-1 overflow-hidden rounded border border-outline-variant"
+											>
+												<PpiMap
+													scan={rhiBaseScan}
+													{palette}
+													{site}
+													{baseMap}
+													{dataOpacity}
+													{showRings}
+													{showRadials}
+													extraLayers={overlays}
+													azimuthSelectEnabled={true}
+													azimuthDeg={rhiAzimuthDeg}
+													{unitSystem}
+													onAzimuthSelect={(a) => (rhiAzimuthDeg = a)}
+													onreadout={(r) => (readout = r)}
+												/>
+											</div>
+										</div>
+
+										<!-- Right: the RHI itself. -->
+										<div class="flex min-w-0 flex-1 flex-col gap-1">
+											<p class="font-mono text-[10px] text-on-surface-variant">
+												RHI reconstruido del volumen al azimut {rhiAzimuthDeg}°: un rayo por elevación
+												({rhiScan.numRays}
+												tumbos). La resolución vertical la limita el número de elevaciones.
+											</p>
+											<div
+												class="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded border border-outline-variant bg-surface-container-lowest"
+											>
+												<RhiPanel
+													bind:this={rhiPanelRef}
+													scan={rhiScan}
+													{palette}
+													maxHeightM={maxHeightKm * 1000}
+													{unitSystem}
+													onreadout={(r) => (readout = r)}
+												/>
+											</div>
+										</div>
+									</div>
+								{/if}
 							{:else if product === 'CROSS_LINE'}
 								{#if !site}
 									<div
@@ -1309,7 +1350,7 @@
 											Este formato no trae posición del sitio (p. ej. NEXRAD L2 msg-31). Define la
 											ubicación para georreferenciar el <span class="text-on-surface"
 												>{productTitle}</span
-											>, o usa cortes, perfil y RHI (no la requieren).
+											>. Cortes, perfil y RHI también la necesitan (se trazan sobre el mapa).
 										</p>
 										<button
 											class="flex h-10 items-center gap-2 rounded bg-primary-container px-4 font-mono text-label-mono text-on-primary-container transition-all hover:opacity-90 active:scale-95"
@@ -1318,27 +1359,6 @@
 											<span class="material-symbols-outlined text-[18px]">add_location_alt</span> DEFINIR
 											UBICACIÓN
 										</button>
-										<div
-											class="flex flex-wrap items-center justify-center gap-2 font-mono text-label-mono"
-										>
-											<span class="text-on-surface-variant">Disponibles:</span>
-											<span
-												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
-												>Corte E-O</span
-											>
-											<span
-												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
-												>Corte N-S</span
-											>
-											<span
-												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
-												>Perfil vertical</span
-											>
-											<span
-												class="rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface"
-												>RHI</span
-											>
-										</div>
 									</div>
 								{:else if ground}
 									<div class="relative h-full w-full">

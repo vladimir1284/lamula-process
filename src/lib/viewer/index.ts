@@ -1,6 +1,5 @@
 export { default as PpiMap } from './PpiMap.svelte';
 export { default as RhiPanel } from './RhiPanel.svelte';
-export { default as RhiAzimuthPicker } from './RhiAzimuthPicker.svelte';
 export { default as CrossSectionPanel } from './CrossSectionPanel.svelte';
 export { default as ProfilePanel } from './ProfilePanel.svelte';
 export { default as VadPanel } from './VadPanel.svelte';
