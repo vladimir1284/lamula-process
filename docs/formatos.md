@@ -197,15 +197,15 @@ subsiguientes se corrompen en cascada.
 Layout confirmado (little-endian, empacado, sin padding automático de
 `struct`; `x` = byte de padding real presente en el archivo):
 
-| Bloque                          | Tamaño              | Formato `struct` | Notas                                                                                                                                                                                              |
-| ------------------------------- | ------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header parte 1                  | 64 B                | `<20s4H36s`      | firma `"Vesta Observation\x1a\x00\x00"`, versión, `design` (string, ej. `VCP_31`, `VCP_11_Merged`)                                                                                                 |
-| Header parte 2                  | 20 B (offset 64)    | `<B2?Bd2I`       | radar (código→`dRadar`), daylight, variance, dummy, `time` (OLE date, double), `ppi_count`, `channel_count`                                                                                        |
-| Tabla de ubicaciones            | `4×ppi_count` B     | `<{n}I`          | offset absoluto de cada bloque PPI                                                                                                                                                                 |
-| Channel desc (×`channel_count`) | 32 B c/u            | `<2Bh3I3fI`      | wave_length, pulse, dummy, number_of_cells, cell_length_m, num_of_sectors, beam_width_deg, met_potential, delta_potential, index                                                                   |
-| PPI Desc (×`ppi_count`)         | 28 B                | `<3BxdI2B3hI`    | radar, speed, dummy, **pad**, time, channel, kind (H/V), measure (código→`dMeasure`), angle/start_az/finish_az (código 16-bit→grados, `code*360/4096`), sectorCount                                |
-| PPI Header                      | 12 B (tras el Desc) | `<BxH2I`         | pack_method (0/1/2, 2=zlib), **pad**, dummy, packed_size, unpacked_size                                                                                                                            |
-| PPI data                        | `packed_size` B     | zlib             | descomprime a `unpacked_size` bytes → array `(sectors, gates)` de `uint8`; `dBZ (unDBZ) = byte-80`, `m/s (MS/SW) = (byte-128)/2`, `dBZ (unDB) = byte + met_potential + max(0, 20·log10(rango_km))` |
+| Bloque                          | Tamaño              | Formato `struct` | Notas                                                                                                                                                                                                                                                                                     |
+| ------------------------------- | ------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header parte 1                  | 64 B                | `<20s4H36s`      | firma `"Vesta Observation\x1a\x00\x00"`, versión, `design` (string, ej. `VCP_31`, `VCP_11_Merged`)                                                                                                                                                                                        |
+| Header parte 2                  | 20 B (offset 64)    | `<B2?Bd2I`       | radar (código→`dRadar`), daylight, variance, dummy, `time` (OLE date, double), `ppi_count`, `channel_count`                                                                                                                                                                               |
+| Tabla de ubicaciones            | `4×ppi_count` B     | `<{n}I`          | offset absoluto de cada bloque PPI                                                                                                                                                                                                                                                        |
+| Channel desc (×`channel_count`) | 32 B c/u            | `<2Bh3I3fI`      | wave_length, pulse, dummy, number_of_cells, cell_length_m, num_of_sectors, beam_width_deg, met_potential, delta_potential, index                                                                                                                                                          |
+| PPI Desc (×`ppi_count`)         | 28 B                | `<3BxdI2B3hI`    | radar, speed, dummy, **pad**, time, channel, kind (H/V), measure (código→`dMeasure`), angle/start_az/finish_az (código 16-bit→grados, `code*360/4096`), sectorCount                                                                                                                       |
+| PPI Header                      | 12 B (tras el Desc) | `<BxH2I`         | pack_method (`dVestaPackMethod`: 0=pmNone/sin comprimir, 1=pmDAS, 2=pmZLib), **pad**, dummy, packed_size, unpacked_size                                                                                                                                                                   |
+| PPI data                        | `packed_size` B     | zlib o crudo     | pmZLib descomprime a `unpacked_size` bytes; pmNone ya está sin comprimir (`packed_size == unpacked_size`, se usa tal cual) → array `(sectors, gates)` de `uint8`; `dBZ (unDBZ) = byte-80`, `m/s (MS/SW) = (byte-128)/2`, `dBZ (unDB) = byte + met_potential + max(0, 20·log10(rango_km))` |
 
 Confirmado en los 4 fixtures reales (`c01y0815.obs`, `c02y1830.obs`,
 `c27a0815VCP31.obs`, `c27a2100VCP11.obs`): radar único `rdCamaguey1`,
@@ -273,6 +273,13 @@ listos primero.
 - `wave_length` es un código (`dWaveLength` en `Obs_Parser.py`:
   `0=wl3cm, 1=wl10cm, 2=wl5cm`), no metros directos — el parser traduce el
   código, no asume que el byte crudo ya está en metros.
+- `pack_method` 0 (`pmNone`) también está confirmado, no solo 2 (`pmZLib`):
+  `test-fixtures/observations/insmet/b12g2100.obs` (radar `rdCasablanca`,
+  2004, `design="Huracan"`) trae sus 25 PPIs sin comprimir, `packed_size ==
+unpacked_size` en los 25. El parser copia el blob tal cual en vez de
+  pasarlo por `DecompressionStream`. `pmDAS` (1) sigue sin soporte — ni el
+  propio `Obs_Parser.py` lo implementa (`print 'Unhadled compression
+method'`).
 
 ## Fuera de alcance de parsing (por ahora)
 
