@@ -102,6 +102,28 @@ export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename: string)
 	}, 'image/png');
 }
 
+/**
+ * Split-view products (RHI/cross-section/profile) render the map picker and the product plot as
+ * two independently-sized canvases. Compose them side by side onto one black-backed canvas so
+ * "export both panels" produces a single image matching what's on screen, rather than two files.
+ */
+export function composeSideBySide(
+	left: HTMLCanvasElement,
+	right: HTMLCanvasElement,
+	gapPx = 12
+): HTMLCanvasElement {
+	const out = document.createElement('canvas');
+	out.width = left.width + gapPx + right.width;
+	out.height = Math.max(left.height, right.height);
+	const ctx = out.getContext('2d');
+	if (!ctx) throw new Error('2D canvas context unavailable');
+	ctx.fillStyle = '#000';
+	ctx.fillRect(0, 0, out.width, out.height);
+	ctx.drawImage(left, 0, (out.height - left.height) / 2);
+	ctx.drawImage(right, left.width + gapPx, (out.height - right.height) / 2);
+	return out;
+}
+
 function sanitize(part: string): string {
 	return part.replace(/[^a-zA-Z0-9._-]+/g, '-');
 }

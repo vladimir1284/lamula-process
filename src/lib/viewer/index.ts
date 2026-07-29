@@ -13,7 +13,8 @@ export {
 	exportMapToCanvas,
 	flattenOnBlack,
 	downloadCanvasAsPng,
-	buildExportFilename
+	buildExportFilename,
+	composeSideBySide
 } from './exportImage';
 export { ringFeatures, ringStyle, defaultRingsM } from './rings';
 export { readoutAt } from './readout';

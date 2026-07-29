@@ -34,7 +34,8 @@
 		exportMapToCanvas,
 		flattenOnBlack,
 		downloadCanvasAsPng,
-		buildExportFilename
+		buildExportFilename,
+		composeSideBySide
 	} from '$lib/viewer';
 	import { computeVadProfile } from '$lib/products/vadProfile';
 	import AwsExplorer from '$lib/aws-explorer/AwsExplorer.svelte';
@@ -517,28 +518,42 @@
 		input.value = '';
 	}
 
-	// Export whatever's currently on screen as a PNG. Ground products (PPI/CAPPI/…) render on an
-	// OpenLayers map (composited layer-by-layer, see exportImage.ts); RHI/cross-section/profile are
-	// plain <canvas> elements exposed via getCanvas(). Exactly one ref is mounted at a time.
-	async function exportCurrentImage() {
+	// Split-view products (RHI/cross-section/profile) show a map picker alongside the product
+	// plot, each an independently-refed canvas -- 'both' composites map+plot side by side,
+	// 'product' exports just the plot. Ground products only ever have the map, so mode is moot.
+	const isSplitProduct = $derived(
+		product === 'RHI' || product === 'CROSS_LINE' || product === 'PROFILE'
+	);
+	let showExportMenu = $state(false);
+
+	async function exportCurrentImage(mode: 'both' | 'product' = 'product') {
 		const nameParts = [
 			observation?.site.name,
 			observation?.timestamp,
 			product,
 			channel?.moment,
-			product === 'RHI' ? `az${rhiAzimuthDeg}` : usesElevation ? `el${elevationDeg}` : undefined
+			product === 'RHI' ? `az${rhiAzimuthDeg}` : usesElevation ? `el${elevationDeg}` : undefined,
+			mode === 'both' ? 'ambos' : undefined
 		];
 		const filename = buildExportFilename(nameParts);
 
-		if (product === 'RHI') {
-			const canvas = rhiPanelRef?.getCanvas();
-			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
-		} else if (product === 'CROSS_LINE') {
-			const canvas = crossSectionRef?.getCanvas();
-			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
-		} else if (product === 'PROFILE') {
-			const canvas = profileRef?.getCanvas();
-			if (canvas) downloadCanvasAsPng(flattenOnBlack(canvas), filename);
+		let panelRef: { getCanvas: () => HTMLCanvasElement | undefined } | undefined;
+		if (product === 'RHI') panelRef = rhiPanelRef;
+		else if (product === 'CROSS_LINE') panelRef = crossSectionRef;
+		else if (product === 'PROFILE') panelRef = profileRef;
+
+		if (panelRef) {
+			const canvas = panelRef.getCanvas();
+			if (!canvas) return;
+			if (mode === 'both') {
+				const map = ppiMapRef?.getMap();
+				if (map) {
+					const mapCanvas = await exportMapToCanvas(map);
+					downloadCanvasAsPng(composeSideBySide(mapCanvas, flattenOnBlack(canvas)), filename);
+					return;
+				}
+			}
+			downloadCanvasAsPng(flattenOnBlack(canvas), filename);
 		} else if (isGround) {
 			const map = ppiMapRef?.getMap();
 			if (map) downloadCanvasAsPng(await exportMapToCanvas(map), filename);
@@ -1056,14 +1071,60 @@
 									</label>
 								{/if}
 								<ScaleLegend {palette} />
-								<button
-									class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
-									onclick={exportCurrentImage}
-									aria-label="Exportar imagen"
-									title="Exportar imagen"
-								>
-									<span class="material-symbols-outlined text-[16px]">download</span>
-								</button>
+									{#if isSplitProduct}
+										<div class="relative">
+										<button
+											class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+											onclick={() => (showExportMenu = !showExportMenu)}
+											aria-haspopup="true"
+											aria-expanded={showExportMenu}
+											aria-label="Exportar imagen"
+											title="Exportar imagen"
+										>
+											<span class="material-symbols-outlined text-[16px]">download</span>
+										</button>
+										{#if showExportMenu}
+											<ul
+												role="menu"
+												class="absolute top-full right-0 z-50 mt-1 min-w-52 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
+											>
+												<li>
+													<button
+														class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20"
+														onclick={() => {
+															showExportMenu = false;
+															exportCurrentImage('both');
+														}}
+													>
+														<span class="material-symbols-outlined text-[16px]">view_column_2</span>
+														Ambos paneles
+													</button>
+												</li>
+												<li>
+													<button
+														class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20"
+														onclick={() => {
+															showExportMenu = false;
+															exportCurrentImage('product');
+														}}
+													>
+														<span class="material-symbols-outlined text-[16px]">image</span>
+														Solo producto
+													</button>
+												</li>
+											</ul>
+										{/if}
+									</div>
+								{:else}
+									<button
+										class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+										onclick={() => exportCurrentImage('product')}
+										aria-label="Exportar imagen"
+										title="Exportar imagen"
+									>
+										<span class="material-symbols-outlined text-[16px]">download</span>
+									</button>
+								{/if}
 								<button
 									class="flex shrink-0 items-center rounded border border-outline-variant bg-surface-container-high p-1 text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 									onclick={() => (showScaleEditor = true)}
