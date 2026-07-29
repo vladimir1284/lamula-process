@@ -9,6 +9,12 @@
 		type CrossSample
 	} from '$lib/products/crossSection';
 	import { distanceUnitLabel, toDisplayDistanceM, type UnitSystem } from '$lib/units';
+	import {
+		setupHiDPICanvas,
+		linearScale,
+		drawAxes,
+		observeContainerWidth
+	} from '$lib/viewer/chartCanvas';
 
 	export interface CrossSectionReadout {
 		distanceM: number;
@@ -45,59 +51,61 @@
 	const START_COLOR = '#22c55e';
 	const END_COLOR = '#ef4444';
 
+	let container: HTMLDivElement | undefined = $state();
 	let canvas: HTMLCanvasElement | undefined = $state();
-	const PAD = { left: 48, bottom: 28, top: 8, right: 8 };
-	const PLOT_W = 720;
+	const PAD = { left: 48, bottom: 28, top: 20, right: 8 };
+	const MIN_PLOT_W = 200;
+	let PLOT_W = $state(720);
 	const PLOT_H = 260;
 
 	let lineLengthM = $state(0);
 
 	$effect(() => {
+		const el = container;
+		if (!el) return;
+		return observeContainerWidth(el, (w) => {
+			PLOT_W = Math.max(MIN_PLOT_W, Math.round(w - PAD.left - PAD.right));
+		});
+	});
+
+	$effect(() => {
 		const el = canvas;
 		if (!el) return;
-		const ctx = el.getContext('2d');
-		if (!ctx) return;
+		const { ctx, dpr } = setupHiDPICanvas(
+			el,
+			PAD.left + PLOT_W + PAD.right,
+			PAD.top + PLOT_H + PAD.bottom
+		);
 
+		// Rasterize at physical (device-pixel) resolution so the heatmap is as crisp as the axes.
 		const raster = rasterizeCrossSection(scans, palette, {
-			widthPx: PLOT_W,
-			heightPx: PLOT_H,
+			widthPx: Math.round(PLOT_W * dpr),
+			heightPx: Math.round(PLOT_H * dpr),
 			maxHeightM,
 			line
 		});
 		lineLengthM = raster.lineLengthM;
 
-		ctx.clearRect(0, 0, el.width, el.height);
+		ctx.clearRect(0, 0, PAD.left + PLOT_W + PAD.right, PAD.top + PLOT_H + PAD.bottom);
 		ctx.fillStyle = '#0b0f14';
-		ctx.fillRect(0, 0, el.width, el.height);
+		ctx.fillRect(0, 0, PAD.left + PLOT_W + PAD.right, PAD.top + PLOT_H + PAD.bottom);
 
 		const img = ctx.createImageData(raster.widthPx, raster.heightPx);
 		img.data.set(raster.rgba);
-		ctx.putImageData(img, PAD.left, PAD.top);
+		// putImageData always writes raw device pixels, ignoring the dpr transform above.
+		ctx.putImageData(img, Math.round(PAD.left * dpr), Math.round(PAD.top * dpr));
 
-		ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-		ctx.fillStyle = 'rgba(255,255,255,0.7)';
-		ctx.font = '10px sans-serif';
-		ctx.beginPath();
-		ctx.moveTo(PAD.left, PAD.top);
-		ctx.lineTo(PAD.left, PAD.top + PLOT_H);
-		ctx.lineTo(PAD.left + PLOT_W, PAD.top + PLOT_H);
-		ctx.stroke();
-
-		// x ticks every 50 km along the cut
-		for (let m = 0; m <= lineLengthM + 1; m += 50_000) {
-			const x = PAD.left + (m / lineLengthM) * PLOT_W;
-			ctx.fillText(
-				`${Math.round(toDisplayDistanceM(m, unitSystem))}`,
-				x - 6,
-				PAD.top + PLOT_H + 12
-			);
-		}
-		ctx.fillText(distanceUnitLabel(unitSystem), PAD.left + PLOT_W - 4, PAD.top + PLOT_H + 22);
-		// y ticks every 3 km
-		for (let m = 0; m <= maxHeightM + 1; m += 3_000) {
-			const y = PAD.top + PLOT_H - (m / maxHeightM) * PLOT_H;
-			ctx.fillText(`${Math.round(m / 1000)}`, 4, y + 3);
-		}
+		const xScale = linearScale(
+			[0, toDisplayDistanceM(lineLengthM, unitSystem)],
+			[PAD.left, PAD.left + PLOT_W]
+		);
+		const yScale = linearScale([0, maxHeightM / 1000], [PAD.top + PLOT_H, PAD.top]);
+		drawAxes(ctx, { left: PAD.left, top: PAD.top, width: PLOT_W, height: PLOT_H }, xScale, yScale, {
+			xFormat: (v) => `${Math.round(v)}`,
+			yFormat: (v) => `${Math.round(v)}`,
+			xLabel: distanceUnitLabel(unitSystem),
+			yLabel: 'km'
+		});
 
 		if (markEndpoints) {
 			const drawEndpoint = (x: number, label: string, color: string) => {
@@ -140,11 +148,12 @@
 	}
 </script>
 
-<canvas
-	bind:this={canvas}
-	width={PAD.left + PLOT_W + PAD.right}
-	height={PAD.top + PLOT_H + PAD.bottom}
-	class="w-full"
-	onmousemove={handleMove}
-	onmouseleave={() => onreadout?.(null)}
-></canvas>
+<div bind:this={container} class="w-full">
+	<canvas
+		bind:this={canvas}
+		width={PAD.left + PLOT_W + PAD.right}
+		height={PAD.top + PLOT_H + PAD.bottom}
+		onmousemove={handleMove}
+		onmouseleave={() => onreadout?.(null)}
+	></canvas>
+</div>

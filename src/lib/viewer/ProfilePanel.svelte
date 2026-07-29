@@ -1,5 +1,11 @@
 <script lang="ts">
 	import type { ProfileResult } from '$lib/products/profile';
+	import {
+		setupHiDPICanvas,
+		linearScale,
+		drawAxes,
+		observeContainerWidth
+	} from '$lib/viewer/chartCanvas';
 
 	interface Props {
 		profile: ProfileResult;
@@ -9,16 +15,29 @@
 
 	let { profile, valueLabel = 'dBZ' }: Props = $props();
 
+	let container: HTMLDivElement | undefined = $state();
 	let canvas: HTMLCanvasElement | undefined = $state();
-	const PAD = { left: 44, bottom: 28, top: 8, right: 12 };
-	const PLOT_W = 240;
+	const PAD = { left: 44, bottom: 28, top: 20, right: 12 };
+	const MIN_PLOT_W = 160;
+	let PLOT_W = $state(240);
 	const PLOT_H = 300;
+
+	$effect(() => {
+		const el = container;
+		if (!el) return;
+		return observeContainerWidth(el, (w) => {
+			PLOT_W = Math.max(MIN_PLOT_W, Math.round(w - PAD.left - PAD.right));
+		});
+	});
 
 	$effect(() => {
 		const el = canvas;
 		if (!el) return;
-		const ctx = el.getContext('2d');
-		if (!ctx) return;
+		const { ctx } = setupHiDPICanvas(
+			el,
+			PAD.left + PLOT_W + PAD.right,
+			PAD.top + PLOT_H + PAD.bottom
+		);
 
 		const { heightsM, values, samples } = profile;
 		const topM = heightsM.length > 0 ? heightsM[heightsM.length - 1] : 20000;
@@ -34,28 +53,21 @@
 			vMax = 1;
 		}
 
-		const xOf = (v: number) => PAD.left + ((v - vMin) / (vMax - vMin)) * PLOT_W;
-		const yOf = (m: number) => PAD.top + PLOT_H - (m / topM) * PLOT_H;
+		const xScale = linearScale([vMin, vMax], [PAD.left, PAD.left + PLOT_W]);
+		const yScale = linearScale([0, topM / 1000], [PAD.top + PLOT_H, PAD.top]);
+		const xOf = (v: number) => xScale(v);
+		const yOf = (m: number) => yScale(m / 1000);
 
-		ctx.clearRect(0, 0, el.width, el.height);
+		ctx.clearRect(0, 0, PAD.left + PLOT_W + PAD.right, PAD.top + PLOT_H + PAD.bottom);
 		ctx.fillStyle = '#0b0f14';
-		ctx.fillRect(0, 0, el.width, el.height);
+		ctx.fillRect(0, 0, PAD.left + PLOT_W + PAD.right, PAD.top + PLOT_H + PAD.bottom);
 
-		// axes
-		ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-		ctx.fillStyle = 'rgba(255,255,255,0.7)';
-		ctx.font = '10px sans-serif';
-		ctx.beginPath();
-		ctx.moveTo(PAD.left, PAD.top);
-		ctx.lineTo(PAD.left, PAD.top + PLOT_H);
-		ctx.lineTo(PAD.left + PLOT_W, PAD.top + PLOT_H);
-		ctx.stroke();
-		// y ticks every 3 km
-		for (let m = 0; m <= topM + 1; m += 3_000) {
-			ctx.fillText(`${Math.round(m / 1000)}`, 4, yOf(m) + 3);
-		}
-		ctx.fillText('km', 4, PAD.top + 8);
-		ctx.fillText(valueLabel, PAD.left + PLOT_W - 20, PAD.top + PLOT_H + 22);
+		drawAxes(ctx, { left: PAD.left, top: PAD.top, width: PLOT_W, height: PLOT_H }, xScale, yScale, {
+			xFormat: (v) => `${Math.round(v)}`,
+			yFormat: (v) => `${Math.round(v)}`,
+			xLabel: valueLabel,
+			yLabel: 'km'
+		});
 
 		// spline curve
 		ctx.strokeStyle = '#4ea1ff';
@@ -82,9 +94,10 @@
 	}
 </script>
 
-<canvas
-	bind:this={canvas}
-	width={PAD.left + PLOT_W + PAD.right}
-	height={PAD.top + PLOT_H + PAD.bottom}
-	class="w-full"
-></canvas>
+<div bind:this={container} class="w-full">
+	<canvas
+		bind:this={canvas}
+		width={PAD.left + PLOT_W + PAD.right}
+		height={PAD.top + PLOT_H + PAD.bottom}
+	></canvas>
+</div>
