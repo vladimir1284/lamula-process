@@ -546,7 +546,7 @@
 	}
 </script>
 
-<div class="radar-grid-bg min-h-screen bg-surface-container-lowest text-on-surface">
+<div class="radar-grid-bg flex h-screen flex-col overflow-hidden bg-surface-container-lowest text-on-surface">
 	<!-- ── TopAppBar ─────────────────────────────────────────────────────────── -->
 	<header
 		class="fixed top-0 right-0 left-0 z-50 flex h-16 items-center justify-between border-b border-outline-variant bg-surface-container px-margin-desktop"
@@ -935,8 +935,8 @@
 	</aside>
 
 	<!-- ── Main ──────────────────────────────────────────────────────────────── -->
-	<main class="min-h-screen pt-16 pl-sidebar-width">
-		<div class="space-y-gutter p-margin-desktop">
+	<main class="flex min-h-0 flex-1 flex-col pt-16 pl-sidebar-width">
+		<div class="flex min-h-0 flex-1 flex-col space-y-gutter p-margin-desktop">
 			{#if error}
 				<div
 					class="flex items-center gap-3 rounded-xl border border-error/40 bg-error-container/20 px-4 py-3 font-mono text-label-mono text-error"
@@ -949,7 +949,7 @@
 			{#if !observation}
 				<!-- Empty state: no observation open. -->
 				<div
-					class="glass-panel flex min-h-[70vh] flex-col items-center justify-center gap-5 rounded-xl px-6 text-center"
+					class="glass-panel flex min-h-0 flex-1 flex-col items-center justify-center gap-5 rounded-xl px-6 text-center"
 				>
 					<span class="material-symbols-outlined text-[56px] text-primary-container">radar</span>
 					<div>
@@ -977,9 +977,9 @@
 				</div>
 			{:else}
 				<!-- Viewer hero (full width; scale = legend in header, editing via modal). -->
-				<div>
+				<div class="flex min-h-0 flex-1 flex-col">
 					<section
-						class="glass-panel flex flex-col overflow-hidden rounded-xl border-primary-container/30 shadow-[0_0_24px_rgba(0,240,255,0.05)]"
+						class="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-primary-container/30 shadow-[0_0_24px_rgba(0,240,255,0.05)]"
 					>
 						<div
 							class="flex items-center gap-4 border-b border-outline-variant bg-surface-container-high px-4 py-2.5"
@@ -1075,7 +1075,7 @@
 							</div>
 						</div>
 
-						<div class="relative h-[620px] overflow-auto bg-black">
+						<div class="relative min-h-0 flex-1 overflow-auto bg-black">
 							{#if product === 'RHI'}
 								{#if !site}
 									<div
