@@ -676,7 +676,7 @@
 										{item.label}
 										{#if product === item.id && ground}
 											<span
-												class="ml-auto rounded bg-dbz-mod/15 px-1.5 py-0.5 font-mono text-[9px] tracking-widest text-dbz-mod uppercase"
+												class="ml-auto rounded bg-on-primary-container px-1.5 py-0.5 font-mono text-[9px] tracking-widest text-dbz-mod uppercase"
 												>{ground.unit}</span
 											>
 										{/if}
