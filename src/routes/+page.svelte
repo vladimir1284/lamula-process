@@ -951,7 +951,7 @@
 				<div
 					class="glass-panel flex min-h-0 flex-1 flex-col items-center justify-center gap-5 rounded-xl px-6 text-center"
 				>
-					<span class="material-symbols-outlined text-[56px] text-primary-container">radar</span>
+					<img src="/logo.svg" alt="Lamula" class="h-[96px] w-[96px]" />
 					<div>
 						<h2 class="font-headline text-headline-md text-on-surface">Abre una observación</h2>
 						<p class="mt-1 text-body-sm text-on-surface-variant">
