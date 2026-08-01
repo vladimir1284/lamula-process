@@ -19,7 +19,7 @@
 <svelte:window onkeydown={open ? onKeydown : undefined} />
 
 {#if open}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+	<div class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 		<button
 			class="absolute inset-0 cursor-default border-0 bg-black/60 backdrop-blur-sm"
 			onclick={onclose}

@@ -72,7 +72,7 @@
 			{#if openMenu === menu.label}
 				<ul
 					role="menu"
-					class="absolute top-full left-0 z-50 mt-1 min-w-60 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
+					class="absolute top-full left-0 z-[9999] mt-1 min-w-60 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
 				>
 					{#each menu.items as item, i (item.separator ? `sep-${i}` : item.label)}
 						{#if item.separator}
