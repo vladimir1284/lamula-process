@@ -547,7 +547,7 @@
 	<main
 		class={`flex min-h-0 flex-1 flex-col pt-16 transition-[padding-left] ${sidebarCollapsed ? 'pl-sidebar-collapsed-width' : 'pl-sidebar-width'}`}
 	>
-		<div class="flex min-h-0 flex-1 flex-col space-y-gutter p-margin-desktop">
+		<div class="flex min-h-0 flex-1 flex-col space-y-gutter">
 			{#if error}
 				<div
 					class="flex items-center gap-3 rounded-xl border border-error/40 bg-error-container/20 px-4 py-3 font-mono text-label-mono text-error"
