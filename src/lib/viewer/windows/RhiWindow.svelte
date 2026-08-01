@@ -190,6 +190,7 @@
 				maxHeightM={payload.maxHeightKm * 1000}
 				{unitSystem}
 				{zoom}
+				onZoomChange={(z) => (zoom = z)}
 				onreadout={(r) => (readout = r)}
 			/>
 		{:else}

@@ -32,9 +32,10 @@
 		markEndpoints?: boolean;
 		/** Unit system for the distance axis. Default metric (km). */
 		unitSystem?: UnitSystem;
-		/** Scales the plot area up/down from its container-fit size; >1 grows past the container so
-		 * the scrolling wrapper (`overflow-auto`) shows scrollbars. Default 1 (fit container). */
+		/** Current zoom level (real pan/zoom transform scale, 1 = fit). Wheel-zoom on the plot
+		 * updates this via `onZoomChange`; external controls (ZoomControl) can also drive it. */
 		zoom?: number;
+		onZoomChange?: (zoom: number) => void;
 		onreadout?: (r: CrossSectionReadout | null) => void;
 	}
 
@@ -46,6 +47,7 @@
 		markEndpoints = false,
 		unitSystem = 'metric',
 		zoom = 1,
+		onZoomChange,
 		onreadout
 	}: Props = $props();
 
@@ -65,8 +67,8 @@
 	const MIN_PLOT_W = 200;
 	const BASE_PLOT_H = 260;
 	let fitWidth = $state(720);
-	const PLOT_W = $derived(Math.max(MIN_PLOT_W, Math.round(fitWidth * zoom)));
-	const PLOT_H = $derived(Math.round(BASE_PLOT_H * zoom));
+	const PLOT_W = $derived(Math.max(MIN_PLOT_W, fitWidth));
+	const PLOT_H = BASE_PLOT_H;
 
 	// Rebuilding the per-scan azimuth LUTs is not free -- memoize on `scans` identity instead of
 	// rebuilding it on every mousemove (the bug the original synchronous version had).
@@ -153,7 +155,7 @@
 	}
 </script>
 
-<div bind:this={container} class="h-full w-full overflow-auto">
+<div bind:this={container} class="h-full w-full overflow-hidden">
 	<PixiRasterView
 		bind:this={pixiView}
 		plotW={PLOT_W}
@@ -169,6 +171,8 @@
 			yLabel: 'km'
 		}}
 		extraOverlay={drawEndpoints}
+		{zoom}
+		{onZoomChange}
 		onplotmove={handlePlotMove}
 		onplotleave={() => onreadout?.(null)}
 	/>

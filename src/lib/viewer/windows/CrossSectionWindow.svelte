@@ -202,6 +202,7 @@
 				markEndpoints={true}
 				{unitSystem}
 				{zoom}
+				onZoomChange={(z) => (zoom = z)}
 				onreadout={(r) => (readout = r)}
 			/>
 		{:else}

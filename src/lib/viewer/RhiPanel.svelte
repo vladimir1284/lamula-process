@@ -17,9 +17,10 @@
 		maxHeightM?: number;
 		/** Unit system for the ground-range axis. Default metric (km). */
 		unitSystem?: UnitSystem;
-		/** Scales the plot area up/down from its container-fit size; >1 grows past the container so
-		 * the scrolling wrapper (`overflow-auto`) shows scrollbars. Default 1 (fit container). */
+		/** Current zoom level (real pan/zoom transform scale, 1 = fit). Wheel-zoom on the plot
+		 * updates this via `onZoomChange`; external controls (ZoomControl) can also drive it. */
 		zoom?: number;
+		onZoomChange?: (zoom: number) => void;
 		onreadout?: (r: RhiReadout | null) => void;
 	}
 
@@ -30,6 +31,7 @@
 		maxHeightM = 18_000,
 		unitSystem = 'metric',
 		zoom = 1,
+		onZoomChange,
 		onreadout
 	}: Props = $props();
 
@@ -45,8 +47,8 @@
 	const MIN_PLOT_W = 200;
 	const BASE_PLOT_H = 260;
 	let fitWidth = $state(720);
-	const PLOT_W = $derived(Math.max(MIN_PLOT_W, Math.round(fitWidth * zoom)));
-	const PLOT_H = $derived(Math.round(BASE_PLOT_H * zoom));
+	const PLOT_W = $derived(Math.max(MIN_PLOT_W, fitWidth));
+	const PLOT_H = BASE_PLOT_H;
 
 	function rangeM(): number {
 		return maxRangeM ?? scan.rangeToFirstGateM + (scan.numGates - 1) * scan.gateLengthM;
@@ -110,7 +112,7 @@
 	}
 </script>
 
-<div bind:this={container} class="h-full w-full overflow-auto">
+<div bind:this={container} class="h-full w-full overflow-hidden">
 	<PixiRasterView
 		bind:this={pixiView}
 		plotW={PLOT_W}
@@ -125,6 +127,8 @@
 			xLabel: distanceUnitLabel(unitSystem),
 			yLabel: 'km'
 		}}
+		{zoom}
+		{onZoomChange}
 		onplotmove={handlePlotMove}
 		onplotleave={() => onreadout?.(null)}
 	/>
