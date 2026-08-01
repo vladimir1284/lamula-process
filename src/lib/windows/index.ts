@@ -21,4 +21,4 @@ export type { WindowLayout } from './layoutStore';
 export { loadLayout, saveLayout, clearLayout, exportLayout, importLayout } from './layoutStore';
 export { default as WindowManager } from './WindowManager.svelte';
 export { default as Window } from './Window.svelte';
-export { default as MinimizedStrip } from './MinimizedStrip.svelte';
+export { default as StatusBar } from './StatusBar.svelte';

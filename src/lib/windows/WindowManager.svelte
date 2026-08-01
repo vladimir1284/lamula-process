@@ -5,7 +5,7 @@
 	import { loadLayout, saveLayout } from './layoutStore';
 	import type { RadarWindow } from './windowTypes';
 	import Window from './Window.svelte';
-	import MinimizedStrip from './MinimizedStrip.svelte';
+	import StatusBar from './StatusBar.svelte';
 
 	interface Props {
 		content: Snippet<[RadarWindow]>;
@@ -54,11 +54,13 @@
 	});
 </script>
 
-<div bind:this={canvasEl} class="relative min-h-0 flex-1 overflow-hidden">
-	{#each windowStore.windows as w (w.id)}
-		<Window window={w} bounds={canvasSize}>
-			{@render content(w)}
-		</Window>
-	{/each}
-	<MinimizedStrip />
+<div class="flex min-h-0 flex-1 flex-col">
+	<div bind:this={canvasEl} class="relative min-h-0 flex-1 overflow-hidden">
+		{#each windowStore.windows as w (w.id)}
+			<Window window={w} bounds={canvasSize}>
+				{@render content(w)}
+			</Window>
+		{/each}
+	</div>
+	<StatusBar />
 </div>

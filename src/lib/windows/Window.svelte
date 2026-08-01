@@ -106,15 +106,19 @@
 	>
 		<!-- Title bar -->
 		<div
-			use:pointerDrag={titleBarDrag}
 			class="flex h-8 shrink-0 items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2"
 		>
-			<span class="material-symbols-outlined shrink-0 text-[14px] text-primary-container"
-				>drag_indicator</span
+			<div
+				use:pointerDrag={titleBarDrag}
+				class="flex min-w-0 flex-1 cursor-move items-center gap-2"
 			>
-			<span class="flex-1 truncate font-mono text-[11px] text-on-surface-variant uppercase">
-				{win.title}
-			</span>
+				<span class="material-symbols-outlined shrink-0 text-[14px] text-primary-container"
+					>drag_indicator</span
+				>
+				<span class="flex-1 truncate font-mono text-[11px] text-on-surface-variant uppercase">
+					{win.title}
+				</span>
+			</div>
 			<button
 				type="button"
 				class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-on-surface-variant hover:bg-surface-variant/30 hover:text-primary-container"
