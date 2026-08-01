@@ -80,6 +80,23 @@
 	const showScaleEditor = $derived(scaleEditorKey !== null);
 	let showSettings = $state(false);
 	let showAwsExplorer = $state(false);
+	// Compressed/expanded left panel, persisted in localStorage (same web-only pattern as
+	// windows/layoutStore.ts). Seeded false so first paint matches the common case; the stored
+	// value loads in onMount, same as `book`/`settings` above.
+	const SIDEBAR_COLLAPSED_KEY = 'lamula-process:sidebar-collapsed';
+	let sidebarCollapsed = $state(false);
+	function toggleSidebar() {
+		sidebarCollapsed = !sidebarCollapsed;
+		localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
+	}
+	function itemTitle(item: { id: CatalogProductKind; label: string }): string | undefined {
+		const hint =
+			!isGroundKind(item.id) && !focusedMap
+				? 'Enfoca una ventana de mapa para crear este producto derivado'
+				: undefined;
+		if (sidebarCollapsed) return hint ? `${item.label} — ${hint}` : item.label;
+		return hint;
+	}
 	let vadChannelIndex = $state<number | null>(null);
 
 	// App-wide settings (platform/settingsStore.ts): unit system + default base map/overlays,
@@ -211,6 +228,7 @@
 	}
 
 	onMount(async () => {
+		sidebarCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
 		book = await loadPaletteBook();
 		settings = await loadSettings();
 		await refreshSiteList();
@@ -471,34 +489,47 @@
 
 	<!-- ── SideNavBar: product catalog (each click opens a window) ───────────── -->
 	<aside
-		class="fixed top-0 left-0 z-40 flex h-full w-sidebar-width flex-col overflow-y-auto border-r border-outline-variant bg-surface-container-low pt-16"
+		class={`fixed top-0 left-0 z-40 flex h-full flex-col overflow-y-auto border-r border-outline-variant bg-surface-container-low pt-16 transition-[width] ${sidebarCollapsed ? 'w-sidebar-collapsed-width' : 'w-sidebar-width'}`}
 	>
-		<div class="space-y-5 p-4">
+		<div class={sidebarCollapsed ? 'space-y-5 px-2 py-4' : 'space-y-5 p-4'}>
 			<div>
-				<p class="mb-2 px-1 font-mono text-[10px] tracking-widest text-outline uppercase">
-					Producto
-				</p>
+				<div class="mb-2 flex items-center justify-between px-1">
+					{#if !sidebarCollapsed}
+						<p class="font-mono text-[10px] tracking-widest text-outline uppercase">Producto</p>
+					{/if}
+					<button
+						type="button"
+						class="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-primary-container"
+						onclick={toggleSidebar}
+						aria-label={sidebarCollapsed ? 'Expandir panel' : 'Contraer panel'}
+						title={sidebarCollapsed ? 'Expandir panel' : 'Contraer panel'}
+					>
+						<span class="material-symbols-outlined text-[18px]"
+							>{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}</span
+						>
+					</button>
+				</div>
 				<div class="space-y-3 font-mono text-label-mono">
 					{#each PRODUCT_GROUPS as group (group.label)}
 						<div>
-							<p class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase">
-								{group.label}
-							</p>
+							{#if !sidebarCollapsed}
+								<p class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase">
+									{group.label}
+								</p>
+							{/if}
 							{#each group.items as item (item.id)}
 								<button
 									type="button"
-									class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-on-surface-variant transition-all hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+									class={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-on-surface-variant transition-all hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${sidebarCollapsed ? 'justify-center' : ''}`}
 									disabled={!observation || (!isGroundKind(item.id) && !focusedMap)}
-									title={!isGroundKind(item.id) && !focusedMap
-										? 'Enfoca una ventana de mapa para crear este producto derivado'
-										: undefined}
+									title={itemTitle(item)}
 									onclick={() => launchCatalogItem(item.id)}
 								>
 									<span class="material-symbols-outlined text-[18px]">{item.icon}</span>
-									{item.label}
+									{#if !sidebarCollapsed}{item.label}{/if}
 								</button>
 							{/each}
-							{#if group.label === 'Cortes' && !focusedMap}
+							{#if group.label === 'Cortes' && !focusedMap && !sidebarCollapsed}
 								<p class="px-3 py-1 font-mono text-[9px] text-on-surface-variant/70">
 									Requiere una ventana de mapa enfocada.
 								</p>
@@ -511,7 +542,9 @@
 	</aside>
 
 	<!-- ── Main: window desktop ─────────────────────────────────────────────── -->
-	<main class="flex min-h-0 flex-1 flex-col pt-16 pl-sidebar-width">
+	<main
+		class={`flex min-h-0 flex-1 flex-col pt-16 transition-[padding-left] ${sidebarCollapsed ? 'pl-sidebar-collapsed-width' : 'pl-sidebar-width'}`}
+	>
 		<div class="flex min-h-0 flex-1 flex-col space-y-gutter p-margin-desktop">
 			{#if error}
 				<div
