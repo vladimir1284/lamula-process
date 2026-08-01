@@ -8,6 +8,7 @@
 		type WindowRect
 	} from './windowTypes';
 	import { pointerDrag } from './actions/pointerDrag';
+	import { snapMove, snapResize, type ResizeDir } from './snap';
 
 	interface Props {
 		window: RadarWindow;
@@ -25,6 +26,14 @@
 		return Math.min(Math.max(v, min), Math.max(min, max));
 	}
 
+	function otherRects(): WindowRect[] {
+		return windowStore.windows.filter((w) => w.id !== win.id && !w.minimized).map((w) => w.rect);
+	}
+
+	function applyGuides(guides: { vertical: number[]; horizontal: number[] }) {
+		windowStore.setSnapGuides(guides.vertical.length || guides.horizontal.length ? guides : null);
+	}
+
 	const titleBarDrag = {
 		onStart: () => {
 			windowStore.focus(win.id);
@@ -33,17 +42,24 @@
 		onMove: (dx: number, dy: number) => {
 			if (win.maximized) return;
 			const minVisible = 48;
-			const x = clamp(
+			let x = clamp(
 				dragStartRect.x + dx,
 				-(dragStartRect.width - minVisible),
 				bounds.width - minVisible
 			);
-			const y = clamp(dragStartRect.y + dy, 0, Math.max(0, bounds.height - 32));
+			let y = clamp(dragStartRect.y + dy, 0, Math.max(0, bounds.height - 32));
+			const snapped = snapMove(
+				{ x, y, width: dragStartRect.width, height: dragStartRect.height },
+				otherRects(),
+				bounds
+			);
+			x += snapped.dx;
+			y += snapped.dy;
+			applyGuides(snapped.guides);
 			windowStore.move(win.id, x, y);
-		}
+		},
+		onEnd: () => windowStore.setSnapGuides(null)
 	};
-
-	type ResizeDir = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
 	function resizedRect(start: WindowRect, dir: ResizeDir, dx: number, dy: number): WindowRect {
 		let { x, y, width, height } = start;
@@ -76,8 +92,12 @@
 			},
 			onMove: (dx: number, dy: number) => {
 				if (win.maximized) return;
-				windowStore.resize(win.id, resizedRect(dragStartRect, dir, dx, dy));
-			}
+				const raw = resizedRect(dragStartRect, dir, dx, dy);
+				const { rect, guides } = snapResize(raw, dir, otherRects(), bounds);
+				applyGuides(guides);
+				windowStore.resize(win.id, rect);
+			},
+			onEnd: () => windowStore.setSnapGuides(null)
 		};
 	}
 

@@ -6,6 +6,7 @@ import {
 	type WindowRect,
 	type WindowType
 } from './windowTypes';
+import type { SnapGuides } from './snap';
 
 export interface CanvasSize {
 	width: number;
@@ -30,6 +31,9 @@ let nextOpenOffset = 0;
 class WindowManagerStore {
 	windows = $state<RadarWindow[]>([]);
 	focusedId = $state<string | null>(null);
+	/** Live magnetic-snap guide lines for the window currently being dragged/resized; null when
+	 * idle or when the current pointer position isn't within snap threshold of anything. */
+	snapGuides = $state<SnapGuides | null>(null);
 	private nextZ = 1;
 	private instanceApis = new Map<string, WindowInstanceApi>();
 
@@ -124,6 +128,10 @@ class WindowManagerStore {
 			width: Math.max(MIN_WINDOW_WIDTH, rect.width),
 			height: Math.max(MIN_WINDOW_HEIGHT, rect.height)
 		};
+	}
+
+	setSnapGuides(guides: SnapGuides | null) {
+		this.snapGuides = guides;
 	}
 
 	setTitle(id: string, title: string) {
