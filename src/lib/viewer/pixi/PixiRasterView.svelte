@@ -1,0 +1,246 @@
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import { Application, BufferImageSource, Container, Graphics, Sprite, Texture } from 'pixi.js';
+	import {
+		setupHiDPICanvas,
+		drawAxes,
+		type LinearScale,
+		type AxisOptions
+	} from '$lib/viewer/chartCanvas';
+
+	export interface RasterData {
+		rgba: Uint8ClampedArray;
+		widthPx: number;
+		heightPx: number;
+	}
+
+	export interface Pad {
+		left: number;
+		top: number;
+		right: number;
+		bottom: number;
+	}
+
+	interface Props {
+		plotW: number;
+		plotH: number;
+		pad: Pad;
+		raster: RasterData | null;
+		xScale: LinearScale;
+		yScale: LinearScale;
+		axisOpts?: AxisOptions;
+		/** Extra content drawn on the Canvas2D overlay after the axes, e.g. CrossSection's A/B markers. */
+		extraOverlay?: (ctx: CanvasRenderingContext2D) => void;
+		/** Heatmap background fill, as a Pixi hex color. Default matches the panels' dark bg. */
+		background?: number;
+		onplotmove?: (cx: number, cy: number) => void;
+		onplotleave?: () => void;
+	}
+
+	let {
+		plotW,
+		plotH,
+		pad,
+		raster,
+		xScale,
+		yScale,
+		axisOpts = {},
+		extraOverlay,
+		background = 0x0b0f14,
+		onplotmove,
+		onplotleave
+	}: Props = $props();
+
+	// Same devicePixelRatio guard as chartCanvas.ts's setupHiDPICanvas -- kept local rather than
+	// exported from there, since it's one line and this is the only other call site.
+	function devicePixelRatioOrOne(): number {
+		return typeof devicePixelRatio !== 'undefined' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+	}
+
+	let pixiCanvas: HTMLCanvasElement | undefined = $state();
+	let overlayCanvas: HTMLCanvasElement | undefined = $state();
+
+	let app: Application | null = null;
+	let bg: Graphics | null = null;
+	let heatmapContainer: Container | null = null;
+	let sprite: Sprite | null = null;
+	let currentTexture: Texture | null = null;
+	let currentDims = { widthPx: 0, heightPx: 0, dpr: 0 };
+	let ready = $state(false);
+
+	function boxSize() {
+		return { w: pad.left + plotW + pad.right, h: pad.top + plotH + pad.bottom };
+	}
+
+	onMount(() => {
+		let disposed = false;
+		const { w, h } = boxSize();
+		(async () => {
+			const a = new Application();
+			await a.init({
+				canvas: pixiCanvas,
+				preference: 'webgl',
+				resolution: devicePixelRatioOrOne(),
+				autoDensity: true,
+				autoStart: false,
+				backgroundAlpha: 0,
+				width: w,
+				height: h
+			});
+			if (disposed) {
+				a.destroy(true);
+				return;
+			}
+			app = a;
+			bg = new Graphics();
+			app.stage.addChild(bg);
+			heatmapContainer = new Container();
+			heatmapContainer.position.set(pad.left, pad.top);
+			app.stage.addChild(heatmapContainer);
+			sprite = new Sprite(Texture.EMPTY);
+			sprite.visible = false;
+			heatmapContainer.addChild(sprite);
+			ready = true;
+		})();
+		return () => {
+			disposed = true;
+		};
+	});
+
+	let resizeRaf = 0;
+	onDestroy(() => {
+		if (resizeRaf) cancelAnimationFrame(resizeRaf);
+		currentTexture?.destroy(true);
+		app?.destroy(true, { children: true, texture: true });
+	});
+
+	// Resize the Pixi canvas + background fill + overlay canvas whenever the plot box dimensions
+	// or axes change, coalesced to one requestAnimationFrame. A live window-drag resize fires a
+	// reactive prop change per pointermove (can be 60-120+/sec on a real display) -- resizing a
+	// WebGL renderer is a real GPU framebuffer reallocation, not free, and calling it on every tick
+	// races the GPU driver on real hardware (invisible on a software/SwiftShader renderer, which is
+	// why this doesn't reproduce in a headless sandbox). Coalescing to rAF also guarantees the Pixi
+	// canvas and the Canvas2D overlay always resize/redraw in the same frame, never one ahead of
+	// the other.
+	$effect(() => {
+		const { w, h } = boxSize();
+		const xs = xScale;
+		const ys = yScale;
+		const opts = axisOpts;
+		const overlay = extraOverlay;
+		const el = overlayCanvas;
+		// `ready` flips true asynchronously (Pixi's Application.init is async) -- must be read here,
+		// in the tracked/reactive part of the effect, so this effect re-runs once Pixi finishes
+		// initializing even if no other prop changes afterward. Plain `let`s (app/bg/...) aren't
+		// reactive and are only re-checked inside the rAF callback below.
+		const isReady = ready;
+		if (resizeRaf) cancelAnimationFrame(resizeRaf);
+		resizeRaf = requestAnimationFrame(() => {
+			resizeRaf = 0;
+			if (isReady && app && bg && heatmapContainer) {
+				app.renderer.resize(w, h);
+				heatmapContainer.position.set(pad.left, pad.top);
+				bg.clear();
+				bg.rect(0, 0, w, h).fill(background);
+				app.render();
+			}
+			if (el) {
+				const { ctx } = setupHiDPICanvas(el, w, h);
+				ctx.clearRect(0, 0, w, h);
+				drawAxes(ctx, { left: pad.left, top: pad.top, width: plotW, height: plotH }, xs, ys, opts);
+				overlay?.(ctx);
+			}
+		});
+	});
+
+	// Swap the heatmap texture in place when a new raster arrives -- same-size updates reuse the
+	// existing BufferImageSource (source.resource + source.update()), never destroying/recreating
+	// the sprite/texture. This is the scrubbing-readiness requirement: a future frame-index change
+	// only needs to call this same path faster, not restructure the scene graph.
+	$effect(() => {
+		const r = raster;
+		if (!app || !ready || !sprite) return;
+		if (!r) {
+			sprite.visible = false;
+			app.render();
+			return;
+		}
+		const dpr = devicePixelRatioOrOne();
+		sprite.visible = true;
+		const sameDims =
+			currentTexture &&
+			currentDims.widthPx === r.widthPx &&
+			currentDims.heightPx === r.heightPx &&
+			currentDims.dpr === dpr;
+		if (sameDims && currentTexture) {
+			const source = currentTexture.source as BufferImageSource;
+			source.resource = r.rgba;
+			source.update();
+		} else {
+			// Pass the RAW device-pixel dims with the default resolution (1) -- do NOT also pass
+			// `resolution: dpr`. TextureSource computes `pixelWidth = width * resolution`, so
+			// `width` must already be the LOGICAL size for that to land on the real buffer's pixel
+			// count; passing the device-pixel size *and* a resolution multiplier double-counts dpr,
+			// silently doubling the sprite's rendered size at dpr=2 (worse at fractional dpr) -- this
+			// was the actual cause of "data renders below the 0-height axis line": the oversized
+			// sprite spilled past the plot rect's bottom edge while the Canvas2D axes stayed correct.
+			// Sprite on-screen size is pinned explicitly via `sprite.setSize` below instead, so the
+			// texture's own resolution doesn't matter here -- only the buffer's real pixel dims do.
+			const source = new BufferImageSource({
+				resource: r.rgba,
+				width: r.widthPx,
+				height: r.heightPx,
+				scaleMode: 'nearest',
+				// Pixi's default format for a Uint8ClampedArray buffer is 'bgra8unorm' -- our
+				// rasterizers write RGBA byte order (same convention as ImageData/putImageData), so
+				// this must be explicit or red/blue channels swap.
+				format: 'rgba8unorm'
+			});
+			const texture = new Texture({ source });
+			sprite.texture = texture;
+			sprite.setSize(plotW, plotH);
+			currentTexture?.destroy(true);
+			currentTexture = texture;
+			currentDims = { widthPx: r.widthPx, heightPx: r.heightPx, dpr };
+		}
+		app.render();
+	});
+
+	function handleMove(ev: MouseEvent) {
+		const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+		const cx = ev.clientX - rect.left - pad.left;
+		const cy = ev.clientY - rect.top - pad.top;
+		if (cx < 0 || cx > plotW || cy < 0 || cy > plotH) {
+			onplotleave?.();
+			return;
+		}
+		onplotmove?.(cx, cy);
+	}
+
+	/** Flattens the Pixi heatmap + Canvas2D overlay into one caller-owned canvas, for PNG export. */
+	export function getCanvas(): HTMLCanvasElement | undefined {
+		if (!app || !overlayCanvas) return undefined;
+		const flat = app.renderer.extract.canvas(app.stage) as HTMLCanvasElement;
+		const out = document.createElement('canvas');
+		out.width = flat.width;
+		out.height = flat.height;
+		const ctx = out.getContext('2d');
+		if (!ctx) return undefined;
+		ctx.drawImage(flat, 0, 0, out.width, out.height);
+		ctx.drawImage(overlayCanvas, 0, 0, out.width, out.height);
+		return out;
+	}
+</script>
+
+<div
+	class="relative"
+	style="width: {pad.left + plotW + pad.right}px; height: {pad.top + plotH + pad.bottom}px"
+>
+	<canvas bind:this={pixiCanvas} class="absolute inset-0"></canvas>
+	<canvas
+		bind:this={overlayCanvas}
+		class="absolute inset-0"
+		onmousemove={handleMove}
+		onmouseleave={() => onplotleave?.()}
+	></canvas>
+</div>

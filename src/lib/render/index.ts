@@ -13,3 +13,6 @@ export { PpiRenderer } from './renderClient';
 export { rasterizeRHI, rayElevationsDeg, nearestRayByElev, rhiReadoutAt } from './rasterizeRHI';
 export type { RhiRasterOptions, RhiRasterResult, RhiReadout } from './rasterizeRHI';
 export { makeRhiScan } from './rhiFixtures';
+export { RasterWorkerClient } from './rasterWorkerClient';
+export { RhiRenderer } from './rhiRenderClient';
+export { CrossSectionRenderer } from './crossSectionRenderClient';
