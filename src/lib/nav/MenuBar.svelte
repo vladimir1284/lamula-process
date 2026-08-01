@@ -5,6 +5,10 @@
 		onclick?: () => void;
 		disabled?: boolean;
 		submenu?: MenuItem[];
+		/** Shows a check mark next to the label (e.g. "this is the focused window"). */
+		checked?: boolean;
+		/** Renders as a plain divider instead of a clickable row; every other field is ignored. */
+		separator?: true;
 	}
 
 	export interface MenuDef {
@@ -70,54 +74,63 @@
 					role="menu"
 					class="absolute top-full left-0 z-50 mt-1 min-w-60 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
 				>
-					{#each menu.items as item (item.label)}
-						<li class="relative">
-							{#if item.submenu}
-								<button
-									class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20 disabled:opacity-50"
-									disabled={item.disabled}
-									onclick={() => (openSubmenu = openSubmenu === item.label ? null : item.label)}
-								>
-									{#if item.icon}
-										<span class="material-symbols-outlined text-[18px]">{item.icon}</span>
-									{/if}
-									<span class="flex-1">{item.label}</span>
-									<span class="material-symbols-outlined text-[16px]">chevron_right</span>
-								</button>
-								{#if openSubmenu === item.label}
-									<ul
-										role="menu"
-										class="absolute top-0 left-full ml-1 min-w-60 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
+					{#each menu.items as item, i (item.separator ? `sep-${i}` : item.label)}
+						{#if item.separator}
+							<li class="my-1 border-t border-outline-variant" aria-hidden="true"></li>
+						{:else}
+							<li class="relative">
+								{#if item.submenu}
+									<button
+										class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20 disabled:opacity-50"
+										disabled={item.disabled}
+										onclick={() => (openSubmenu = openSubmenu === item.label ? null : item.label)}
 									>
-										{#each item.submenu as sub (sub.label)}
-											<li>
-												<button
-													class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20 disabled:opacity-50"
-													disabled={sub.disabled}
-													onclick={() => pick(sub)}
-												>
-													{#if sub.icon}
-														<span class="material-symbols-outlined text-[16px]">{sub.icon}</span>
-													{/if}
-													<span class="truncate">{sub.label}</span>
-												</button>
-											</li>
-										{/each}
-									</ul>
-								{/if}
-							{:else}
-								<button
-									class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20 disabled:opacity-50"
-									disabled={item.disabled}
-									onclick={() => pick(item)}
-								>
-									{#if item.icon}
-										<span class="material-symbols-outlined text-[18px]">{item.icon}</span>
+										{#if item.icon}
+											<span class="material-symbols-outlined text-[18px]">{item.icon}</span>
+										{/if}
+										<span class="flex-1">{item.label}</span>
+										<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+									</button>
+									{#if openSubmenu === item.label}
+										<ul
+											role="menu"
+											class="absolute top-0 left-full ml-1 min-w-60 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
+										>
+											{#each item.submenu as sub (sub.label)}
+												<li>
+													<button
+														class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20 disabled:opacity-50"
+														disabled={sub.disabled}
+														onclick={() => pick(sub)}
+													>
+														{#if sub.icon}
+															<span class="material-symbols-outlined text-[16px]">{sub.icon}</span>
+														{/if}
+														<span class="truncate">{sub.label}</span>
+													</button>
+												</li>
+											{/each}
+										</ul>
 									{/if}
-									{item.label}
-								</button>
-							{/if}
-						</li>
+								{:else}
+									<button
+										class="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-label-mono text-on-surface transition-colors hover:bg-surface-variant/20 disabled:opacity-50"
+										disabled={item.disabled}
+										onclick={() => pick(item)}
+									>
+										{#if item.icon}
+											<span class="material-symbols-outlined text-[18px]">{item.icon}</span>
+										{/if}
+										<span class="flex-1">{item.label}</span>
+										{#if item.checked}
+											<span class="material-symbols-outlined text-[16px] text-primary-container"
+												>check</span
+											>
+										{/if}
+									</button>
+								{/if}
+							</li>
+						{/if}
 					{/each}
 				</ul>
 			{/if}
