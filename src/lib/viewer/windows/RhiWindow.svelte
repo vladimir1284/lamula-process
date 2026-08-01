@@ -9,6 +9,7 @@
 	import { momentUnit } from '$lib/domain';
 	import {
 		RhiPanel,
+		ZoomControl,
 		exportMapToCanvas,
 		flattenOnBlack,
 		downloadCanvasAsPng,
@@ -55,6 +56,7 @@
 	let readout = $state<RhiReadout | null>(null);
 	let rhiPanelRef: ReturnType<typeof RhiPanel> | undefined = $state();
 	let showExportMenu = $state(false);
+	let zoom = $state(1);
 
 	async function exportCurrentImage(mode: 'both' | 'product') {
 		const filename = buildExportFilename([
@@ -125,6 +127,7 @@
 			/>
 			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
 		</label>
+		<ZoomControl {zoom} onZoom={(z) => (zoom = z)} />
 		<button
 			type="button"
 			class="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
@@ -178,9 +181,7 @@
 		</div>
 	</div>
 
-	<div
-		class="flex min-h-0 flex-1 flex-col justify-center overflow-hidden bg-surface-container-lowest"
-	>
+	<div class="flex min-h-0 flex-1 flex-col bg-surface-container-lowest">
 		{#if rhiScan}
 			<RhiPanel
 				bind:this={rhiPanelRef}
@@ -188,6 +189,7 @@
 				{palette}
 				maxHeightM={payload.maxHeightKm * 1000}
 				{unitSystem}
+				{zoom}
 				onreadout={(r) => (readout = r)}
 			/>
 		{:else}

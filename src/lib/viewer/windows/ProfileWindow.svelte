@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ChannelRef } from '$lib/pipeline';
 	import { computeProfile } from '$lib/products';
-	import { ProfilePanel } from '$lib/viewer';
+	import { ProfilePanel, ZoomControl } from '$lib/viewer';
 	import {
 		windowStore,
 		type RadarWindow,
@@ -36,6 +36,8 @@
 			siteAltM: effectiveSiteAltM
 		});
 	});
+
+	let zoom = $state(1);
 </script>
 
 <div class="flex h-full flex-col">
@@ -59,9 +61,10 @@
 				<span class="material-symbols-outlined text-[14px]">restart_alt</span> Rehacer punto
 			</button>
 		{/if}
+		<ZoomControl {zoom} onZoom={(z) => (zoom = z)} />
 		<button
 			type="button"
-			class="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
+			class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 			onclick={() => onEditScale(sourceChannel?.moment ?? 'dBZ')}
 			aria-label="Editar escala"
 			title="Editar escala"
@@ -69,7 +72,7 @@
 			<span class="material-symbols-outlined text-[14px]">palette</span>
 		</button>
 		<label
-			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+			class="ml-auto flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
 			<span class="font-mono text-[9px] text-on-surface-variant">ALT MÁX</span>
 			<input
@@ -82,11 +85,9 @@
 		</label>
 	</div>
 
-	<div
-		class="flex min-h-0 flex-1 flex-col justify-center overflow-hidden bg-surface-container-lowest"
-	>
+	<div class="flex min-h-0 flex-1 flex-col bg-surface-container-lowest">
 		{#if profile}
-			<ProfilePanel {profile} valueLabel={sourceChannel?.moment ?? 'dBZ'} />
+			<ProfilePanel {profile} valueLabel={sourceChannel?.moment ?? 'dBZ'} {zoom} />
 		{:else}
 			<p class="px-4 text-center font-mono text-[10px] text-on-surface-variant">
 				Haz clic en el mapa de origen para ver el perfil vertical.

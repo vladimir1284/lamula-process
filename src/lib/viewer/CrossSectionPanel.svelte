@@ -34,6 +34,9 @@
 		markEndpoints?: boolean;
 		/** Unit system for the distance axis. Default metric (km). */
 		unitSystem?: UnitSystem;
+		/** Scales the plot area up/down from its container-fit size; >1 grows past the container so
+		 * the scrolling wrapper (`overflow-auto`) shows scrollbars. Default 1 (fit container). */
+		zoom?: number;
 		onreadout?: (r: CrossSectionReadout | null) => void;
 	}
 
@@ -44,6 +47,7 @@
 		maxHeightM = 18_000,
 		markEndpoints = false,
 		unitSystem = 'metric',
+		zoom = 1,
 		onreadout
 	}: Props = $props();
 
@@ -55,8 +59,10 @@
 	let canvas: HTMLCanvasElement | undefined = $state();
 	const PAD = { left: 48, bottom: 28, top: 20, right: 8 };
 	const MIN_PLOT_W = 200;
-	let PLOT_W = $state(720);
-	const PLOT_H = 260;
+	const BASE_PLOT_H = 260;
+	let fitWidth = $state(720);
+	const PLOT_W = $derived(Math.max(MIN_PLOT_W, Math.round(fitWidth * zoom)));
+	const PLOT_H = $derived(Math.round(BASE_PLOT_H * zoom));
 
 	let lineLengthM = $state(0);
 
@@ -64,7 +70,7 @@
 		const el = container;
 		if (!el) return;
 		return observeContainerWidth(el, (w) => {
-			PLOT_W = Math.max(MIN_PLOT_W, Math.round(w - PAD.left - PAD.right));
+			fitWidth = Math.max(MIN_PLOT_W, Math.round(w - PAD.left - PAD.right));
 		});
 	});
 
@@ -148,7 +154,7 @@
 	}
 </script>
 
-<div bind:this={container} class="w-full">
+<div bind:this={container} class="h-full w-full overflow-auto">
 	<canvas
 		bind:this={canvas}
 		width={PAD.left + PLOT_W + PAD.right}

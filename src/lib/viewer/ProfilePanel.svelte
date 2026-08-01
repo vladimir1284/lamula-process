@@ -11,22 +11,27 @@
 		profile: ProfileResult;
 		/** Value-axis label, e.g. 'dBZ'. */
 		valueLabel?: string;
+		/** Scales the plot area up/down from its container-fit size; >1 grows past the container so
+		 * the scrolling wrapper (`overflow-auto`) shows scrollbars. Default 1 (fit container). */
+		zoom?: number;
 	}
 
-	let { profile, valueLabel = 'dBZ' }: Props = $props();
+	let { profile, valueLabel = 'dBZ', zoom = 1 }: Props = $props();
 
 	let container: HTMLDivElement | undefined = $state();
 	let canvas: HTMLCanvasElement | undefined = $state();
 	const PAD = { left: 44, bottom: 28, top: 20, right: 12 };
 	const MIN_PLOT_W = 160;
-	let PLOT_W = $state(240);
-	const PLOT_H = 300;
+	const BASE_PLOT_H = 300;
+	let fitWidth = $state(240);
+	const PLOT_W = $derived(Math.max(MIN_PLOT_W, Math.round(fitWidth * zoom)));
+	const PLOT_H = $derived(Math.round(BASE_PLOT_H * zoom));
 
 	$effect(() => {
 		const el = container;
 		if (!el) return;
 		return observeContainerWidth(el, (w) => {
-			PLOT_W = Math.max(MIN_PLOT_W, Math.round(w - PAD.left - PAD.right));
+			fitWidth = Math.max(MIN_PLOT_W, Math.round(w - PAD.left - PAD.right));
 		});
 	});
 
@@ -94,7 +99,7 @@
 	}
 </script>
 
-<div bind:this={container} class="w-full">
+<div bind:this={container} class="h-full w-full overflow-auto">
 	<canvas
 		bind:this={canvas}
 		width={PAD.left + PLOT_W + PAD.right}

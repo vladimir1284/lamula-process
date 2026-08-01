@@ -6,6 +6,7 @@ export { default as VadPanel } from './VadPanel.svelte';
 export { default as VadModal } from './VadModal.svelte';
 export { default as ScaleEditor } from './ScaleEditor.svelte';
 export { default as ScaleLegend } from './ScaleLegend.svelte';
+export { default as ZoomControl } from './ZoomControl.svelte';
 export { default as Modal } from './Modal.svelte';
 export { default as SiteLocationEditor } from './SiteLocationEditor.svelte';
 export { rasterToCanvas, rasterToDataURL } from './radarImage';
