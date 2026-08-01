@@ -513,7 +513,9 @@
 					{#each PRODUCT_GROUPS as group (group.label)}
 						<div>
 							{#if !sidebarCollapsed}
-								<p class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase">
+								<p
+									class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase"
+								>
 									{group.label}
 								</p>
 							{/if}
