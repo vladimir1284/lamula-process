@@ -296,6 +296,7 @@
 					showRadials: settings.showRadials,
 					showScale: settings.showScale,
 					showSiteMarker: settings.showSiteMarker,
+					showCutGuide: settings.showCutGuide,
 					zrA: settings.zrA,
 					zrB: settings.zrB
 				})
@@ -1019,6 +1020,16 @@
 								updateSettings({ showSiteMarker: (e.currentTarget as HTMLInputElement).checked })}
 						/>
 						{$_('settings.view.showSiteMarker')}
+					</label>
+					<label class="flex items-center gap-2 font-mono text-label-mono text-on-surface-variant">
+						<input
+							type="checkbox"
+							checked={settings.showCutGuide}
+							class="accent-primary-container"
+							onchange={(e) =>
+								updateSettings({ showCutGuide: (e.currentTarget as HTMLInputElement).checked })}
+						/>
+						{$_('settings.view.showCutGuide')}
 					</label>
 					<label class="flex items-center gap-2 font-mono text-label-mono text-on-surface-variant">
 						<input

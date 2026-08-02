@@ -102,7 +102,8 @@
 			"description": "Values used when opening new windows -- each window can adjust them individually afterward.",
 			"showScale": "Show color scale",
 			"imageSmoothing": "Image smoothing (RHI / cross-sections)",
-			"showSiteMarker": "Show site marker"
+			"showSiteMarker": "Show site marker",
+			"showCutGuide": "Show cut guide"
 		}
 	},
 	"nav": {
@@ -196,7 +197,9 @@
 		"smoothTitle": "Image smoothing",
 		"smoothAbbr": "SMTH",
 		"siteMarkerTitle": "Site marker",
-		"siteMarkerAbbr": "SITE"
+		"siteMarkerAbbr": "SITE",
+		"cutGuideTitle": "Cut guide (RHI / cross-section)",
+		"cutGuideAbbr": "GUIDE"
 	},
 	"analysisReport": {
 		"region": "Region",

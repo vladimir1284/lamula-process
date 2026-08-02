@@ -108,6 +108,7 @@ export function defaultMapPayload(
 		showRadials: boolean;
 		showScale: boolean;
 		showSiteMarker: boolean;
+		showCutGuide: boolean;
 		zrA: number;
 		zrB: number;
 	}
@@ -130,7 +131,8 @@ export function defaultMapPayload(
 		showRings: appDefaults.showRings,
 		showRadials: appDefaults.showRadials,
 		showScale: appDefaults.showScale,
-		showSiteMarker: appDefaults.showSiteMarker
+		showSiteMarker: appDefaults.showSiteMarker,
+		showCutGuide: appDefaults.showCutGuide
 	};
 }
 

@@ -70,6 +70,11 @@
 		showRadials?: boolean;
 		/** Show the radar site position marker. Default true. */
 		showSiteMarker?: boolean;
+		/** Show the cross-section/RHI cut guide (trace line, A/B endpoints, azimuth radial) drawn on
+		 * `drawLayer`. Independent of `drawEnabled`/`azimuthSelectEnabled`/`pointSelectEnabled` --
+		 * the pick interaction stays armed and still fires its callback even while this is false, it
+		 * just hides what's drawn. Default true. */
+		showCutGuide?: boolean;
 	}
 
 	let {
@@ -92,7 +97,8 @@
 		unitSystem = 'metric',
 		showRings = true,
 		showRadials = false,
-		showSiteMarker = true
+		showSiteMarker = true,
+		showCutGuide = true
 	}: Props = $props();
 
 	let mapEl: HTMLDivElement;
@@ -189,7 +195,12 @@
 			zIndex: 22,
 			visible: showSiteMarker
 		});
-		drawLayer = new VectorLayer({ source: new VectorSource(), style: drawStyle, zIndex: 23 });
+		drawLayer = new VectorLayer({
+			source: new VectorSource(),
+			style: drawStyle,
+			zIndex: 23,
+			visible: showCutGuide
+		});
 		for (const l of extraLayers) l.setZIndex(25);
 		map = new Map({
 			target: mapEl,
@@ -302,6 +313,9 @@
 	});
 	$effect(() => {
 		siteLayer?.setVisible(showSiteMarker);
+	});
+	$effect(() => {
+		drawLayer?.setVisible(showCutGuide);
 	});
 
 	// Two-point line-draw interaction for the free-hand cross-section tool. Only for tracing a

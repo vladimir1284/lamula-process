@@ -20,6 +20,9 @@ export interface AppSettings {
 	showScale: boolean;
 	/** Seeds newly-opened map windows' radar site marker visibility. */
 	showSiteMarker: boolean;
+	/** Seeds newly-opened map windows' cross-section/RHI cut-guide visibility. Independent of
+	 * whether the pick mode is armed -- see `PpiMap.svelte`'s `showCutGuide` prop doc. */
+	showCutGuide: boolean;
 	/** Seeds newly-opened RHI/cross-section windows' raster interpolation (Pixi `scaleMode`). */
 	imageSmoothing: boolean;
 	/** Radial-speckle despeckle filter run length, in metres (see `pipeline/applySpeckleFilter.ts`).
@@ -36,6 +39,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	zrB: 1.4,
 	showScale: true,
 	showSiteMarker: true,
+	showCutGuide: true,
 	imageSmoothing: false,
 	speckleDistanceM: 0
 };
@@ -66,6 +70,10 @@ export async function loadSettings(): Promise<AppSettings> {
 				typeof parsed.showSiteMarker === 'boolean'
 					? parsed.showSiteMarker
 					: DEFAULT_SETTINGS.showSiteMarker,
+			showCutGuide:
+				typeof parsed.showCutGuide === 'boolean'
+					? parsed.showCutGuide
+					: DEFAULT_SETTINGS.showCutGuide,
 			imageSmoothing:
 				typeof parsed.imageSmoothing === 'boolean'
 					? parsed.imageSmoothing

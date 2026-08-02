@@ -34,6 +34,7 @@ export interface MapWindowPayload {
 	showRadials: boolean;
 	showScale: boolean;
 	showSiteMarker: boolean;
+	showCutGuide: boolean;
 }
 
 export interface ChartWindowPayloadBase {

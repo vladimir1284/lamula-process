@@ -102,7 +102,8 @@
 			"description": "Valores usados al abrir nuevas ventanas -- cada ventana puede ajustarlos individualmente después.",
 			"showScale": "Mostrar escala de colores",
 			"imageSmoothing": "Suavizado de imagen (RHI / cortes)",
-			"showSiteMarker": "Mostrar marcador del sitio"
+			"showSiteMarker": "Mostrar marcador del sitio",
+			"showCutGuide": "Mostrar guía de corte"
 		}
 	},
 	"nav": {
@@ -196,7 +197,9 @@
 		"smoothTitle": "Suavizado de imagen",
 		"smoothAbbr": "SUAV",
 		"siteMarkerTitle": "Marcador del sitio",
-		"siteMarkerAbbr": "SITIO"
+		"siteMarkerAbbr": "SITIO",
+		"cutGuideTitle": "Guía de corte (RHI / cross-section)",
+		"cutGuideAbbr": "GUÍA"
 	},
 	"analysisReport": {
 		"region": "Región",
