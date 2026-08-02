@@ -27,6 +27,7 @@
 	import { rasterToDataURL } from './radarImage';
 	import { ringFeatures, ringStyle, defaultRingsM } from './rings';
 	import { radialFeatures, radialStyle } from './radials';
+	import { siteMarkerFeature, siteMarkerStyle } from './siteMarker';
 	import { readoutAt, type Readout } from './readout';
 	import type { UnitSystem } from '$lib/units';
 
@@ -67,6 +68,8 @@
 		showRings?: boolean;
 		/** Show azimuth radial marks. Default true. */
 		showRadials?: boolean;
+		/** Show the radar site position marker. Default true. */
+		showSiteMarker?: boolean;
 	}
 
 	let {
@@ -88,7 +91,8 @@
 		onAzimuthSelect,
 		unitSystem = 'metric',
 		showRings = true,
-		showRadials = false
+		showRadials = false,
+		showSiteMarker = true
 	}: Props = $props();
 
 	let mapEl: HTMLDivElement;
@@ -98,6 +102,7 @@
 	let radarLayer: ImageLayer<Static> | undefined;
 	let ringsLayer: VectorLayer<VectorSource> | undefined;
 	let radialsLayer: VectorLayer<VectorSource> | undefined;
+	let siteLayer: VectorLayer<VectorSource> | undefined;
 	let drawLayer: VectorLayer<VectorSource> | undefined;
 	let draw: Draw | undefined;
 	let cutModify: Modify | undefined;
@@ -162,7 +167,7 @@
 
 	onMount(() => {
 		// Ordering via zIndex: base(0) → radar(10) → CARTO names(15) → rings(20) → radials(21) →
-		// overlays(25).
+		// site marker(22) → draw(23) → overlays(25).
 		baseLayer = new TileLayer({ zIndex: 0 });
 		labelsLayer = new TileLayer({ zIndex: 15 });
 		radarLayer = new ImageLayer<Static>({ zIndex: 10, opacity: dataOpacity });
@@ -178,7 +183,13 @@
 			zIndex: 21,
 			visible: showRadials
 		});
-		drawLayer = new VectorLayer({ source: new VectorSource(), style: drawStyle, zIndex: 22 });
+		siteLayer = new VectorLayer({
+			source: new VectorSource({ features: [siteMarkerFeature(siteXY())] }),
+			style: siteMarkerStyle,
+			zIndex: 22,
+			visible: showSiteMarker
+		});
+		drawLayer = new VectorLayer({ source: new VectorSource(), style: drawStyle, zIndex: 23 });
 		for (const l of extraLayers) l.setZIndex(25);
 		map = new Map({
 			target: mapEl,
@@ -188,6 +199,7 @@
 				radarLayer,
 				ringsLayer,
 				radialsLayer,
+				siteLayer,
 				drawLayer,
 				...extraLayers
 			],
@@ -259,6 +271,13 @@
 				);
 			}
 
+			// re-place the site marker (site position can change between renders)
+			if (siteLayer) {
+				const src = siteLayer.getSource()!;
+				src.clear();
+				src.addFeature(siteMarkerFeature(siteXY()));
+			}
+
 			// centre + frame the radar on first render
 			map!.getView().fit(extent, { padding: [20, 20, 20, 20] });
 		});
@@ -280,6 +299,9 @@
 	});
 	$effect(() => {
 		radialsLayer?.setVisible(showRadials);
+	});
+	$effect(() => {
+		siteLayer?.setVisible(showSiteMarker);
 	});
 
 	// Two-point line-draw interaction for the free-hand cross-section tool. Only for tracing a

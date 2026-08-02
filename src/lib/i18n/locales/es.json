@@ -93,13 +93,16 @@
 		},
 		"calc": {
 			"heading": "Constantes de cálculo de lluvia",
-			"description": "Coeficientes Z-R (R = (Z/A)^(1/B)) usados por defecto al abrir una nueva ventana de tasa de lluvia. Cada ventana permite ajustarlos individualmente después."
+			"description": "Coeficientes Z-R (R = (Z/A)^(1/B)) usados por defecto al abrir una nueva ventana de tasa de lluvia. Cada ventana permite ajustarlos individualmente después.",
+			"speckleHeading": "Filtro de speckle radial",
+			"speckleDescription": "Elimina tramos cortos de eco aislado a lo largo de cada radial. Distancia mínima de eco continuo para conservarlo; 0 desactiva el filtro."
 		},
 		"view": {
 			"heading": "Vista por defecto",
 			"description": "Valores usados al abrir nuevas ventanas -- cada ventana puede ajustarlos individualmente después.",
 			"showScale": "Mostrar escala de colores",
-			"imageSmoothing": "Suavizado de imagen (RHI / cortes)"
+			"imageSmoothing": "Suavizado de imagen (RHI / cortes)",
+			"showSiteMarker": "Mostrar marcador del sitio"
 		}
 	},
 	"nav": {
@@ -191,7 +194,9 @@
 		"scaleTitle": "Escala de colores",
 		"scaleAbbr": "ESC",
 		"smoothTitle": "Suavizado de imagen",
-		"smoothAbbr": "SUAV"
+		"smoothAbbr": "SUAV",
+		"siteMarkerTitle": "Marcador del sitio",
+		"siteMarkerAbbr": "SITIO"
 	},
 	"analysisReport": {
 		"region": "Región",

@@ -409,6 +409,17 @@
 				<input type="checkbox" bind:checked={payload.showScale} class="accent-primary-container" />
 				{$_('window.scaleAbbr')}
 			</label>
+			<label
+				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+				title={$_('window.siteMarkerTitle')}
+			>
+				<input
+					type="checkbox"
+					bind:checked={payload.showSiteMarker}
+					class="accent-primary-container"
+				/>
+				{$_('window.siteMarkerAbbr')}
+			</label>
 		{/if}
 
 		<div class="ml-auto flex items-center gap-2">
@@ -472,6 +483,7 @@
 				dataOpacity={payload.dataOpacity}
 				showRings={payload.showRings}
 				showRadials={payload.showRadials}
+				showSiteMarker={payload.showSiteMarker}
 				extraLayers={overlays}
 				{unitSystem}
 				drawEnabled={pickerMode === 'cross-section'}

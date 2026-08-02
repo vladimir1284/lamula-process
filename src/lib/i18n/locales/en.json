@@ -93,13 +93,16 @@
 		},
 		"calc": {
 			"heading": "Rain-rate calculation constants",
-			"description": "Z-R coefficients (R = (Z/A)^(1/B)) used by default when opening a new rain-rate window. Each window can adjust them individually afterward."
+			"description": "Z-R coefficients (R = (Z/A)^(1/B)) used by default when opening a new rain-rate window. Each window can adjust them individually afterward.",
+			"speckleHeading": "Radial speckle filter",
+			"speckleDescription": "Removes short isolated echo runs along each radial. Minimum continuous-echo distance to keep; 0 disables the filter."
 		},
 		"view": {
 			"heading": "Default view",
 			"description": "Values used when opening new windows -- each window can adjust them individually afterward.",
 			"showScale": "Show color scale",
-			"imageSmoothing": "Image smoothing (RHI / cross-sections)"
+			"imageSmoothing": "Image smoothing (RHI / cross-sections)",
+			"showSiteMarker": "Show site marker"
 		}
 	},
 	"nav": {
@@ -191,7 +194,9 @@
 		"scaleTitle": "Color scale",
 		"scaleAbbr": "SCL",
 		"smoothTitle": "Image smoothing",
-		"smoothAbbr": "SMTH"
+		"smoothAbbr": "SMTH",
+		"siteMarkerTitle": "Site marker",
+		"siteMarkerAbbr": "SITE"
 	},
 	"analysisReport": {
 		"region": "Region",

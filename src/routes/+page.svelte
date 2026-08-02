@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { useMachine } from '@xstate/svelte';
 	import { observationMachine } from '$lib/pipeline/observationMachine';
-	import { observationChannels, hasGeoref } from '$lib/pipeline';
+	import { observationChannels, hasGeoref, applySpeckleFilter } from '$lib/pipeline';
 	import type { Palette, ProductPaletteKey } from '$lib/palette/types';
 	import type { MomentType } from '$lib/domain/types';
 	import { formatAltitudeM } from '$lib/units';
@@ -130,7 +130,14 @@
 		send({ type: 'OPEN_RECENT', entry });
 	}
 
-	const channels = $derived(observation ? observationChannels(observation) : []);
+	const rawChannels = $derived(observation ? observationChannels(observation) : []);
+	// Clones + filters scans rather than mutating `observation` -- toggling the speckle setting
+	// back to 0 always recovers the untouched data (see pipeline/applySpeckleFilter.ts).
+	const channels = $derived(
+		settings.speckleDistanceM > 0
+			? applySpeckleFilter(rawChannels, book, settings.speckleDistanceM)
+			: rawChannels
+	);
 	const georef = $derived(observation ? hasGeoref(observation) : false);
 
 	// Formats that don't self-describe site position (NEXRAD L2, .obs) may have a
@@ -288,6 +295,7 @@
 					showRings: settings.showRings,
 					showRadials: settings.showRadials,
 					showScale: settings.showScale,
+					showSiteMarker: settings.showSiteMarker,
 					zrA: settings.zrA,
 					zrB: settings.zrB
 				})
@@ -958,6 +966,31 @@
 							/>
 						</label>
 					</div>
+					<div class="space-y-2 border-t border-outline-variant pt-4">
+						<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
+							{$_('settings.calc.speckleHeading')}
+						</h3>
+						<p class="font-mono text-[10px] text-on-surface-variant">
+							{$_('settings.calc.speckleDescription')}
+						</p>
+						<label class="flex items-center gap-2">
+							<input
+								type="number"
+								min="0"
+								step="100"
+								class="w-24 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+								value={settings.speckleDistanceM}
+								onchange={(e) =>
+									updateSettings({
+										speckleDistanceM: Math.max(
+											0,
+											Number((e.currentTarget as HTMLInputElement).value)
+										)
+									})}
+							/>
+							<span class="font-mono text-label-mono text-on-surface-variant">m</span>
+						</label>
+					</div>
 				</div>
 			{:else if settingsTab === 'vista'}
 				<div class="space-y-3">
@@ -976,6 +1009,16 @@
 								updateSettings({ showScale: (e.currentTarget as HTMLInputElement).checked })}
 						/>
 						{$_('settings.view.showScale')}
+					</label>
+					<label class="flex items-center gap-2 font-mono text-label-mono text-on-surface-variant">
+						<input
+							type="checkbox"
+							checked={settings.showSiteMarker}
+							class="accent-primary-container"
+							onchange={(e) =>
+								updateSettings({ showSiteMarker: (e.currentTarget as HTMLInputElement).checked })}
+						/>
+						{$_('settings.view.showSiteMarker')}
 					</label>
 					<label class="flex items-center gap-2 font-mono text-label-mono text-on-surface-variant">
 						<input

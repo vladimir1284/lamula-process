@@ -18,8 +18,13 @@ export interface AppSettings {
 	zrB: number;
 	/** Seeds newly-opened map windows' scale-legend visibility. */
 	showScale: boolean;
+	/** Seeds newly-opened map windows' radar site marker visibility. */
+	showSiteMarker: boolean;
 	/** Seeds newly-opened RHI/cross-section windows' raster interpolation (Pixi `scaleMode`). */
 	imageSmoothing: boolean;
+	/** Radial-speckle despeckle filter run length, in metres (see `pipeline/applySpeckleFilter.ts`).
+	 * 0 disables the filter -- same "0 = off" convention as legacy's `Radial_Speckle`. */
+	speckleDistanceM: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -30,7 +35,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	zrA: 300,
 	zrB: 1.4,
 	showScale: true,
-	imageSmoothing: false
+	showSiteMarker: true,
+	imageSmoothing: false,
+	speckleDistanceM: 0
 };
 const STORAGE_KEY = 'lamula-process:settings';
 
@@ -55,10 +62,18 @@ export async function loadSettings(): Promise<AppSettings> {
 			zrB: typeof parsed.zrB === 'number' ? parsed.zrB : DEFAULT_SETTINGS.zrB,
 			showScale:
 				typeof parsed.showScale === 'boolean' ? parsed.showScale : DEFAULT_SETTINGS.showScale,
+			showSiteMarker:
+				typeof parsed.showSiteMarker === 'boolean'
+					? parsed.showSiteMarker
+					: DEFAULT_SETTINGS.showSiteMarker,
 			imageSmoothing:
 				typeof parsed.imageSmoothing === 'boolean'
 					? parsed.imageSmoothing
-					: DEFAULT_SETTINGS.imageSmoothing
+					: DEFAULT_SETTINGS.imageSmoothing,
+			speckleDistanceM:
+				typeof parsed.speckleDistanceM === 'number'
+					? parsed.speckleDistanceM
+					: DEFAULT_SETTINGS.speckleDistanceM
 		};
 	} catch {
 		return { ...DEFAULT_SETTINGS };

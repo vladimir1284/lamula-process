@@ -3,3 +3,4 @@ export { observationChannels, listElevationsDeg, pickScanByElevation, hasGeoref 
 export type { ChannelRef } from './select';
 export { deriveGroundProduct } from './deriveProduct';
 export type { GroundProductKind, DeriveOptions, DerivedProduct } from './deriveProduct';
+export { applySpeckleFilter } from './applySpeckleFilter';

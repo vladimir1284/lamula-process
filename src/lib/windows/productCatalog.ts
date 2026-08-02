@@ -107,6 +107,7 @@ export function defaultMapPayload(
 		showRings: boolean;
 		showRadials: boolean;
 		showScale: boolean;
+		showSiteMarker: boolean;
 		zrA: number;
 		zrB: number;
 	}
@@ -128,7 +129,8 @@ export function defaultMapPayload(
 		dataOpacity: 0.8,
 		showRings: appDefaults.showRings,
 		showRadials: appDefaults.showRadials,
-		showScale: appDefaults.showScale
+		showScale: appDefaults.showScale,
+		showSiteMarker: appDefaults.showSiteMarker
 	};
 }
 
