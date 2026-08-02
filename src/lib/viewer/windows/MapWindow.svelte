@@ -31,6 +31,7 @@
 		defaultProfilePayload,
 		paletteKeyForGroundProduct
 	} from '$lib/windows/productCatalog';
+	import { _ } from '$lib/i18n';
 
 	interface Props {
 		win: RadarWindow;
@@ -70,7 +71,7 @@
 		paletteKeyForGroundProduct(payload.product, channel?.moment ?? 'dBZ')
 	);
 	const palette = $derived(paletteForMoment(book, paletteKey));
-	const productTitle = $derived(catalogLabel(payload.product));
+	const productTitle = $derived($_(catalogLabel(payload.product)));
 
 	const deriveOpts = $derived<DeriveOptions>({
 		elevationDeg: payload.elevationDeg,
@@ -135,7 +136,7 @@
 		if (armingCrossSection) {
 			windowStore.disarmCrossSection();
 			windowStore.open('cross-section', {
-				title: 'Corte',
+				title: $_('window.crossSectionTitle'),
 				payload: { ...defaultCrossSectionPayload(win.id), line: l }
 			});
 			return;
@@ -146,7 +147,7 @@
 		if (armingProfile) {
 			windowStore.disarmProfile();
 			windowStore.open('profile', {
-				title: 'Perfil vertical',
+				title: $_('catalog.items.profile'),
 				payload: { ...defaultProfilePayload(win.id), point: p },
 				rect: { width: 420, height: 640 }
 			});
@@ -191,7 +192,9 @@
 		<label
 			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
-			<span class="font-mono text-[9px] text-on-surface-variant">CANAL</span>
+			<span class="font-mono text-[9px] text-on-surface-variant"
+				>{$_('window.readout.channel')}</span
+			>
 			<select
 				class="border-none bg-transparent p-0 font-mono text-[11px] text-on-surface focus:ring-0"
 				bind:value={payload.channelIndex}
@@ -206,7 +209,9 @@
 			<label
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 			>
-				<span class="font-mono text-[9px] text-on-surface-variant">ELEV</span>
+				<span class="font-mono text-[9px] text-on-surface-variant"
+					>{$_('window.readout.elevation')}</span
+				>
 				<select
 					class="border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
 					bind:value={payload.elevationDeg}
@@ -222,7 +227,8 @@
 			<label
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 			>
-				<span class="font-mono text-[9px] text-on-surface-variant">BASE</span>
+				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.base')}</span
+				>
 				<input
 					type="number"
 					step="0.5"
@@ -234,7 +240,7 @@
 			<label
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 			>
-				<span class="font-mono text-[9px] text-on-surface-variant">TOPE</span>
+				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.top')}</span>
 				<input
 					type="number"
 					step="0.5"
@@ -249,7 +255,9 @@
 			<label
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 			>
-				<span class="font-mono text-[9px] text-on-surface-variant">UMBRAL</span>
+				<span class="font-mono text-[9px] text-on-surface-variant"
+					>{$_('window.readout.threshold')}</span
+				>
 				<input
 					type="number"
 					step="1"
@@ -264,7 +272,8 @@
 			<label
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 			>
-				<span class="font-mono text-[9px] text-on-surface-variant">BASE</span>
+				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.base')}</span
+				>
 				<input
 					type="number"
 					step="0.5"
@@ -275,7 +284,7 @@
 			<label
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 			>
-				<span class="font-mono text-[9px] text-on-surface-variant">TOPE</span>
+				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.top')}</span>
 				<input
 					type="number"
 					step="0.5"
@@ -345,22 +354,22 @@
 		{#if site}
 			<label
 				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title="Mapa de fondo"
+				title={$_('window.baseMapTitle')}
 			>
 				<span class="material-symbols-outlined text-[14px] text-primary-container">map</span>
 				<select
 					bind:value={payload.baseMap}
 					class="rounded border border-outline-variant bg-surface-container-lowest px-1 text-on-surface focus:border-primary-container focus:outline-none"
 				>
-					<option value="off">{BASE_MAP_LABELS.off}</option>
+					<option value="off">{$_(BASE_MAP_LABELS.off)}</option>
 					{#each BASE_MAP_IDS as id (id)}
-						<option value={id}>{BASE_MAP_LABELS[id]}</option>
+						<option value={id}>{$_(BASE_MAP_LABELS[id])}</option>
 					{/each}
 				</select>
 			</label>
 			<label
 				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title="Opacidad"
+				title={$_('window.opacityTitle')}
 			>
 				<span class="material-symbols-outlined text-[14px] text-primary-container">opacity</span>
 				<input
@@ -374,19 +383,21 @@
 			</label>
 			<label
 				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title="Anillos"
+				title={$_('window.ringsTitle')}
 			>
-				<input type="checkbox" bind:checked={payload.showRings} class="accent-primary-container" /> AN
+				<input type="checkbox" bind:checked={payload.showRings} class="accent-primary-container" />
+				{$_('window.ringsAbbr')}
 			</label>
 			<label
 				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title="Radiales"
+				title={$_('window.radialsTitle')}
 			>
 				<input
 					type="checkbox"
 					bind:checked={payload.showRadials}
 					class="accent-primary-container"
-				/> RAD
+				/>
+				{$_('window.radialsAbbr')}
 			</label>
 		{/if}
 
@@ -396,8 +407,8 @@
 				type="button"
 				class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 				onclick={() => onEditScale(paletteKey)}
-				aria-label="Editar escala"
-				title="Editar escala"
+				aria-label={$_('window.editScale')}
+				title={$_('window.editScale')}
 			>
 				<span class="material-symbols-outlined text-[14px]">palette</span>
 			</button>
@@ -405,8 +416,8 @@
 				type="button"
 				class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 				onclick={exportCurrentImage}
-				aria-label="Exportar imagen"
-				title="Exportar imagen"
+				aria-label={$_('window.exportImage')}
+				title={$_('window.exportImage')}
 			>
 				<span class="material-symbols-outlined text-[14px]">download</span>
 			</button>
@@ -421,21 +432,22 @@
 					>upload_file</span
 				>
 				<p class="max-w-xs text-body-sm text-on-surface-variant">
-					Abre un archivo para ver este mapa.
+					{$_('window.noObservationMap')}
 				</p>
 			</div>
 		{:else if !site}
 			<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
 				<span class="material-symbols-outlined text-[32px] text-dbz-heavy">wrong_location</span>
 				<p class="max-w-xs text-body-sm text-on-surface-variant">
-					Este formato no trae posición del sitio. Define la ubicación para georreferenciar el
+					{$_('window.noSitePosition')}
 					<span class="text-on-surface">{productTitle}</span>.
 				</p>
 				<button
 					class="flex h-9 items-center gap-2 rounded bg-primary-container px-3 font-mono text-[11px] text-on-primary-container transition-all hover:opacity-90 active:scale-95"
 					onclick={onOpenLocationEditor}
 				>
-					<span class="material-symbols-outlined text-[16px]">add_location_alt</span> DEFINIR UBICACIÓN
+					<span class="material-symbols-outlined text-[16px]">add_location_alt</span>
+					{$_('window.defineLocation')}
 				</button>
 			</div>
 		{:else if ground}
@@ -473,23 +485,23 @@
 	>
 		{#if readout}
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">LAT</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.lat')}</p>
 				<p class="text-[11px] text-on-surface">{fmt(readout.lat, 4)}°</p>
 			</div>
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">LON</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.lon')}</p>
 				<p class="text-[11px] text-on-surface">{fmt(readout.lon, 4)}°</p>
 			</div>
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">AZIMUT</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.azimuth')}</p>
 				<p class="text-[11px] text-primary-container">{fmt(readout.azimuthDeg)}°</p>
 			</div>
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">RANGO</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.range')}</p>
 				<p class="text-[11px] text-on-surface">{formatDistanceM(readout.rangeM, unitSystem)}</p>
 			</div>
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">VALOR</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.value')}</p>
 				<p class="text-[11px] text-dbz-heavy">
 					{readout.value === null
 						? '—'
@@ -497,7 +509,7 @@
 				</p>
 			</div>
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">ESTADO</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.status')}</p>
 				<p class="text-[11px] text-on-surface">
 					{readout.flag && readout.flag !== 'ok' ? readout.flag : 'ok'}
 				</p>
@@ -505,7 +517,7 @@
 		{:else}
 			<div class="col-span-3 bg-surface-container-low p-2 sm:col-span-6">
 				<p class="text-[11px] text-on-surface-variant">
-					Pasa el cursor sobre el mapa para leer valores.
+					{$_('window.hoverHintMap')}
 				</p>
 			</div>
 		{/if}

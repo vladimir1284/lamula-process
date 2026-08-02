@@ -44,6 +44,7 @@ async function resolveRecentFile(entry: RecentFileEntry): Promise<Picked> {
 	}
 	const handle = getRememberedFileHandle(entry.label);
 	if (!handle) {
+		// i18n-ignore: raw technical detail, shown collapsed behind a translated generic message
 		throw new Error(`No se pudo reabrir "${entry.label}" automáticamente -- usa "Abrir archivo".`);
 	}
 	const { fileName, bytes } = await reopenLocalFile(handle);

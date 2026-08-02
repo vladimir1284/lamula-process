@@ -6,6 +6,7 @@
 	import type { Palette, ProductPaletteKey } from '$lib/palette/types';
 	import type { MomentType } from '$lib/domain/types';
 	import { formatAltitudeM } from '$lib/units';
+	import { locale, setLocale, SUPPORTED_LOCALES, _, type Locale } from '$lib/i18n';
 	import { VadModal, ScaleEditor, Modal, SiteLocationEditor } from '$lib/viewer';
 	import { computeVadProfile } from '$lib/products/vadProfile';
 	import AwsExplorer from '$lib/aws-explorer/AwsExplorer.svelte';
@@ -58,14 +59,17 @@
 
 	// Every moment the app can decode, for the settings assignment UI (domain/types.ts MomentType).
 	const MOMENTS: MomentType[] = ['dBZ', 'dBuZ', 'V', 'W', 'ZDR', 'uPhiDP', 'RhoHV'];
+
+	// i18n-ignore: language names shown in their own language, standard picker convention
+	const LOCALE_NAMES: Record<Locale, string> = { es: 'Español', en: 'English' };
 	// Ground products whose physical unit differs from any moment (palette/types.ts
 	// ProductPaletteKey), so they get their own settings assignment row instead of following the
 	// channel's moment.
 	const PRODUCT_PALETTE_KEYS: { key: ProductPaletteKey; label: string }[] = [
-		{ key: 'TOPS_HEIGHT', label: 'Topes / Alt. máx.' },
-		{ key: 'VIL', label: 'VIL' },
-		{ key: 'RAIN', label: 'Lluvia' },
-		{ key: 'WIND_SPEED', label: 'Viento' }
+		{ key: 'TOPS_HEIGHT', label: 'settings.palettes.keys.topsHeight' },
+		{ key: 'VIL', label: 'settings.palettes.keys.vil' },
+		{ key: 'RAIN', label: 'settings.palettes.keys.rain' },
+		{ key: 'WIND_SPEED', label: 'settings.palettes.keys.windSpeed' }
 	];
 
 	const { snapshot, send } = useMachine(observationMachine);
@@ -88,11 +92,8 @@
 		localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
 	}
 	function itemTitle(item: { id: CatalogProductKind; label: string }): string | undefined {
-		const hint =
-			!isGroundKind(item.id) && !focusedMap
-				? 'Enfoca una ventana de mapa para crear este producto derivado'
-				: undefined;
-		if (sidebarCollapsed) return hint ? `${item.label} — ${hint}` : item.label;
+		const hint = !isGroundKind(item.id) && !focusedMap ? $_('sidebar.crossSectionHint') : undefined;
+		if (sidebarCollapsed) return hint ? `${$_(item.label)} — ${hint}` : $_(item.label);
 		return hint;
 	}
 	let vadChannelIndex = $state<number | null>(null);
@@ -111,7 +112,7 @@
 	// Settings modal: which section is active, and (for "Sitios") which saved site is being
 	// edited -- reusing SiteLocationEditor for both the header's "editar ubicación" shortcut and
 	// the general site-data management, so there's a single settings entry point, not two.
-	let settingsTab = $state<'unidades' | 'sitios' | 'paletas'>('unidades');
+	let settingsTab = $state<'unidades' | 'sitios' | 'paletas' | 'idioma'>('unidades');
 	let editingSiteKey = $state<string | null>(null);
 	let siteList = $state<SiteDataStore>({});
 	async function refreshSiteList() {
@@ -279,7 +280,7 @@
 	function launchCatalogItem(id: CatalogProductKind) {
 		if (isGroundKind(id)) {
 			windowStore.open('map', {
-				title: catalogLabel(id),
+				title: $_(catalogLabel(id)),
 				payload: defaultMapPayload(id, {
 					baseMap: settings.baseMap,
 					showRings: settings.showRings,
@@ -343,10 +344,7 @@
 		const file = input.files?.[0];
 		if (!file) return;
 		input.value = '';
-		if (
-			windowStore.windows.length > 0 &&
-			!confirm('Esto reemplazará el diseño actual. ¿Continuar?')
-		) {
+		if (windowStore.windows.length > 0 && !confirm($_('dialog.confirmReplaceLayout'))) {
 			return;
 		}
 		const layout = await importLayout(await file.text());
@@ -355,22 +353,22 @@
 
 	const menus = $derived<MenuDef[]>([
 		{
-			label: 'Archivo',
+			label: $_('menu.file.label'),
 			items: [
 				{
-					label: loading ? 'Abriendo…' : 'Abrir archivo',
+					label: loading ? $_('menu.file.opening') : $_('menu.file.open'),
 					icon: 'upload_file',
 					disabled: loading,
 					onclick: () => send({ type: 'OPEN' })
 				},
 				{
-					label: 'Descargar (AWS)',
+					label: $_('menu.file.downloadAws'),
 					icon: 'cloud_download',
 					disabled: loading,
 					onclick: () => (showAwsExplorer = true)
 				},
 				{
-					label: 'Abrir reciente',
+					label: $_('menu.file.openRecent'),
 					icon: 'history',
 					submenu:
 						recentFiles.length > 0
@@ -379,40 +377,44 @@
 									icon: entry.source === 'aws' ? 'cloud' : 'description',
 									onclick: () => reopenRecent(entry)
 								}))
-							: [{ label: 'Sin archivos recientes', disabled: true }]
+							: [{ label: $_('menu.file.noRecent'), disabled: true }]
 				}
 			]
 		},
 		{
-			label: 'Ventana',
+			label: $_('menu.window.label'),
 			items: [
 				{
-					label: 'Cascada',
+					label: $_('menu.window.cascade'),
 					icon: 'view_carousel',
 					disabled: windowStore.windows.length === 0,
 					onclick: () => windowStore.cascade(canvasSize)
 				},
 				{
-					label: 'Mosaico',
+					label: $_('menu.window.tile'),
 					icon: 'grid_view',
 					disabled: windowStore.windows.length === 0,
 					onclick: () => windowStore.tile(canvasSize)
 				},
 				{
-					label: 'Restaurar diseño predeterminado',
+					label: $_('menu.window.resetLayout'),
 					icon: 'restart_alt',
 					onclick: resetLayout
 				},
 				{
-					label: 'Cerrar todas',
+					label: $_('menu.window.closeAll'),
 					icon: 'close',
 					disabled: windowStore.windows.length === 0,
 					onclick: () => windowStore.closeAll()
 				},
 				{ label: '', separator: true },
-				{ label: 'Guardar diseño', icon: 'save', onclick: saveLayoutNow },
-				{ label: 'Exportar diseño…', icon: 'download', onclick: downloadLayoutFile },
-				{ label: 'Importar diseño…', icon: 'upload', onclick: () => layoutFileInput?.click() },
+				{ label: $_('menu.window.saveLayout'), icon: 'save', onclick: saveLayoutNow },
+				{ label: $_('menu.window.exportLayout'), icon: 'download', onclick: downloadLayoutFile },
+				{
+					label: $_('menu.window.importLayout'),
+					icon: 'upload',
+					onclick: () => layoutFileInput?.click()
+				},
 				{ label: '', separator: true },
 				...((): MenuItem[] =>
 					windowStore.windows.length > 0
@@ -422,7 +424,7 @@
 								checked: w.id === windowStore.focusedId && !w.minimized,
 								onclick: () => windowStore.restore(w.id)
 							}))
-						: [{ label: 'Sin ventanas abiertas', disabled: true }])()
+						: [{ label: $_('menu.window.noWindows'), disabled: true }])()
 			]
 		}
 	]);
@@ -465,7 +467,8 @@
 							class="flex items-center gap-1 text-primary-container transition-opacity hover:opacity-80"
 							onclick={openLocationEditor}
 						>
-							<span class="material-symbols-outlined text-[16px]">edit_location</span> Editar ubicación
+							<span class="material-symbols-outlined text-[16px]">edit_location</span>
+							{$_('common.editLocation')}
 						</button>
 					{/if}
 				</nav>
@@ -475,8 +478,8 @@
 			<button
 				class="flex h-10 w-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 				onclick={() => (showSettings = true)}
-				aria-label="Configuración"
-				title="Configuración"
+				aria-label={$_('common.settings')}
+				title={$_('common.settings')}
 			>
 				<span class="material-symbols-outlined text-[20px]">settings</span>
 			</button>
@@ -491,14 +494,16 @@
 			<div>
 				<div class="mb-2 flex items-center justify-between px-1">
 					{#if !sidebarCollapsed}
-						<p class="font-mono text-[10px] tracking-widest text-outline uppercase">Producto</p>
+						<p class="font-mono text-[10px] tracking-widest text-outline uppercase">
+							{$_('sidebar.product')}
+						</p>
 					{/if}
 					<button
 						type="button"
 						class="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-primary-container"
 						onclick={toggleSidebar}
-						aria-label={sidebarCollapsed ? 'Expandir panel' : 'Contraer panel'}
-						title={sidebarCollapsed ? 'Expandir panel' : 'Contraer panel'}
+						aria-label={sidebarCollapsed ? $_('sidebar.expandPanel') : $_('sidebar.collapsePanel')}
+						title={sidebarCollapsed ? $_('sidebar.expandPanel') : $_('sidebar.collapsePanel')}
 					>
 						<span class="material-symbols-outlined text-[18px]"
 							>{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}</span
@@ -512,7 +517,7 @@
 								<p
 									class="mb-1 px-1 text-[10px] tracking-wider text-on-surface-variant/60 uppercase"
 								>
-									{group.label}
+									{$_(group.label)}
 								</p>
 							{/if}
 							{#each group.items as item (item.id)}
@@ -524,12 +529,12 @@
 									onclick={() => launchCatalogItem(item.id)}
 								>
 									<span class="material-symbols-outlined text-[18px]">{item.icon}</span>
-									{#if !sidebarCollapsed}{item.label}{/if}
+									{#if !sidebarCollapsed}{$_(item.label)}{/if}
 								</button>
 							{/each}
-							{#if group.label === 'Cortes' && !focusedMap && !sidebarCollapsed}
+							{#if group.label === 'catalog.groups.crossSections' && !focusedMap && !sidebarCollapsed}
 								<p class="px-3 py-1 font-mono text-[9px] text-on-surface-variant/70">
-									Requiere una ventana de mapa enfocada.
+									{$_('sidebar.needsFocusedMap')}
 								</p>
 							{/if}
 						</div>
@@ -546,10 +551,18 @@
 		<div class="flex min-h-0 flex-1 flex-col space-y-gutter">
 			{#if error}
 				<div
-					class="flex items-center gap-3 rounded-xl border border-error/40 bg-error-container/20 px-4 py-3 font-mono text-label-mono text-error"
+					class="flex flex-col gap-1.5 rounded-xl border border-error/40 bg-error-container/20 px-4 py-3 font-mono text-label-mono text-error"
 				>
-					<span class="material-symbols-outlined text-[18px]">error</span>
-					{error}
+					<div class="flex items-center gap-3">
+						<span class="material-symbols-outlined text-[18px]">error</span>
+						{$_('common.errorGeneric')}
+					</div>
+					<details class="ml-[30px]">
+						<summary class="cursor-pointer text-[11px] text-error/80 hover:text-error">
+							{$_('common.showTechnicalDetail')}
+						</summary>
+						<p class="mt-1 text-[11px] break-all text-error/80">{error}</p>
+					</details>
 				</div>
 			{/if}
 
@@ -563,9 +576,11 @@
 					>
 						<img src="/logo.svg" alt="Lamula" class="h-[96px] w-[96px]" />
 						<div>
-							<h2 class="font-headline text-headline-md text-on-surface">Abre una observación</h2>
+							<h2 class="font-headline text-headline-md text-on-surface">
+								{$_('onboarding.title')}
+							</h2>
 							<p class="mt-1 text-body-sm text-on-surface-variant">
-								Formatos: INSMET .obs · NEXRAD Level II · Rainbow5 .vol
+								{$_('onboarding.formats')}
 							</p>
 						</div>
 						<button
@@ -574,7 +589,7 @@
 							disabled={loading}
 						>
 							<span class="material-symbols-outlined text-[18px]">upload_file</span>
-							{loading ? 'ABRIENDO…' : 'ABRIR ARCHIVO'}
+							{loading ? $_('onboarding.opening') : $_('onboarding.openFile')}
 						</button>
 						<button
 							class="flex h-10 items-center gap-2 rounded border border-outline-variant px-4 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container hover:text-primary-container disabled:opacity-50"
@@ -582,7 +597,7 @@
 							disabled={loading}
 						>
 							<span class="material-symbols-outlined text-[18px]">cloud_download</span>
-							DESCARGAR (AWS)
+							{$_('onboarding.downloadAws')}
 						</button>
 					</div>
 				{/if}
@@ -644,7 +659,7 @@
 
 	<Modal
 		open={showAwsExplorer}
-		title="Descargar observación (AWS)"
+		title={$_('modal.awsExplorer')}
 		onclose={() => (showAwsExplorer = false)}
 	>
 		<AwsExplorer
@@ -656,7 +671,11 @@
 		/>
 	</Modal>
 
-	<Modal open={showScaleEditor} title="Editor de escala" onclose={() => (scaleEditorKey = null)}>
+	<Modal
+		open={showScaleEditor}
+		title={$_('modal.scaleEditor')}
+		onclose={() => (scaleEditorKey = null)}
+	>
 		<div class="p-4">
 			{#if scaleEditorKey}
 				<ScaleEditor palette={paletteForMoment(book, scaleEditorKey)} onchange={onPaletteChange} />
@@ -666,7 +685,7 @@
 
 	<Modal
 		open={showSettings}
-		title="Configuración"
+		title={$_('common.settings')}
 		onclose={() => {
 			showSettings = false;
 			editingSiteKey = null;
@@ -675,7 +694,7 @@
 		<div class="flex flex-col gap-4">
 			<!-- Section tabs. -->
 			<div class="flex gap-1 border-b border-outline-variant font-mono text-label-mono uppercase">
-				{#each [{ id: 'unidades', label: 'Unidades', icon: 'straighten' }, { id: 'sitios', label: 'Sitios', icon: 'pin_drop' }, { id: 'paletas', label: 'Paletas', icon: 'palette' }] as tab (tab.id)}
+				{#each [{ id: 'unidades', label: 'settings.tabs.units', icon: 'straighten' }, { id: 'sitios', label: 'settings.tabs.sites', icon: 'pin_drop' }, { id: 'paletas', label: 'settings.tabs.palettes', icon: 'palette' }, { id: 'idioma', label: 'settings.tabs.language', icon: 'translate' }] as tab (tab.id)}
 					<button
 						class="flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors {settingsTab ===
 						tab.id
@@ -684,7 +703,7 @@
 						onclick={() => (settingsTab = tab.id as typeof settingsTab)}
 					>
 						<span class="material-symbols-outlined text-[16px]">{tab.icon}</span>
-						{tab.label}
+						{$_(tab.label)}
 					</button>
 				{/each}
 			</div>
@@ -692,12 +711,10 @@
 			{#if settingsTab === 'unidades'}
 				<div class="space-y-3">
 					<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
-						Sistema de unidades
+						{$_('settings.units.heading')}
 					</h3>
 					<p class="font-mono text-[10px] text-on-surface-variant">
-						Afecta anillos de rango, ejes de corte/RHI, distancia a sitio (descarga AWS) y las
-						lecturas de viento/lluvia al pasar el cursor. Los umbrales de paletas y las
-						coordenadas/altura guardadas de sitio siguen en unidades métricas internamente.
+						{$_('settings.units.description')}
 					</p>
 					<div class="flex gap-2">
 						<button
@@ -707,7 +724,7 @@
 								: 'border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-primary-container'}"
 							onclick={() => updateSettings({ unitSystem: 'metric' })}
 						>
-							Métrico (km, m/s, mm)
+							{$_('settings.units.metric')}
 						</button>
 						<button
 							class="flex items-center gap-2 rounded border px-4 py-2 font-mono text-label-mono transition-colors {unitSystem ===
@@ -716,7 +733,7 @@
 								: 'border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-primary-container'}"
 							onclick={() => updateSettings({ unitSystem: 'imperial' })}
 						>
-							Imperial (mi, mph, in)
+							{$_('settings.units.imperial')}
 						</button>
 					</div>
 				</div>
@@ -725,13 +742,13 @@
 					{#if editingSiteKey}
 						<div class="flex items-center justify-between">
 							<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
-								Editar: {editingSiteKey}
+								{$_('settings.sites.editing', { values: { key: editingSiteKey } })}
 							</h3>
 							<button
 								class="font-mono text-[10px] text-on-surface-variant hover:text-primary-container"
 								onclick={cancelSiteEdit}
 							>
-								← Volver a la lista
+								{$_('settings.sites.backToList')}
 							</button>
 						</div>
 						<SiteLocationEditor
@@ -742,11 +759,10 @@
 					{:else}
 						<div>
 							<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
-								Ubicaciones de sitio guardadas
+								{$_('settings.sites.heading')}
 							</h3>
 							<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
-								Posición usada para los formatos que no traen su propia georreferencia (NEXRAD L2,
-								.obs), guardada por código de sitio.
+								{$_('settings.sites.description')}
 							</p>
 							{#if Object.keys(siteList).length > 0}
 								<ul class="mb-3 divide-y divide-outline-variant/30 font-mono text-label-mono">
@@ -761,16 +777,16 @@
 											</span>
 											<button
 												class="text-on-surface-variant transition-colors hover:text-primary-container"
-												aria-label="Editar {key}"
-												title="Editar"
+												aria-label={$_('settings.sites.editAria', { values: { key } })}
+												title={$_('common.edit')}
 												onclick={() => (editingSiteKey = key)}
 											>
 												<span class="material-symbols-outlined text-[16px]">edit</span>
 											</button>
 											<button
 												class="text-on-surface-variant transition-colors hover:text-dbz-heavy"
-												aria-label="Eliminar {key}"
-												title="Eliminar"
+												aria-label={$_('settings.sites.deleteAria', { values: { key } })}
+												title={$_('common.delete')}
 												onclick={() => removeSiteLocation(key)}
 											>
 												<span class="material-symbols-outlined text-[16px]">delete</span>
@@ -780,7 +796,7 @@
 								</ul>
 							{:else}
 								<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
-									Sin ubicaciones guardadas todavía.
+									{$_('settings.sites.empty')}
 								</p>
 							{/if}
 							<div class="flex flex-wrap gap-2 border-t border-outline-variant pt-4">
@@ -788,12 +804,14 @@
 									class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container"
 									onclick={exportSiteDataFile}
 								>
-									<span class="material-symbols-outlined text-[16px]">download</span> Exportar
+									<span class="material-symbols-outlined text-[16px]">download</span>
+									{$_('common.export')}
 								</button>
 								<label
 									class="flex cursor-pointer items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container"
 								>
-									<span class="material-symbols-outlined text-[16px]">upload</span> Importar
+									<span class="material-symbols-outlined text-[16px]">upload</span>
+									{$_('common.import')}
 									<input
 										type="file"
 										accept="application/json"
@@ -805,7 +823,8 @@
 									class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-2 font-mono text-label-mono text-on-surface transition-colors hover:border-primary-container"
 									onclick={loadKnownSites}
 								>
-									<span class="material-symbols-outlined text-[16px]">public</span> Cargar red conocida
+									<span class="material-symbols-outlined text-[16px]">public</span>
+									{$_('settings.sites.loadKnown')}
 								</button>
 							</div>
 						</div>
@@ -815,11 +834,10 @@
 				<div class="space-y-5">
 					<div>
 						<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
-							Paletas por variable
+							{$_('settings.palettes.byVariableHeading')}
 						</h3>
 						<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
-							Cada variable se dibuja con la paleta asignada. Edita los colores con el ícono de
-							paleta sobre el visor; aquí eliges qué paleta usa cada variable.
+							{$_('settings.palettes.byVariableDescription')}
 						</p>
 						<div class="grid grid-cols-1 gap-2">
 							{#each MOMENTS as m (m)}
@@ -847,17 +865,16 @@
 
 					<div>
 						<h3 class="mb-1 font-mono text-label-mono tracking-widest text-on-surface uppercase">
-							Paletas por producto
+							{$_('settings.palettes.byProductHeading')}
 						</h3>
 						<p class="mb-3 font-mono text-[10px] text-on-surface-variant">
-							Topes, VIL, lluvia y viento tienen su propia unidad física y no usan la paleta de la
-							variable de origen.
+							{$_('settings.palettes.byProductDescription')}
 						</p>
 						<div class="grid grid-cols-1 gap-2">
 							{#each PRODUCT_PALETTE_KEYS as pk (pk.key)}
 								<label class="flex items-center gap-3">
 									<span class="w-20 shrink-0 font-mono text-label-mono text-on-surface-variant"
-										>{pk.label}</span
+										>{$_(pk.label)}</span
 									>
 									<div
 										class="flex h-9 flex-1 items-center rounded border border-outline-variant bg-surface-container-high px-3"
@@ -883,12 +900,14 @@
 							class="flex items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 							onclick={downloadPaletteBook}
 						>
-							<span class="material-symbols-outlined text-[16px]">download</span> Exportar paletas
+							<span class="material-symbols-outlined text-[16px]">download</span>
+							{$_('settings.palettes.export')}
 						</button>
 						<label
 							class="flex cursor-pointer items-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 py-1.5 font-mono text-label-mono text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 						>
-							<span class="material-symbols-outlined text-[16px]">upload</span> Importar paletas
+							<span class="material-symbols-outlined text-[16px]">upload</span>
+							{$_('settings.palettes.import')}
 							<input
 								type="file"
 								accept="application/json"
@@ -896,6 +915,25 @@
 								onchange={onImportPaletteBook}
 							/>
 						</label>
+					</div>
+				</div>
+			{:else if settingsTab === 'idioma'}
+				<div class="space-y-3">
+					<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
+						Idioma / Language
+					</h3>
+					<div class="flex gap-2">
+						{#each SUPPORTED_LOCALES as loc (loc)}
+							<button
+								class="flex items-center gap-2 rounded border px-4 py-2 font-mono text-label-mono transition-colors {$locale ===
+								loc
+									? 'border-primary-container bg-primary-container text-on-primary-container'
+									: 'border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-primary-container'}"
+								onclick={() => setLocale(loc)}
+							>
+								{LOCALE_NAMES[loc]}
+							</button>
+						{/each}
 					</div>
 				</div>
 			{/if}

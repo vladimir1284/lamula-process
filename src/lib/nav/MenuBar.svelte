@@ -18,6 +18,8 @@
 </script>
 
 <script lang="ts">
+	import { _ } from '$lib/i18n';
+
 	interface Props {
 		menus: MenuDef[];
 	}
@@ -55,7 +57,7 @@
 
 <svelte:window onclick={handleWindowClick} onkeydown={handleKeydown} />
 
-<nav bind:this={root} class="flex items-center gap-0.5" aria-label="Menú principal">
+<nav bind:this={root} class="flex items-center gap-0.5" aria-label={$_('nav.mainMenu')}>
 	{#each menus as menu (menu.label)}
 		<div class="relative">
 			<button

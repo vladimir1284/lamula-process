@@ -12,7 +12,8 @@
 		"prepare": "svelte-kit sync || echo '' && husky",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"lint": "prettier --check . && eslint .",
+		"lint": "prettier --check . && eslint . && node scripts/check-i18n.mjs",
+		"check:i18n": "node scripts/check-i18n.mjs",
 		"format": "prettier --write .",
 		"test:unit": "vitest",
 		"test": "pnpm test:unit -- --run",
@@ -51,6 +52,7 @@
 		"d3-scale": "^4.0.2",
 		"ol": "10.9.0",
 		"pixi.js": "^8.19.0",
+		"svelte-i18n": "4.0.1",
 		"xstate": "5.32.5"
 	}
 }

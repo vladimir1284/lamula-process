@@ -15,6 +15,7 @@
 	import { standardOverlays } from '$lib/overlays';
 	import { createBaseMapSources } from './baseMaps';
 	import { fetchElevationM } from '$lib/geo/elevation';
+	import { _ } from '$lib/i18n';
 
 	interface LocationValue {
 		lat: number;
@@ -158,7 +159,7 @@
 
 <div class="flex flex-col gap-3 font-mono text-label-mono">
 	<p class="text-body-sm text-on-surface-variant">
-		Selecciona la ubicación del radar haciendo click en el mapa, o entra las coordenadas a mano.
+		{$_('siteLocationEditor.instructions')}
 	</p>
 
 	<div
@@ -168,7 +169,7 @@
 
 	<div class="flex flex-wrap gap-3">
 		<label class="flex flex-col gap-1">
-			<span class="text-[11px] text-on-surface-variant">Latitud</span>
+			<span class="text-[11px] text-on-surface-variant">{$_('siteLocationEditor.latitude')}</span>
 			<input
 				type="number"
 				step="any"
@@ -178,7 +179,7 @@
 			/>
 		</label>
 		<label class="flex flex-col gap-1">
-			<span class="text-[11px] text-on-surface-variant">Longitud</span>
+			<span class="text-[11px] text-on-surface-variant">{$_('siteLocationEditor.longitude')}</span>
 			<input
 				type="number"
 				step="any"
@@ -188,7 +189,7 @@
 			/>
 		</label>
 		<label class="flex flex-col gap-1">
-			<span class="text-[11px] text-on-surface-variant">Altura (m sobre el nivel del mar)</span>
+			<span class="text-[11px] text-on-surface-variant">{$_('siteLocationEditor.altitude')}</span>
 			<input
 				type="number"
 				step="any"
@@ -201,12 +202,13 @@
 
 	{#if elevationStatus === 'loading'}
 		<p class="flex items-center gap-1 text-[11px] text-on-surface-variant">
-			<span class="material-symbols-outlined text-[14px]">terrain</span> Buscando elevación del terreno…
+			<span class="material-symbols-outlined text-[14px]">terrain</span>
+			{$_('siteLocationEditor.loadingElevation')}
 		</p>
 	{:else if elevationStatus === 'unavailable'}
 		<p class="flex items-center gap-1 text-[11px] text-dbz-heavy">
 			<span class="material-symbols-outlined text-[14px]">warning</span>
-			No se pudo obtener la elevación automática (servicio no disponible). Entra la altura a mano.
+			{$_('siteLocationEditor.elevationUnavailable')}
 		</p>
 	{/if}
 
@@ -215,14 +217,15 @@
 			class="rounded border border-outline-variant bg-surface-container-high px-3 py-1 text-on-surface transition-colors hover:border-primary-container"
 			onclick={oncancel}
 		>
-			Cancelar
+			{$_('siteLocationEditor.cancel')}
 		</button>
 		<button
 			class="flex items-center gap-1 rounded bg-primary-container px-3 py-1 text-on-primary-container transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
 			disabled={!canSave}
 			onclick={save}
 		>
-			<span class="material-symbols-outlined text-[16px]">save</span> Guardar
+			<span class="material-symbols-outlined text-[16px]">save</span>
+			{$_('siteLocationEditor.save')}
 		</button>
 	</div>
 </div>

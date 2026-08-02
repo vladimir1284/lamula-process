@@ -1,0 +1,242 @@
+{
+	"common": {
+		"appName": "LAMULA Process",
+		"settings": "Configuración",
+		"editLocation": "Editar ubicación",
+		"export": "Exportar",
+		"import": "Importar",
+		"edit": "Editar",
+		"delete": "Eliminar",
+		"errorGeneric": "No se pudo abrir el archivo.",
+		"showTechnicalDetail": "Ver detalle técnico"
+	},
+	"menu": {
+		"file": {
+			"label": "Archivo",
+			"opening": "Abriendo…",
+			"open": "Abrir archivo",
+			"downloadAws": "Descargar (AWS)",
+			"openRecent": "Abrir reciente",
+			"noRecent": "Sin archivos recientes"
+		},
+		"window": {
+			"label": "Ventana",
+			"cascade": "Cascada",
+			"tile": "Mosaico",
+			"resetLayout": "Restaurar diseño predeterminado",
+			"closeAll": "Cerrar todas",
+			"saveLayout": "Guardar diseño",
+			"exportLayout": "Exportar diseño…",
+			"importLayout": "Importar diseño…",
+			"noWindows": "Sin ventanas abiertas"
+		}
+	},
+	"dialog": {
+		"confirmReplaceLayout": "Esto reemplazará el diseño actual. ¿Continuar?"
+	},
+	"sidebar": {
+		"product": "Producto",
+		"expandPanel": "Expandir panel",
+		"collapsePanel": "Contraer panel",
+		"needsFocusedMap": "Requiere una ventana de mapa enfocada.",
+		"crossSectionHint": "Enfoca una ventana de mapa para crear este producto derivado"
+	},
+	"onboarding": {
+		"title": "Abre una observación",
+		"formats": "Formatos: INSMET .obs · NEXRAD Level II · Rainbow5 .vol",
+		"openFile": "ABRIR ARCHIVO",
+		"opening": "ABRIENDO…",
+		"downloadAws": "DESCARGAR (AWS)"
+	},
+	"modal": {
+		"awsExplorer": "Descargar observación (AWS)",
+		"scaleEditor": "Editor de escala"
+	},
+	"settings": {
+		"tabs": {
+			"units": "Unidades",
+			"sites": "Sitios",
+			"palettes": "Paletas",
+			"language": "Idioma"
+		},
+		"units": {
+			"heading": "Sistema de unidades",
+			"description": "Afecta anillos de rango, ejes de corte/RHI, distancia a sitio (descarga AWS) y las lecturas de viento/lluvia al pasar el cursor. Los umbrales de paletas y las coordenadas/altura guardadas de sitio siguen en unidades métricas internamente.",
+			"metric": "Métrico (km, m/s, mm)",
+			"imperial": "Imperial (mi, mph, in)"
+		},
+		"sites": {
+			"editing": "Editar: {key}",
+			"backToList": "← Volver a la lista",
+			"heading": "Ubicaciones de sitio guardadas",
+			"description": "Posición usada para los formatos que no traen su propia georreferencia (NEXRAD L2, .obs), guardada por código de sitio.",
+			"empty": "Sin ubicaciones guardadas todavía.",
+			"editAria": "Editar {key}",
+			"deleteAria": "Eliminar {key}",
+			"loadKnown": "Cargar red conocida"
+		},
+		"palettes": {
+			"byVariableHeading": "Paletas por variable",
+			"byVariableDescription": "Cada variable se dibuja con la paleta asignada. Edita los colores con el ícono de paleta sobre el visor; aquí eliges qué paleta usa cada variable.",
+			"byProductHeading": "Paletas por producto",
+			"byProductDescription": "Topes, VIL, lluvia y viento tienen su propia unidad física y no usan la paleta de la variable de origen.",
+			"export": "Exportar paletas",
+			"import": "Importar paletas",
+			"keys": {
+				"topsHeight": "Topes / Alt. máx.",
+				"vil": "VIL",
+				"rain": "Lluvia",
+				"windSpeed": "Viento"
+			}
+		}
+	},
+	"nav": {
+		"mainMenu": "Menú principal"
+	},
+	"siteLocationEditor": {
+		"instructions": "Selecciona la ubicación del radar haciendo click en el mapa, o entra las coordenadas a mano.",
+		"latitude": "Latitud",
+		"longitude": "Longitud",
+		"altitude": "Altura (m sobre el nivel del mar)",
+		"loadingElevation": "Buscando elevación del terreno…",
+		"elevationUnavailable": "No se pudo obtener la elevación automática (servicio no disponible). Entra la altura a mano.",
+		"cancel": "Cancelar",
+		"save": "Guardar"
+	},
+	"awsExplorer": {
+		"searchHint": "Busca el radar más cercano por código postal (EE.UU.), o selecciónalo directo en el mapa.",
+		"zipPlaceholder": "Código postal",
+		"searching": "BUSCANDO…",
+		"search": "BUSCAR",
+		"zipNotFound": "No se encontró ese código postal.",
+		"dateForSite": "Fecha (UTC) — sitio {site}",
+		"loadingScans": "Buscando observaciones…",
+		"noScans": "Sin observaciones para {site} ese día.",
+		"loading": "CARGANDO…",
+		"load": "CARGAR",
+		"scansError": "No se pudieron cargar las observaciones.",
+		"loadError": "No se pudo cargar la observación."
+	},
+	"scaleEditor": {
+		"name": "Nombre",
+		"threshold": "Umbral",
+		"color": "Color",
+		"label": "Etiqueta",
+		"deleteStopAria": "Eliminar stop",
+		"addPoint": "Punto",
+		"exportPal": "Exportar .pal"
+	},
+	"baseMap": {
+		"off": "Sin mapa",
+		"osm": "OSM",
+		"cartoVoyager": "CARTO Voyager",
+		"cartoPositron": "CARTO Claro",
+		"cartoDark": "CARTO Oscuro"
+	},
+	"window": {
+		"editScale": "Editar escala",
+		"exportImage": "Exportar imagen",
+		"exportBoth": "Ambos paneles",
+		"exportProductOnly": "Solo producto",
+		"sourceClosedFrozen": "Origen cerrado — último cuadro",
+		"sourceClosed": "Origen cerrado",
+		"maxAltitude": "ALT MÁX",
+		"eastWest": "Este-Oeste",
+		"northSouth": "Norte-Sur",
+		"redo": "Rehacer",
+		"redoPoint": "Rehacer punto",
+		"crossSectionTitle": "Corte",
+		"hoverHintRhi": "Pasa el cursor sobre el RHI para leer valores.",
+		"hoverHintCrossSection": "Pasa el cursor sobre el corte para leer valores.",
+		"hoverHintMap": "Pasa el cursor sobre el mapa para leer valores.",
+		"emptyRhi": "Marca el azimut en el mapa de origen para ver el RHI.",
+		"emptyCrossSection": "Traza una línea en el mapa de origen (o usa Este-Oeste/Norte-Sur) para ver el corte.",
+		"emptyProfile": "Haz clic en el mapa de origen para ver el perfil vertical.",
+		"noObservationMap": "Abre un archivo para ver este mapa.",
+		"noSitePosition": "Este formato no trae posición del sitio. Define la ubicación para georreferenciar el",
+		"defineLocation": "DEFINIR UBICACIÓN",
+		"baseMapTitle": "Mapa de fondo",
+		"opacityTitle": "Opacidad",
+		"ringsTitle": "Anillos",
+		"radialsTitle": "Radiales",
+		"ringsAbbr": "AN",
+		"radialsAbbr": "RAD",
+		"readout": {
+			"channel": "CANAL",
+			"elevation": "ELEV",
+			"base": "BASE",
+			"top": "TOPE",
+			"threshold": "UMBRAL",
+			"lat": "LAT",
+			"lon": "LON",
+			"azimuth": "AZIMUT",
+			"range": "RANGO",
+			"altitude": "ALTURA",
+			"value": "VALOR",
+			"status": "ESTADO",
+			"distanceAB": "DISTANCIA (A→B)"
+		}
+	},
+	"analysisReport": {
+		"region": "Región",
+		"unit": "Unidad",
+		"threshold": "Umbral",
+		"cells": "Celdas",
+		"areaKm2": "Área (km²)",
+		"coveragePct": "Cobertura (%)",
+		"max": "Máximo",
+		"min": "Mínimo",
+		"mean": "Media",
+		"meanCovered": "Media cubierta",
+		"median": "Mediana",
+		"volumeMm3": "Volumen (Mm³)",
+		"stdDev": "Desv. est.",
+		"product": "Producto: {value}",
+		"observation": "Observación: {value}",
+		"generatedAt": "Generado: {value}"
+	},
+	"vad": {
+		"title": "Perfil de Viento VAD (Velocity Azimuth Display)",
+		"close": "Cerrar",
+		"heightStepLabel": "Paso de Altura:",
+		"stepAll": "Todos ({count} anillos)",
+		"tabBarbs": "PERFIL & BARBAS",
+		"tabHodograph": "HODÓGRAFA",
+		"tabTable": "TABLA ({count})",
+		"noData": "No hay anillos de datos VAD válidos suficientes en esta observación.",
+		"barbsLegend": "📌 Barbas meteorológicas (hacia origen del viento): Banderín = 50 kt, Barba = 10 kt, Media = 5 kt, Círculo = Calma.",
+		"showingLevels": "Mostrando {count} niveles ({step})",
+		"hodographLegend": "🧭 Hodógrafa de viento: trayectoria vectorial (Vx Este, Vy Norte) según la altura.",
+		"table": {
+			"height": "ALTURA (m / kft)",
+			"elevation": "ELEV (°)",
+			"range": "RANGO (km)",
+			"speed": "VELOCIDAD",
+			"direction": "DIRECCIÓN",
+			"rms": "RMS (m/s)",
+			"cf1": "CF1 (m/s)",
+			"n": "N (pts)"
+		}
+	},
+	"catalog": {
+		"groups": {
+			"base": "Base",
+			"column": "Columna",
+			"precipWind": "Precip. y viento",
+			"crossSections": "Cortes"
+		},
+		"items": {
+			"ppi": "PPI",
+			"cappi": "CAPPI",
+			"tops": "Topes (echo tops)",
+			"maxsHeight": "Altura del máximo",
+			"columnMax": "Máximo de columna",
+			"vil": "VIL",
+			"rain": "Tasa de lluvia (Z-R)",
+			"windSpeed": "Viento (VAD)",
+			"crossLine": "Corte (línea libre)",
+			"profile": "Perfil vertical",
+			"rhi": "RHI"
+		}
+	}
+}

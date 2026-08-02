@@ -4,6 +4,7 @@
 		type HeightBinStep,
 		binVadLevels
 	} from '$lib/products/vadProfile';
+	import { _ } from '$lib/i18n';
 
 	interface Props {
 		profile: VadProfileResult;
@@ -299,13 +300,13 @@
 		<div class="flex items-center gap-2">
 			<span class="material-symbols-outlined text-[22px] text-primary-container">air</span>
 			<h2 class="text-title-md font-mono font-semibold text-primary-container">
-				Perfil de Viento VAD (Velocity Azimuth Display)
+				{$_('vad.title')}
 			</h2>
 			{#if onclose}
 				<button
 					class="ml-2 rounded p-1 text-on-surface-variant hover:bg-surface-container-highest"
 					onclick={onclose}
-					aria-label="Cerrar"
+					aria-label={$_('vad.close')}
 				>
 					<span class="material-symbols-outlined text-[20px]">close</span>
 				</button>
@@ -315,7 +316,7 @@
 		<!-- Step Bin & View Tabs Controls -->
 		<div class="flex flex-wrap items-center gap-3">
 			<label class="flex items-center gap-2 font-mono text-xs text-on-surface-variant">
-				<span>Paso de Altura:</span>
+				<span>{$_('vad.heightStepLabel')}</span>
 				<select
 					class="cursor-pointer rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs text-primary-container focus:ring-0"
 					bind:value={heightStep}
@@ -324,7 +325,9 @@
 					<option value="500m">500 m</option>
 					<option value="1km">1 km</option>
 					<option value="2km">2 km</option>
-					<option value="all">Todos ({profile.levels.length} anillos)</option>
+					<option value="all"
+						>{$_('vad.stepAll', { values: { count: profile.levels.length } })}</option
+					>
 				</select>
 			</label>
 
@@ -339,7 +342,7 @@
 					onclick={() => (activeTab = 'barbs')}
 				>
 					<span class="material-symbols-outlined text-[16px]">show_chart</span>
-					PERFIL & BARBAS
+					{$_('vad.tabBarbs')}
 				</button>
 				<button
 					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
@@ -349,7 +352,7 @@
 					onclick={() => (activeTab = 'hodograph')}
 				>
 					<span class="material-symbols-outlined text-[16px]">radar</span>
-					HODÓGRAFA
+					{$_('vad.tabHodograph')}
 				</button>
 				<button
 					class="flex items-center gap-1.5 rounded px-3 py-1 text-xs transition-all {activeTab ===
@@ -359,7 +362,7 @@
 					onclick={() => (activeTab = 'table')}
 				>
 					<span class="material-symbols-outlined text-[16px]">table_rows</span>
-					TABLA ({binnedLevels.length})
+					{$_('vad.tabTable', { values: { count: binnedLevels.length } })}
 				</button>
 			</div>
 		</div>
@@ -375,7 +378,7 @@
 					>do_not_disturb_on</span
 				>
 				<p class="text-body-md text-on-surface-variant">
-					No hay anillos de datos VAD válidos suficientes en esta observación.
+					{$_('vad.noData')}
 				</p>
 			</div>
 		{:else if activeTab === 'barbs'}
@@ -387,11 +390,10 @@
 					class="flex items-center justify-between font-mono text-[11px] text-on-surface-variant"
 				>
 					<span>
-						📌 Barbas meteorológicas (hacia origen del viento): Banderín = 50 kt, Barba = 10 kt,
-						Media = 5 kt, Círculo = Calma.
+						{$_('vad.barbsLegend')}
 					</span>
 					<span class="text-primary-container">
-						Mostrando {binnedLevels.length} niveles ({heightStep})
+						{$_('vad.showingLevels', { values: { count: binnedLevels.length, step: heightStep } })}
 					</span>
 				</div>
 			</div>
@@ -401,7 +403,7 @@
 					<canvas bind:this={hodoCanvas} width={560} height={420}></canvas>
 				</div>
 				<p class="font-mono text-[11px] text-on-surface-variant">
-					🧭 Hodógrafa de viento: trayectoria vectorial (Vx Este, Vy Norte) según la altura.
+					{$_('vad.hodographLegend')}
 				</p>
 			</div>
 		{:else if activeTab === 'table'}
@@ -409,14 +411,14 @@
 				<table class="w-full text-left font-mono text-xs">
 					<thead class="sticky top-0 bg-surface-container-high text-on-surface-variant">
 						<tr class="border-b border-outline-variant">
-							<th class="px-3 py-2">ALTURA (m / kft)</th>
-							<th class="px-3 py-2">ELEV (°)</th>
-							<th class="px-3 py-2">RANGO (km)</th>
-							<th class="px-3 py-2">VELOCIDAD</th>
-							<th class="px-3 py-2">DIRECCIÓN</th>
-							<th class="px-3 py-2">RMS (m/s)</th>
-							<th class="px-3 py-2">CF1 (m/s)</th>
-							<th class="px-3 py-2">N (pts)</th>
+							<th class="px-3 py-2">{$_('vad.table.height')}</th>
+							<th class="px-3 py-2">{$_('vad.table.elevation')}</th>
+							<th class="px-3 py-2">{$_('vad.table.range')}</th>
+							<th class="px-3 py-2">{$_('vad.table.speed')}</th>
+							<th class="px-3 py-2">{$_('vad.table.direction')}</th>
+							<th class="px-3 py-2">{$_('vad.table.rms')}</th>
+							<th class="px-3 py-2">{$_('vad.table.cf1')}</th>
+							<th class="px-3 py-2">{$_('vad.table.n')}</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-outline-variant/30">

@@ -3,6 +3,7 @@
 	import { geocodeZip, nearestSites, type RadarCatalogSite } from './radarCatalog';
 	import { listVolumeScans, fetchVolumeScanBytes, type VolumeScan } from './nexradS3';
 	import { distanceUnitLabel, toDisplayDistanceM, type UnitSystem } from '$lib/units';
+	import { _ } from '$lib/i18n';
 
 	interface Picked {
 		fileName: string;
@@ -95,12 +96,12 @@
 <div class="flex flex-col gap-4 font-mono text-label-mono">
 	<section class="flex flex-col gap-2">
 		<p class="text-body-sm text-on-surface-variant">
-			Busca el radar más cercano por código postal (EE.UU.), o selecciónalo directo en el mapa.
+			{$_('awsExplorer.searchHint')}
 		</p>
 		<div class="flex gap-2">
 			<input
 				type="text"
-				placeholder="Código postal"
+				placeholder={$_('awsExplorer.zipPlaceholder')}
 				class="cyan-glow w-40 rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-primary-container focus:ring-0"
 				bind:value={zip}
 				onkeydown={(e) => e.key === 'Enter' && searchZip()}
@@ -110,12 +111,13 @@
 				disabled={geocodeStatus === 'loading' || !zip.trim()}
 				onclick={searchZip}
 			>
-				{geocodeStatus === 'loading' ? 'BUSCANDO…' : 'BUSCAR'}
+				{geocodeStatus === 'loading' ? $_('awsExplorer.searching') : $_('awsExplorer.search')}
 			</button>
 		</div>
 		{#if geocodeStatus === 'not-found'}
 			<p class="flex items-center gap-1 text-[11px] text-dbz-heavy">
-				<span class="material-symbols-outlined text-[14px]">warning</span> No se encontró ese código postal.
+				<span class="material-symbols-outlined text-[14px]">warning</span>
+				{$_('awsExplorer.zipNotFound')}
 			</p>
 		{/if}
 
@@ -148,7 +150,9 @@
 	{#if selectedSite}
 		<section class="flex flex-col gap-2 border-t border-outline-variant pt-3">
 			<label class="flex flex-col gap-1">
-				<span class="text-[11px] text-on-surface-variant">Fecha (UTC) — sitio {selectedSite}</span>
+				<span class="text-[11px] text-on-surface-variant"
+					>{$_('awsExplorer.dateForSite', { values: { site: selectedSite } })}</span
+				>
 				<input
 					type="date"
 					class="cyan-glow w-44 rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-primary-container focus:ring-0"
@@ -157,15 +161,23 @@
 			</label>
 
 			{#if scansStatus === 'loading'}
-				<p class="text-[11px] text-on-surface-variant">Buscando observaciones…</p>
+				<p class="text-[11px] text-on-surface-variant">{$_('awsExplorer.loadingScans')}</p>
 			{:else if scansStatus === 'error'}
-				<p class="flex items-center gap-1 text-[11px] text-dbz-heavy">
-					<span class="material-symbols-outlined text-[14px]">warning</span>
-					{scansError}
-				</p>
+				<div class="text-[11px] text-dbz-heavy">
+					<p class="flex items-center gap-1">
+						<span class="material-symbols-outlined text-[14px]">warning</span>
+						{$_('awsExplorer.scansError')}
+					</p>
+					<details class="ml-[18px]">
+						<summary class="cursor-pointer text-dbz-heavy/80 hover:text-dbz-heavy">
+							{$_('common.showTechnicalDetail')}
+						</summary>
+						<p class="mt-1 break-all text-dbz-heavy/80">{scansError}</p>
+					</details>
+				</div>
 			{:else if scansStatus === 'ready' && scans.length === 0}
 				<p class="text-[11px] text-on-surface-variant">
-					Sin observaciones para {selectedSite} ese día.
+					{$_('awsExplorer.noScans', { values: { site: selectedSite } })}
 				</p>
 			{:else if scansStatus === 'ready'}
 				<ul class="flex max-h-56 flex-col gap-1 overflow-y-auto">
@@ -182,7 +194,7 @@
 								disabled={loadingKey !== null}
 								onclick={() => loadScan(scan)}
 							>
-								{loadingKey === scan.key ? 'CARGANDO…' : 'CARGAR'}
+								{loadingKey === scan.key ? $_('awsExplorer.loading') : $_('awsExplorer.load')}
 							</button>
 						</li>
 					{/each}
@@ -190,10 +202,18 @@
 			{/if}
 
 			{#if loadError}
-				<p class="flex items-center gap-1 text-[11px] text-dbz-heavy">
-					<span class="material-symbols-outlined text-[14px]">warning</span>
-					{loadError}
-				</p>
+				<div class="text-[11px] text-dbz-heavy">
+					<p class="flex items-center gap-1">
+						<span class="material-symbols-outlined text-[14px]">warning</span>
+						{$_('awsExplorer.loadError')}
+					</p>
+					<details class="ml-[18px]">
+						<summary class="cursor-pointer text-dbz-heavy/80 hover:text-dbz-heavy">
+							{$_('common.showTechnicalDetail')}
+						</summary>
+						<p class="mt-1 break-all text-dbz-heavy/80">{loadError}</p>
+					</details>
+				</div>
 			{/if}
 		</section>
 	{/if}

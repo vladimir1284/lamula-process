@@ -2,6 +2,7 @@
 	import type { Palette, PaletteStop } from '$lib/palette/types';
 	import { addStop, removeStop, updateStop, renamePalette } from '$lib/palette/edit';
 	import { serializePalette } from '$lib/palette/serialize';
+	import { _ } from '$lib/i18n';
 
 	interface Props {
 		palette: Palette;
@@ -43,7 +44,7 @@
 
 <div class="flex flex-col gap-3 font-mono text-label-mono">
 	<label class="flex items-center gap-2">
-		<span class="w-16 text-[11px] text-on-surface-variant">Nombre</span>
+		<span class="w-16 text-[11px] text-on-surface-variant">{$_('scaleEditor.name')}</span>
 		<input
 			class="cyan-glow flex-1 rounded border border-outline-variant bg-surface-container-high px-2 py-1 text-on-surface focus:ring-0"
 			value={palette.name}
@@ -54,9 +55,9 @@
 	<table class="w-full border-collapse">
 		<thead>
 			<tr class="text-left text-[10px] tracking-widest text-on-surface-variant uppercase">
-				<th class="py-1 font-medium">Umbral</th>
-				<th class="font-medium">Color</th>
-				<th class="font-medium">Etiqueta</th>
+				<th class="py-1 font-medium">{$_('scaleEditor.threshold')}</th>
+				<th class="font-medium">{$_('scaleEditor.color')}</th>
+				<th class="font-medium">{$_('scaleEditor.label')}</th>
 				<th></th>
 			</tr>
 		</thead>
@@ -92,7 +93,7 @@
 						<button
 							class="rounded px-2 py-0.5 text-error hover:bg-error-container/20"
 							onclick={() => commit(removeStop(palette, i))}
-							aria-label="Eliminar stop">✕</button
+							aria-label={$_('scaleEditor.deleteStopAria')}>✕</button
 						>
 					</td>
 				</tr>
@@ -104,12 +105,14 @@
 		<button
 			class="flex items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-3 py-1 text-on-surface transition-colors hover:border-primary-container"
 			onclick={() => commit(addStop(palette, newStop()))}
-			><span class="material-symbols-outlined text-[16px]">add</span> Punto</button
+			><span class="material-symbols-outlined text-[16px]">add</span>
+			{$_('scaleEditor.addPoint')}</button
 		>
 		<button
 			class="flex items-center gap-1 rounded bg-primary-container px-3 py-1 text-on-primary-container transition-all hover:opacity-90 active:scale-95"
 			onclick={exportPal}
-			><span class="material-symbols-outlined text-[16px]">save</span> Exportar .pal</button
+			><span class="material-symbols-outlined text-[16px]">save</span>
+			{$_('scaleEditor.exportPal')}</button
 		>
 	</div>
 </div>

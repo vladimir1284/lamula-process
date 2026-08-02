@@ -12,12 +12,14 @@ export const BASE_MAP_IDS = ['osm', 'carto-voyager', 'carto-positron', 'carto-da
 
 export type BaseMapId = (typeof BASE_MAP_IDS)[number] | 'off';
 
+/** Values are i18n keys (see src/lib/i18n/locales/*.json `baseMap.*`), not display text --
+ * translate with `$_()` at render time. */
 export const BASE_MAP_LABELS: Record<BaseMapId, string> = {
-	off: 'Sin mapa',
-	osm: 'OSM',
-	'carto-voyager': 'CARTO Voyager',
-	'carto-positron': 'CARTO Claro',
-	'carto-dark': 'CARTO Oscuro'
+	off: 'baseMap.off',
+	osm: 'baseMap.osm',
+	'carto-voyager': 'baseMap.cartoVoyager',
+	'carto-positron': 'baseMap.cartoPositron',
+	'carto-dark': 'baseMap.cartoDark'
 };
 
 export function isBaseMapId(v: unknown): v is BaseMapId {

@@ -9,6 +9,7 @@
 		type ProfileWindowPayload,
 		type MapWindowPayload
 	} from '$lib/windows';
+	import { _ } from '$lib/i18n';
 
 	interface Props {
 		win: RadarWindow;
@@ -60,11 +61,11 @@
 		class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
 	>
 		<span class="font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
-			>PERFIL VERTICAL</span
+			>{$_('catalog.items.profile')}</span
 		>
 		{#if sourceClosed}
 			<span class="rounded bg-dbz-heavy/20 px-2 py-0.5 font-mono text-[10px] text-dbz-heavy">
-				Origen cerrado
+				{$_('window.sourceClosed')}
 			</span>
 		{/if}
 		{#if payload.point}
@@ -73,7 +74,8 @@
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2 font-mono text-[11px] text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 				onclick={() => (payload.point = null)}
 			>
-				<span class="material-symbols-outlined text-[14px]">restart_alt</span> Rehacer punto
+				<span class="material-symbols-outlined text-[14px]">restart_alt</span>
+				{$_('window.redoPoint')}
 			</button>
 		{/if}
 		<ZoomControl {zoom} onZoom={(z) => (zoom = z)} />
@@ -81,8 +83,8 @@
 			type="button"
 			class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 			onclick={() => onEditScale(sourceChannel?.moment ?? 'dBZ')}
-			aria-label="Editar escala"
-			title="Editar escala"
+			aria-label={$_('window.editScale')}
+			title={$_('window.editScale')}
 		>
 			<span class="material-symbols-outlined text-[14px]">palette</span>
 		</button>
@@ -91,15 +93,15 @@
 			class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container disabled:opacity-40"
 			disabled={!profile}
 			onclick={exportCurrentImage}
-			aria-label="Exportar imagen"
-			title="Exportar imagen"
+			aria-label={$_('window.exportImage')}
+			title={$_('window.exportImage')}
 		>
 			<span class="material-symbols-outlined text-[14px]">download</span>
 		</button>
 		<label
 			class="ml-auto flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
-			<span class="font-mono text-[9px] text-on-surface-variant">ALT MÁX</span>
+			<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.maxAltitude')}</span>
 			<input
 				type="number"
 				step="1"
@@ -120,7 +122,7 @@
 			/>
 		{:else}
 			<p class="px-4 text-center font-mono text-[10px] text-on-surface-variant">
-				Haz clic en el mapa de origen para ver el perfil vertical.
+				{$_('window.emptyProfile')}
 			</p>
 		{/if}
 	</div>

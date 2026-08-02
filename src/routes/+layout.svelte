@@ -1,11 +1,13 @@
 <script lang="ts">
 	import './layout.css';
+	import { waitLocale } from '$lib/i18n';
 
 	let { children } = $props();
 </script>
 
 <svelte:head>
 	<title>LAMULA Process</title>
+	<!-- i18n-ignore: static SEO/social-share metadata, not reactive app UI -->
 	<meta
 		name="description"
 		content="Procesamiento y visualización de radar meteorológico: NEXRAD Level II, Rainbow5, Vesta .obs"
@@ -15,6 +17,7 @@
 	<!-- Open Graph / Facebook -->
 	<meta property="og:type" content="website" />
 	<meta property="og:title" content="LAMULA Process" />
+	<!-- i18n-ignore: static SEO/social-share metadata, not reactive app UI -->
 	<meta
 		property="og:description"
 		content="Procesamiento y visualización de radar meteorológico: NEXRAD Level II, Rainbow5, Vesta .obs"
@@ -24,6 +27,7 @@
 	<!-- Twitter -->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content="LAMULA Process" />
+	<!-- i18n-ignore: static SEO/social-share metadata, not reactive app UI -->
 	<meta
 		name="twitter:description"
 		content="Procesamiento y visualización de radar meteorológico: NEXRAD Level II, Rainbow5, Vesta .obs"
@@ -37,4 +41,8 @@
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 	<link rel="manifest" href="/site.webmanifest" />
 </svelte:head>
-{@render children()}
+{#await waitLocale()}
+	<!-- locale JSON is tiny and inlined at build time; this await resolves before first paint -->
+{:then}
+	{@render children()}
+{/await}

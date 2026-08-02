@@ -1,0 +1,242 @@
+{
+	"common": {
+		"appName": "LAMULA Process",
+		"settings": "Settings",
+		"editLocation": "Edit location",
+		"export": "Export",
+		"import": "Import",
+		"edit": "Edit",
+		"delete": "Delete",
+		"errorGeneric": "Couldn't open the file.",
+		"showTechnicalDetail": "Show technical detail"
+	},
+	"menu": {
+		"file": {
+			"label": "File",
+			"opening": "Opening…",
+			"open": "Open file",
+			"downloadAws": "Download (AWS)",
+			"openRecent": "Open recent",
+			"noRecent": "No recent files"
+		},
+		"window": {
+			"label": "Window",
+			"cascade": "Cascade",
+			"tile": "Tile",
+			"resetLayout": "Restore default layout",
+			"closeAll": "Close all",
+			"saveLayout": "Save layout",
+			"exportLayout": "Export layout…",
+			"importLayout": "Import layout…",
+			"noWindows": "No windows open"
+		}
+	},
+	"dialog": {
+		"confirmReplaceLayout": "This will replace the current layout. Continue?"
+	},
+	"sidebar": {
+		"product": "Product",
+		"expandPanel": "Expand panel",
+		"collapsePanel": "Collapse panel",
+		"needsFocusedMap": "Requires a focused map window.",
+		"crossSectionHint": "Focus a map window to create this derived product"
+	},
+	"onboarding": {
+		"title": "Open an observation",
+		"formats": "Formats: INSMET .obs · NEXRAD Level II · Rainbow5 .vol",
+		"openFile": "OPEN FILE",
+		"opening": "OPENING…",
+		"downloadAws": "DOWNLOAD (AWS)"
+	},
+	"modal": {
+		"awsExplorer": "Download observation (AWS)",
+		"scaleEditor": "Scale editor"
+	},
+	"settings": {
+		"tabs": {
+			"units": "Units",
+			"sites": "Sites",
+			"palettes": "Palettes",
+			"language": "Language"
+		},
+		"units": {
+			"heading": "Unit system",
+			"description": "Affects range rings, cross-section/RHI axes, distance to site (AWS download), and wind/rain readouts on hover. Palette thresholds and stored site coordinates/altitude stay in metric internally.",
+			"metric": "Metric (km, m/s, mm)",
+			"imperial": "Imperial (mi, mph, in)"
+		},
+		"sites": {
+			"editing": "Editing: {key}",
+			"backToList": "← Back to list",
+			"heading": "Saved site locations",
+			"description": "Position used for formats that don't carry their own georeference (NEXRAD L2, .obs), saved per site code.",
+			"empty": "No saved locations yet.",
+			"editAria": "Edit {key}",
+			"deleteAria": "Delete {key}",
+			"loadKnown": "Load known network"
+		},
+		"palettes": {
+			"byVariableHeading": "Palettes by variable",
+			"byVariableDescription": "Each variable is drawn with its assigned palette. Edit colors with the palette icon over the viewer; here you choose which palette each variable uses.",
+			"byProductHeading": "Palettes by product",
+			"byProductDescription": "Tops, VIL, rain and wind have their own physical unit and don't use the source variable's palette.",
+			"export": "Export palettes",
+			"import": "Import palettes",
+			"keys": {
+				"topsHeight": "Tops / Max alt.",
+				"vil": "VIL",
+				"rain": "Rain",
+				"windSpeed": "Wind"
+			}
+		}
+	},
+	"nav": {
+		"mainMenu": "Main menu"
+	},
+	"siteLocationEditor": {
+		"instructions": "Pick the radar's location by clicking the map, or enter coordinates by hand.",
+		"latitude": "Latitude",
+		"longitude": "Longitude",
+		"altitude": "Altitude (m above sea level)",
+		"loadingElevation": "Looking up terrain elevation…",
+		"elevationUnavailable": "Couldn't fetch automatic elevation (service unavailable). Enter the altitude by hand.",
+		"cancel": "Cancel",
+		"save": "Save"
+	},
+	"awsExplorer": {
+		"searchHint": "Search for the nearest radar by ZIP code (US), or pick it directly on the map.",
+		"zipPlaceholder": "ZIP code",
+		"searching": "SEARCHING…",
+		"search": "SEARCH",
+		"zipNotFound": "That ZIP code wasn't found.",
+		"dateForSite": "Date (UTC) — site {site}",
+		"loadingScans": "Looking up observations…",
+		"noScans": "No observations for {site} that day.",
+		"loading": "LOADING…",
+		"load": "LOAD",
+		"scansError": "Couldn't load observations.",
+		"loadError": "Couldn't load the observation."
+	},
+	"scaleEditor": {
+		"name": "Name",
+		"threshold": "Threshold",
+		"color": "Color",
+		"label": "Label",
+		"deleteStopAria": "Delete stop",
+		"addPoint": "Point",
+		"exportPal": "Export .pal"
+	},
+	"baseMap": {
+		"off": "No map",
+		"osm": "OSM",
+		"cartoVoyager": "CARTO Voyager",
+		"cartoPositron": "CARTO Light",
+		"cartoDark": "CARTO Dark"
+	},
+	"window": {
+		"editScale": "Edit scale",
+		"exportImage": "Export image",
+		"exportBoth": "Both panels",
+		"exportProductOnly": "Product only",
+		"sourceClosedFrozen": "Source closed — last frame",
+		"sourceClosed": "Source closed",
+		"maxAltitude": "MAX ALT",
+		"eastWest": "East-West",
+		"northSouth": "North-South",
+		"redo": "Redo",
+		"redoPoint": "Redo point",
+		"crossSectionTitle": "Cross-section",
+		"hoverHintRhi": "Hover over the RHI to read values.",
+		"hoverHintCrossSection": "Hover over the cross-section to read values.",
+		"hoverHintMap": "Hover over the map to read values.",
+		"emptyRhi": "Mark the azimuth on the source map to see the RHI.",
+		"emptyCrossSection": "Draw a line on the source map (or use East-West/North-South) to see the cross-section.",
+		"emptyProfile": "Click on the source map to see the vertical profile.",
+		"noObservationMap": "Open a file to see this map.",
+		"noSitePosition": "This format doesn't carry the site position. Set the location to georeference the",
+		"defineLocation": "SET LOCATION",
+		"baseMapTitle": "Base map",
+		"opacityTitle": "Opacity",
+		"ringsTitle": "Range rings",
+		"radialsTitle": "Radials",
+		"ringsAbbr": "RNG",
+		"radialsAbbr": "RAD",
+		"readout": {
+			"channel": "CHANNEL",
+			"elevation": "ELEV",
+			"base": "BASE",
+			"top": "TOP",
+			"threshold": "THRESH",
+			"lat": "LAT",
+			"lon": "LON",
+			"azimuth": "AZIMUTH",
+			"range": "RANGE",
+			"altitude": "ALTITUDE",
+			"value": "VALUE",
+			"status": "STATUS",
+			"distanceAB": "DISTANCE (A→B)"
+		}
+	},
+	"analysisReport": {
+		"region": "Region",
+		"unit": "Unit",
+		"threshold": "Threshold",
+		"cells": "Cells",
+		"areaKm2": "Area (km²)",
+		"coveragePct": "Coverage (%)",
+		"max": "Max",
+		"min": "Min",
+		"mean": "Mean",
+		"meanCovered": "Mean covered",
+		"median": "Median",
+		"volumeMm3": "Volume (Mm³)",
+		"stdDev": "Std. dev.",
+		"product": "Product: {value}",
+		"observation": "Observation: {value}",
+		"generatedAt": "Generated: {value}"
+	},
+	"vad": {
+		"title": "VAD Wind Profile (Velocity Azimuth Display)",
+		"close": "Close",
+		"heightStepLabel": "Height Step:",
+		"stepAll": "All ({count} rings)",
+		"tabBarbs": "PROFILE & BARBS",
+		"tabHodograph": "HODOGRAPH",
+		"tabTable": "TABLE ({count})",
+		"noData": "Not enough valid VAD data rings in this observation.",
+		"barbsLegend": "📌 Meteorological wind barbs (pointing toward wind origin): Flag = 50 kt, Barb = 10 kt, Half = 5 kt, Circle = Calm.",
+		"showingLevels": "Showing {count} levels ({step})",
+		"hodographLegend": "🧭 Wind hodograph: vector path (Vx East, Vy North) by height.",
+		"table": {
+			"height": "HEIGHT (m / kft)",
+			"elevation": "ELEV (°)",
+			"range": "RANGE (km)",
+			"speed": "SPEED",
+			"direction": "DIRECTION",
+			"rms": "RMS (m/s)",
+			"cf1": "CF1 (m/s)",
+			"n": "N (pts)"
+		}
+	},
+	"catalog": {
+		"groups": {
+			"base": "Base",
+			"column": "Column",
+			"precipWind": "Precip. & wind",
+			"crossSections": "Cross-sections"
+		},
+		"items": {
+			"ppi": "PPI",
+			"cappi": "CAPPI",
+			"tops": "Echo tops",
+			"maxsHeight": "Height of max",
+			"columnMax": "Column max",
+			"vil": "VIL",
+			"rain": "Rain rate (Z-R)",
+			"windSpeed": "Wind (VAD)",
+			"crossLine": "Cross-section (free line)",
+			"profile": "Vertical profile",
+			"rhi": "RHI"
+		}
+	}
+}

@@ -23,6 +23,7 @@
 		type CrossSectionWindowPayload,
 		type MapWindowPayload
 	} from '$lib/windows';
+	import { _ } from '$lib/i18n';
 
 	interface Props {
 		win: RadarWindow;
@@ -93,11 +94,11 @@
 		class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
 	>
 		<span class="font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
-			>CORTE</span
+			>{$_('window.crossSectionTitle')}</span
 		>
 		{#if sourceClosed}
 			<span class="rounded bg-dbz-heavy/20 px-2 py-0.5 font-mono text-[10px] text-dbz-heavy">
-				Origen cerrado — último cuadro
+				{$_('window.sourceClosedFrozen')}
 			</span>
 		{/if}
 		<button
@@ -106,7 +107,8 @@
 			disabled={sourceClosed || !scans}
 			onclick={() => (payload.line = presetCutLine('EW'))}
 		>
-			<span class="material-symbols-outlined text-[14px]">swap_horiz</span> Este-Oeste
+			<span class="material-symbols-outlined text-[14px]">swap_horiz</span>
+			{$_('window.eastWest')}
 		</button>
 		<button
 			type="button"
@@ -114,7 +116,8 @@
 			disabled={sourceClosed || !scans}
 			onclick={() => (payload.line = presetCutLine('NS'))}
 		>
-			<span class="material-symbols-outlined text-[14px]">swap_vert</span> Norte-Sur
+			<span class="material-symbols-outlined text-[14px]">swap_vert</span>
+			{$_('window.northSouth')}
 		</button>
 		{#if payload.line}
 			<button
@@ -122,13 +125,14 @@
 				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2 font-mono text-[11px] text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 				onclick={() => (payload.line = null)}
 			>
-				<span class="material-symbols-outlined text-[14px]">restart_alt</span> Rehacer
+				<span class="material-symbols-outlined text-[14px]">restart_alt</span>
+				{$_('window.redo')}
 			</button>
 		{/if}
 		<label
 			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
-			<span class="font-mono text-[9px] text-on-surface-variant">ALT MÁX</span>
+			<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.maxAltitude')}</span>
 			<input
 				type="number"
 				step="1"
@@ -142,8 +146,8 @@
 			type="button"
 			class="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 			onclick={() => onEditScale(sourceChannel?.moment ?? 'dBZ')}
-			aria-label="Editar escala"
-			title="Editar escala"
+			aria-label={$_('window.editScale')}
+			title={$_('window.editScale')}
 		>
 			<span class="material-symbols-outlined text-[14px]">palette</span>
 		</button>
@@ -154,8 +158,8 @@
 				onclick={() => (showExportMenu = !showExportMenu)}
 				aria-haspopup="true"
 				aria-expanded={showExportMenu}
-				aria-label="Exportar imagen"
-				title="Exportar imagen"
+				aria-label={$_('window.exportImage')}
+				title={$_('window.exportImage')}
 			>
 				<span class="material-symbols-outlined text-[14px]">download</span>
 			</button>
@@ -172,7 +176,8 @@
 								exportCurrentImage('both');
 							}}
 						>
-							<span class="material-symbols-outlined text-[14px]">view_column_2</span> Ambos paneles
+							<span class="material-symbols-outlined text-[14px]">view_column_2</span>
+							{$_('window.exportBoth')}
 						</button>
 					</li>
 					<li>
@@ -183,7 +188,8 @@
 								exportCurrentImage('product');
 							}}
 						>
-							<span class="material-symbols-outlined text-[14px]">image</span> Solo producto
+							<span class="material-symbols-outlined text-[14px]">image</span>
+							{$_('window.exportProductOnly')}
 						</button>
 					</li>
 				</ul>
@@ -207,7 +213,7 @@
 			/>
 		{:else}
 			<p class="px-4 text-center font-mono text-[10px] text-on-surface-variant">
-				Traza una línea en el mapa de origen (o usa Este-Oeste/Norte-Sur) para ver el corte.
+				{$_('window.emptyCrossSection')}
 			</p>
 		{/if}
 	</div>
@@ -217,15 +223,15 @@
 	>
 		{#if readout}
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">DISTANCIA (A→B)</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.distanceAB')}</p>
 				<p class="text-[11px] text-on-surface">{formatDistanceM(readout.distanceM, unitSystem)}</p>
 			</div>
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">ALTURA</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.altitude')}</p>
 				<p class="text-[11px] text-on-surface">{formatAltitudeM(readout.heightM, unitSystem)}</p>
 			</div>
 			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">VALOR</p>
+				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.value')}</p>
 				<p class="text-[11px] text-dbz-heavy">
 					{readout.sample?.value == null
 						? '—'
@@ -239,7 +245,7 @@
 		{:else}
 			<div class="col-span-3 bg-surface-container-low p-2">
 				<p class="text-[11px] text-on-surface-variant">
-					Pasa el cursor sobre el corte para leer valores.
+					{$_('window.hoverHintCrossSection')}
 				</p>
 			</div>
 		{/if}

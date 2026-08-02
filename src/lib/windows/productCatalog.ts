@@ -24,6 +24,8 @@ export const GROUND_KINDS: GroundProductKind[] = [
 	'WIND_SPEED'
 ];
 
+/** `label` is an i18n key (see src/lib/i18n/locales/*.json `catalog.*`), not display text --
+ * translate it with `$_(label)` at render time. */
 export interface CatalogItem {
 	id: CatalogProductKind;
 	label: string;
@@ -38,38 +40,39 @@ export interface CatalogGroup {
 // Sidebar catalog -- mirrors the optgroups the app has always exposed.
 export const PRODUCT_GROUPS: CatalogGroup[] = [
 	{
-		label: 'Base',
+		label: 'catalog.groups.base',
 		items: [
-			{ id: 'PPI', label: 'PPI', icon: 'storm' },
-			{ id: 'CAPPI', label: 'CAPPI', icon: 'layers' }
+			{ id: 'PPI', label: 'catalog.items.ppi', icon: 'storm' },
+			{ id: 'CAPPI', label: 'catalog.items.cappi', icon: 'layers' }
 		]
 	},
 	{
-		label: 'Columna',
+		label: 'catalog.groups.column',
 		items: [
-			{ id: 'TOPS', label: 'Topes (echo tops)', icon: 'cloud_upload' },
-			{ id: 'MAXS_HEIGHT', label: 'Altura del máximo', icon: 'height' },
-			{ id: 'COLUMN_MAX', label: 'Máximo de columna', icon: 'stacked_line_chart' },
-			{ id: 'VIL', label: 'VIL', icon: 'opacity' }
+			{ id: 'TOPS', label: 'catalog.items.tops', icon: 'cloud_upload' },
+			{ id: 'MAXS_HEIGHT', label: 'catalog.items.maxsHeight', icon: 'height' },
+			{ id: 'COLUMN_MAX', label: 'catalog.items.columnMax', icon: 'stacked_line_chart' },
+			{ id: 'VIL', label: 'catalog.items.vil', icon: 'opacity' }
 		]
 	},
 	{
-		label: 'Precip. y viento',
+		label: 'catalog.groups.precipWind',
 		items: [
-			{ id: 'RAIN', label: 'Tasa de lluvia (Z-R)', icon: 'rainy' },
-			{ id: 'WIND_SPEED', label: 'Viento (VAD)', icon: 'air' }
+			{ id: 'RAIN', label: 'catalog.items.rain', icon: 'rainy' },
+			{ id: 'WIND_SPEED', label: 'catalog.items.windSpeed', icon: 'air' }
 		]
 	},
 	{
-		label: 'Cortes',
+		label: 'catalog.groups.crossSections',
 		items: [
-			{ id: 'CROSS_LINE', label: 'Corte (línea libre)', icon: 'timeline' },
-			{ id: 'PROFILE', label: 'Perfil vertical', icon: 'monitoring' },
-			{ id: 'RHI', label: 'RHI', icon: 'radar' }
+			{ id: 'CROSS_LINE', label: 'catalog.items.crossLine', icon: 'timeline' },
+			{ id: 'PROFILE', label: 'catalog.items.profile', icon: 'monitoring' },
+			{ id: 'RHI', label: 'catalog.items.rhi', icon: 'radar' }
 		]
 	}
 ];
 
+/** Returns the i18n key for a catalog item's label -- translate with `$_()` at render time. */
 export function catalogLabel(id: CatalogProductKind): string {
 	return PRODUCT_GROUPS.flatMap((g) => g.items).find((i) => i.id === id)?.label ?? id;
 }
