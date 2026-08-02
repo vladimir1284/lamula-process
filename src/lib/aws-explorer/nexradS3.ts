@@ -23,7 +23,7 @@ export interface ScanDate {
 	day: number;
 }
 
-/** Volume scans for one radar site on one UTC day, oldest first. Empty array is a normal result. */
+/** Volume scans for one radar site on one UTC day, most recent first. Empty array is a normal result. */
 export async function listVolumeScans(site: string, date: ScanDate): Promise<VolumeScan[]> {
 	const prefix = `${date.year}/${pad2(date.month)}/${pad2(date.day)}/${site}/`;
 	const scans: VolumeScan[] = [];
@@ -46,7 +46,7 @@ export async function listVolumeScans(site: string, date: ScanDate): Promise<Vol
 			: undefined;
 	} while (continuationToken);
 
-	return scans.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+	return scans.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
 
 /** Downloads one volume scan's raw bytes, ready to hand to parseObservation(). */

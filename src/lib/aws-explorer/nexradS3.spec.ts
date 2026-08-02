@@ -17,7 +17,7 @@ describe('listVolumeScans', () => {
 		globalThis.fetch = originalFetch;
 	});
 
-	it('parses Key/Size/timestamp and sorts oldest-first', async () => {
+	it('parses Key/Size/timestamp and sorts most-recent-first', async () => {
 		globalThis.fetch = vi.fn(async () => ({
 			ok: true,
 			text: async () => SAMPLE_LISTING_XML
@@ -26,12 +26,12 @@ describe('listVolumeScans', () => {
 		const scans = await listVolumeScans('KBYX', { year: 2026, month: 7, day: 26 });
 
 		expect(scans.map((s) => s.key)).toEqual([
-			'2026/07/26/KBYX/KBYX20260726_000049_V06',
+			'2026/07/26/KBYX/KBYX20260726_001212_V06',
 			'2026/07/26/KBYX/KBYX20260726_000653_V06',
-			'2026/07/26/KBYX/KBYX20260726_001212_V06'
+			'2026/07/26/KBYX/KBYX20260726_000049_V06'
 		]);
-		expect(scans[0].sizeBytes).toBe(3887280);
-		expect(scans[0].timestamp.toISOString()).toBe('2026-07-26T00:00:49.000Z');
+		expect(scans[0].sizeBytes).toBe(3807814);
+		expect(scans[0].timestamp.toISOString()).toBe('2026-07-26T00:12:12.000Z');
 	});
 
 	it('returns an empty array for a day/site with no data', async () => {
