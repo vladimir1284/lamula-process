@@ -16,7 +16,7 @@ describe('computeProfile', () => {
 			expect(samples[i].heightM).toBeGreaterThan(samples[i - 1].heightM);
 	});
 
-	it('interpolates onto the height grid up to topM with a 0 anchor at top', () => {
+	it('interpolates onto the height grid up to topM, flat at the last estimated value above the highest sample', () => {
 		const { heightsM, values } = computeProfile(scans, {
 			xEastM: 0,
 			yNorthM: 3000,
@@ -26,7 +26,7 @@ describe('computeProfile', () => {
 		});
 		expect(heightsM[0]).toBe(0);
 		expect(heightsM[heightsM.length - 1]).toBe(20000);
-		expect(values[values.length - 1]).toBeCloseTo(0, 6); // top anchor value 0
+		expect(values[values.length - 1]).toBeCloseTo(30, 6); // flat at highest sample's value (elev·2 = 30)
 		// flat below the lowest sample → equals the lowest sample value (0 here)
 		expect(values[0]).toBeCloseTo(0, 6);
 	});

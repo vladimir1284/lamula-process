@@ -11,8 +11,8 @@ import { buildSpline, evalSpline } from '$lib/math/spline';
  * One sample per elevation: at the point's ground range and azimuth, sample each elevation scan
  * (slant range = groundRange / cosθ) and record the beam-centre height `(min+max)/2` and the
  * value. The vertical axis is then filled by a natural cubic spline over those (height, value)
- * samples, with a fixed anchor of value 0 at `topM` (legacy anchors 0 at 20 km). Below the lowest
- * sample the profile is flat (spline evaluation clamps to the endpoints).
+ * samples. Above the highest sample and below the lowest, the profile is flat (spline evaluation
+ * clamps to the endpoints).
  *
  * Point is given in site-relative ground metres (x east, y north), matching crossSection.ts.
  */
@@ -80,12 +80,6 @@ export function computeProfile(scans: Scan[], opts: ProfileOptions): ProfileResu
 			knotV.push(s.value);
 		}
 	}
-	// Fixed top anchor: value 0 at topM (only if above the highest sample).
-	if (knotH.length === 0 || topM - knotH[knotH.length - 1] > 1e-6) {
-		knotH.push(topM);
-		knotV.push(0);
-	}
-
 	const nRows = Math.max(1, Math.floor(topM / cellHeightM) + 1);
 	const heightsM = new Float64Array(nRows);
 	const values = new Float64Array(nRows);

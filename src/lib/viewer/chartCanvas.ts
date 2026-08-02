@@ -51,6 +51,21 @@ export function observeContainerWidth(el: Element, onWidth: (widthPx: number) =>
 	return () => ro.disconnect();
 }
 
+/** Like `observeContainerWidth`, but reports both dimensions -- for charts whose plot area should
+ * track the window's height as well as its width (e.g. the profile chart, which should keep the
+ * window's own proportions rather than a fixed aspect ratio). */
+export function observeContainerSize(
+	el: Element,
+	onSize: (widthPx: number, heightPx: number) => void
+): () => void {
+	const ro = new ResizeObserver((entries) => {
+		const rect = entries[0]?.contentRect;
+		if (rect && rect.width && rect.height) onSize(rect.width, rect.height);
+	});
+	ro.observe(el);
+	return () => ro.disconnect();
+}
+
 export interface PlotRect {
 	left: number;
 	top: number;

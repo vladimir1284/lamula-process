@@ -28,6 +28,7 @@
 	import {
 		catalogLabel,
 		defaultCrossSectionPayload,
+		defaultProfilePayload,
 		paletteKeyForGroundProduct
 	} from '$lib/windows/productCatalog';
 
@@ -113,18 +114,25 @@
 		activeChild !== null &&
 			(windowStore.focusedId === win.id || windowStore.focusedId === activeChildId)
 	);
-	// Armed: this map is waiting for a free cross-section line to be traced, before any
-	// cross-section window exists (see productCatalog CROSS_LINE handler in +page.svelte).
-	const arming = $derived(windowStore.armedCrossSection === win.id);
+	// Armed: this map is waiting for a free cross-section line (or profile point) to be picked,
+	// before any chart window exists (see productCatalog CROSS_LINE/PROFILE handlers in +page.svelte).
+	const armingCrossSection = $derived(windowStore.armedCrossSection === win.id);
+	const armingProfile = $derived(windowStore.armedProfile === win.id);
 	const pickerMode = $derived(
-		arming ? 'cross-section' : showPicker && activeChild ? activeChild.type : null
+		armingCrossSection
+			? 'cross-section'
+			: armingProfile
+				? 'profile'
+				: showPicker && activeChild
+					? activeChild.type
+					: null
 	);
 
 	function onAzimuthSelect(a: number) {
 		if (activeChild?.type === 'rhi') windowStore.setPayload(activeChild.id, { azimuthDeg: a });
 	}
 	function onCutLine(l: CrossSectionWindowPayload['line']) {
-		if (arming) {
+		if (armingCrossSection) {
 			windowStore.disarmCrossSection();
 			windowStore.open('cross-section', {
 				title: 'Corte',
@@ -135,6 +143,15 @@
 		if (activeChild?.type === 'cross-section') windowStore.setPayload(activeChild.id, { line: l });
 	}
 	function onPointSelect(p: { xEastM: number; yNorthM: number }) {
+		if (armingProfile) {
+			windowStore.disarmProfile();
+			windowStore.open('profile', {
+				title: 'Perfil vertical',
+				payload: { ...defaultProfilePayload(win.id), point: p },
+				rect: { width: 420, height: 640 }
+			});
+			return;
+		}
 		if (activeChild?.type === 'profile') windowStore.setPayload(activeChild.id, { point: p });
 	}
 

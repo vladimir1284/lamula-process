@@ -35,6 +35,9 @@ class WindowManagerStore {
 	 * cross-section window exists so the map shows the draw interaction first; cleared once the
 	 * line is completed and the chart window opens (see `MapWindow.svelte`). */
 	armedCrossSection = $state<string | null>(null);
+	/** Map window id currently armed to pick a vertical-profile point, before any profile window
+	 * exists (mirrors `armedCrossSection`; see `MapWindow.svelte`'s `onPointSelect`). */
+	armedProfile = $state<string | null>(null);
 	/** Live magnetic-snap guide lines for the window currently being dragged/resized; null when
 	 * idle or when the current pointer position isn't within snap threshold of anything. */
 	snapGuides = $state<SnapGuides | null>(null);
@@ -76,6 +79,14 @@ class WindowManagerStore {
 
 	disarmCrossSection() {
 		this.armedCrossSection = null;
+	}
+
+	armProfile(sourceMapWindowId: string) {
+		this.armedProfile = sourceMapWindowId;
+	}
+
+	disarmProfile() {
+		this.armedProfile = null;
 	}
 
 	close(id: string) {

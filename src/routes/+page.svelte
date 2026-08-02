@@ -52,7 +52,6 @@
 		catalogLabel,
 		defaultMapPayload,
 		defaultRhiPayload,
-		defaultProfilePayload,
 		type CatalogProductKind
 	} from '$lib/windows/productCatalog';
 	import { MapWindow, RhiWindow, CrossSectionWindow, ProfileWindow } from '$lib/viewer/windows';
@@ -298,10 +297,9 @@
 			// (see MapWindow.svelte's onCutLine).
 			windowStore.armCrossSection(src.id);
 		} else if (id === 'PROFILE') {
-			windowStore.open('profile', {
-				title: 'Perfil vertical',
-				payload: defaultProfilePayload(src.id)
-			});
+			// Arm draw mode on the source map first; the window opens once a point is picked
+			// (see MapWindow.svelte's onPointSelect).
+			windowStore.armProfile(src.id);
 		}
 	}
 
@@ -624,6 +622,7 @@
 						{:else if w.type === 'profile'}
 							<ProfileWindow
 								win={w}
+								{observation}
 								{channels}
 								effectiveSiteAltM={effectiveSite?.altM ?? 0}
 								onEditScale={(key) => (scaleEditorKey = key)}

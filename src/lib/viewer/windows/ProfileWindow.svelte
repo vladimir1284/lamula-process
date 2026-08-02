@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { ChannelRef } from '$lib/pipeline';
+	import type { Observation } from '$lib/domain/types';
 	import { computeProfile } from '$lib/products';
-	import { ProfilePanel, ZoomControl } from '$lib/viewer';
+	import { ProfilePanel, ZoomControl, downloadCanvasAsPng, buildExportFilename } from '$lib/viewer';
 	import {
 		windowStore,
 		type RadarWindow,
@@ -11,12 +12,13 @@
 
 	interface Props {
 		win: RadarWindow;
+		observation: Observation | null;
 		channels: ChannelRef[];
 		effectiveSiteAltM: number;
 		onEditScale: (paletteKey: string) => void;
 	}
 
-	let { win, channels, effectiveSiteAltM, onEditScale }: Props = $props();
+	let { win, observation, channels, effectiveSiteAltM, onEditScale }: Props = $props();
 
 	const payload = $derived(win.payload as ProfileWindowPayload);
 
@@ -38,6 +40,19 @@
 	});
 
 	let zoom = $state(1);
+	let panelRef: ReturnType<typeof ProfilePanel> | undefined = $state();
+
+	function exportCurrentImage() {
+		const canvas = panelRef?.getCanvas();
+		if (!canvas) return;
+		const filename = buildExportFilename([
+			observation?.site.name,
+			observation?.timestamp,
+			'PROFILE',
+			sourceChannel?.moment
+		]);
+		downloadCanvasAsPng(canvas, filename);
+	}
 </script>
 
 <div class="flex h-full flex-col">
@@ -71,6 +86,16 @@
 		>
 			<span class="material-symbols-outlined text-[14px]">palette</span>
 		</button>
+		<button
+			type="button"
+			class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container disabled:opacity-40"
+			disabled={!profile}
+			onclick={exportCurrentImage}
+			aria-label="Exportar imagen"
+			title="Exportar imagen"
+		>
+			<span class="material-symbols-outlined text-[14px]">download</span>
+		</button>
 		<label
 			class="ml-auto flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
@@ -87,7 +112,12 @@
 
 	<div class="flex min-h-0 flex-1 flex-col bg-surface-container-lowest">
 		{#if profile}
-			<ProfilePanel {profile} valueLabel={sourceChannel?.moment ?? 'dBZ'} {zoom} />
+			<ProfilePanel
+				bind:this={panelRef}
+				{profile}
+				valueLabel={sourceChannel?.moment ?? 'dBZ'}
+				{zoom}
+			/>
 		{:else}
 			<p class="px-4 text-center font-mono text-[10px] text-on-surface-variant">
 				Haz clic en el mapa de origen para ver el perfil vertical.

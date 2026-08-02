@@ -4,7 +4,7 @@
 		setupHiDPICanvas,
 		linearScale,
 		drawAxes,
-		observeContainerWidth
+		observeContainerSize
 	} from '$lib/viewer/chartCanvas';
 
 	interface Props {
@@ -22,16 +22,20 @@
 	let canvas: HTMLCanvasElement | undefined = $state();
 	const PAD = { left: 44, bottom: 28, top: 20, right: 12 };
 	const MIN_PLOT_W = 160;
-	const BASE_PLOT_H = 300;
+	const MIN_PLOT_H = 160;
 	let fitWidth = $state(240);
+	let fitHeight = $state(300);
 	const PLOT_W = $derived(Math.max(MIN_PLOT_W, Math.round(fitWidth * zoom)));
-	const PLOT_H = $derived(Math.round(BASE_PLOT_H * zoom));
+	const PLOT_H = $derived(Math.max(MIN_PLOT_H, Math.round(fitHeight * zoom)));
 
 	$effect(() => {
 		const el = container;
 		if (!el) return;
-		return observeContainerWidth(el, (w) => {
+		// Track both dimensions of the window's content area, not just width, so the plot keeps
+		// the window's own proportions instead of a fixed aspect ratio.
+		return observeContainerSize(el, (w, h) => {
 			fitWidth = Math.max(MIN_PLOT_W, Math.round(w - PAD.left - PAD.right));
+			fitHeight = Math.max(MIN_PLOT_H, Math.round(h - PAD.top - PAD.bottom));
 		});
 	});
 
