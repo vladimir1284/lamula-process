@@ -7,7 +7,7 @@
 	import Static from 'ol/source/ImageStatic';
 	import VectorLayer from 'ol/layer/Vector';
 	import VectorSource from 'ol/source/Vector';
-	import Draw from 'ol/interaction/Draw';
+	import Draw, { createBox } from 'ol/interaction/Draw';
 	import Modify from 'ol/interaction/Modify';
 	import LineString from 'ol/geom/LineString';
 	import Feature from 'ol/Feature';
@@ -62,6 +62,15 @@
 		azimuthDeg?: number | null;
 		/** Called with the picked azimuth (deg from north, clockwise). */
 		onAzimuthSelect?: (azDeg: number) => void;
+		/** When true, a click-drag rectangle-draw interaction is active on the map (stats region). */
+		statsSelectEnabled?: boolean;
+		/** Called with the drawn rectangle converted to site-relative ground metres. */
+		onStatsRegionSelect?: (r: {
+			minXM: number;
+			minYM: number;
+			maxXM: number;
+			maxYM: number;
+		}) => void;
 		/** Unit system for range-ring labels. Default metric (km). */
 		unitSystem?: UnitSystem;
 		/** Show distance-from-radar range rings. Default true. */
@@ -94,6 +103,8 @@
 		azimuthSelectEnabled = false,
 		azimuthDeg = null,
 		onAzimuthSelect,
+		statsSelectEnabled = false,
+		onStatsRegionSelect,
 		unitSystem = 'metric',
 		showRings = true,
 		showRadials = false,
@@ -114,6 +125,7 @@
 	let cutModify: Modify | undefined;
 	let pointDraw: Draw | undefined;
 	let azimuthDraw: Draw | undefined;
+	let statsDraw: Draw | undefined;
 	let extraGroup: BaseLayer[] = [];
 	const renderer = new PpiRenderer();
 	let renderToken = 0;
@@ -473,6 +485,36 @@
 		});
 		map.addInteraction(interaction);
 		azimuthDraw = interaction;
+	});
+
+	// Click-drag rectangle-draw interaction for the stats-region tool. Same lifecycle as the
+	// point-pick interaction above; `createBox()` makes a 'Circle'-type Draw actually drag out an
+	// axis-aligned box (a Polygon), so `getExtent()` gives the rectangle directly.
+	$effect(() => {
+		const enabled = statsSelectEnabled;
+		if (!map || !drawLayer) return;
+		if (statsDraw) {
+			map.removeInteraction(statsDraw);
+			statsDraw = undefined;
+		}
+		if (!enabled) return;
+		const source = drawLayer.getSource()!;
+		const interaction = new Draw({ source, type: 'Circle', geometryFunction: createBox() });
+		interaction.on('drawstart', () => source.clear());
+		interaction.on('drawend', (ev) => {
+			const extent = ev.feature.getGeometry()!.getExtent();
+			if (!onStatsRegionSelect) return;
+			const s3857 = siteXY();
+			const sc = scale();
+			onStatsRegionSelect({
+				minXM: (extent[0] - s3857[0]) / sc,
+				minYM: (extent[1] - s3857[1]) / sc,
+				maxXM: (extent[2] - s3857[0]) / sc,
+				maxYM: (extent[3] - s3857[1]) / sc
+			});
+		});
+		map.addInteraction(interaction);
+		statsDraw = interaction;
 	});
 
 	// Draws the current RHI azimuth as a radial from the site to the scan's max range. Reacts to

@@ -1,10 +1,11 @@
 import type { GroundProductKind } from '$lib/pipeline';
 import type { CutLine } from '$lib/products';
 import type { BaseMapId } from '$lib/viewer/baseMaps';
+import type { RectangleRegion } from '$lib/analysis';
 
-/** Map windows show a georeferenced ground product; the other three are derived-chart windows,
+/** Map windows show a georeferenced ground product; the other four are derived-chart windows,
  * each sourced from exactly one map window (see `ChartWindowPayloadBase.sourceMapWindowId`). */
-export type WindowType = 'map' | 'rhi' | 'cross-section' | 'profile';
+export type WindowType = 'map' | 'rhi' | 'cross-section' | 'profile' | 'stats';
 
 export interface WindowRect {
 	x: number;
@@ -40,10 +41,10 @@ export interface MapWindowPayload {
 export interface ChartWindowPayloadBase {
 	/** The map window this chart was generated from. Set once at creation, never reassigned. */
 	sourceMapWindowId: string;
-	maxHeightKm: number;
 }
 
 export interface RhiWindowPayload extends ChartWindowPayloadBase {
+	maxHeightKm: number;
 	azimuthDeg: number;
 	/** Raster interpolation for the Pixi heatmap (`scaleMode`): false = nearest (blocky, exact
 	 * cell boundaries), true = linear (smoothed). */
@@ -51,6 +52,7 @@ export interface RhiWindowPayload extends ChartWindowPayloadBase {
 }
 
 export interface CrossSectionWindowPayload extends ChartWindowPayloadBase {
+	maxHeightKm: number;
 	line: CutLine | null;
 	/** Raster interpolation for the Pixi heatmap (`scaleMode`): false = nearest (blocky, exact
 	 * cell boundaries), true = linear (smoothed). */
@@ -58,11 +60,22 @@ export interface CrossSectionWindowPayload extends ChartWindowPayloadBase {
 }
 
 export interface ProfileWindowPayload extends ChartWindowPayloadBase {
+	maxHeightKm: number;
 	point: { xEastM: number; yNorthM: number } | null;
 }
 
+export interface StatsWindowPayload extends ChartWindowPayloadBase {
+	region: RectangleRegion | null;
+	/** Cells with value strictly greater than this count toward coverage (see `computeStatistics`). */
+	threshold: number;
+}
+
 export type WindowPayload =
-	MapWindowPayload | RhiWindowPayload | CrossSectionWindowPayload | ProfileWindowPayload;
+	| MapWindowPayload
+	| RhiWindowPayload
+	| CrossSectionWindowPayload
+	| ProfileWindowPayload
+	| StatsWindowPayload;
 
 export interface RadarWindow {
 	id: string;
@@ -80,7 +93,9 @@ export interface RadarWindow {
 export function isChartWindow(
 	w: RadarWindow
 ): w is RadarWindow & { payload: ChartWindowPayloadBase } {
-	return w.type === 'rhi' || w.type === 'cross-section' || w.type === 'profile';
+	return (
+		w.type === 'rhi' || w.type === 'cross-section' || w.type === 'profile' || w.type === 'stats'
+	);
 }
 
 export const MIN_WINDOW_WIDTH = 320;
@@ -90,5 +105,6 @@ export const WINDOW_TYPE_ICON: Record<WindowType, string> = {
 	map: 'my_location',
 	rhi: 'radar',
 	'cross-section': 'timeline',
-	profile: 'monitoring'
+	profile: 'monitoring',
+	stats: 'query_stats'
 };

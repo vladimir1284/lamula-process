@@ -199,7 +199,11 @@
 		"siteMarkerTitle": "Marcador del sitio",
 		"siteMarkerAbbr": "SITIO",
 		"cutGuideTitle": "Guía de corte (RHI / cross-section)",
-		"cutGuideAbbr": "GUÍA"
+		"cutGuideAbbr": "GUÍA",
+		"statsTitle": "Estadísticas de región",
+		"emptyStats": "Traza un rectángulo en el mapa de origen para ver estadísticas.",
+		"exportCsv": "Exportar CSV",
+		"exportTxt": "Exportar TXT"
 	},
 	"analysisReport": {
 		"region": "Región",
@@ -260,7 +264,8 @@
 			"windSpeed": "Viento (VAD)",
 			"crossLine": "Corte (línea libre)",
 			"profile": "Perfil vertical",
-			"rhi": "RHI"
+			"rhi": "RHI",
+			"stats": "Estadísticas"
 		}
 	}
 }

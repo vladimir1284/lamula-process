@@ -9,7 +9,8 @@ export type {
 	ChartWindowPayloadBase,
 	RhiWindowPayload,
 	CrossSectionWindowPayload,
-	ProfileWindowPayload
+	ProfileWindowPayload,
+	StatsWindowPayload
 } from './windowTypes';
 export {
 	isChartWindow,

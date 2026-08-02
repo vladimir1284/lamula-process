@@ -38,6 +38,9 @@ class WindowManagerStore {
 	/** Map window id currently armed to pick a vertical-profile point, before any profile window
 	 * exists (mirrors `armedCrossSection`; see `MapWindow.svelte`'s `onPointSelect`). */
 	armedProfile = $state<string | null>(null);
+	/** Map window id currently armed to draw a stats region, before any stats window exists
+	 * (mirrors `armedCrossSection`; see `MapWindow.svelte`'s `onStatsRegionSelect`). */
+	armedStats = $state<string | null>(null);
 	/** Live magnetic-snap guide lines for the window currently being dragged/resized; null when
 	 * idle or when the current pointer position isn't within snap threshold of anything. */
 	snapGuides = $state<SnapGuides | null>(null);
@@ -87,6 +90,14 @@ class WindowManagerStore {
 
 	disarmProfile() {
 		this.armedProfile = null;
+	}
+
+	armStats(sourceMapWindowId: string) {
+		this.armedStats = sourceMapWindowId;
+	}
+
+	disarmStats() {
+		this.armedStats = null;
 	}
 
 	close(id: string) {

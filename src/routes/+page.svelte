@@ -55,7 +55,13 @@
 		defaultRhiPayload,
 		type CatalogProductKind
 	} from '$lib/windows/productCatalog';
-	import { MapWindow, RhiWindow, CrossSectionWindow, ProfileWindow } from '$lib/viewer/windows';
+	import {
+		MapWindow,
+		RhiWindow,
+		CrossSectionWindow,
+		ProfileWindow,
+		StatsWindow
+	} from '$lib/viewer/windows';
 
 	// Every moment the app can decode, for the settings assignment UI (domain/types.ts MomentType).
 	const MOMENTS: MomentType[] = ['dBZ', 'dBuZ', 'V', 'W', 'ZDR', 'uPhiDP', 'RhoHV'];
@@ -318,6 +324,10 @@
 			// Arm draw mode on the source map first; the window opens once a point is picked
 			// (see MapWindow.svelte's onPointSelect).
 			windowStore.armProfile(src.id);
+		} else if (id === 'STATS') {
+			// Arm draw mode on the source map first; the window opens once a region is traced
+			// (see MapWindow.svelte's onStatsRegionSelect).
+			windowStore.armStats(src.id);
 		}
 	}
 
@@ -659,6 +669,13 @@
 								{channels}
 								effectiveSiteAltM={effectiveSite?.altM ?? 0}
 								onEditScale={(key) => (scaleEditorKey = key)}
+							/>
+						{:else if w.type === 'stats'}
+							<StatsWindow
+								win={w}
+								{observation}
+								{channels}
+								effectiveSiteAltM={effectiveSite?.altM ?? 0}
 							/>
 						{/if}
 					{/snippet}

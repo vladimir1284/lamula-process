@@ -5,13 +5,14 @@ import type {
 	CrossSectionWindowPayload,
 	MapWindowPayload,
 	ProfileWindowPayload,
-	RhiWindowPayload
+	RhiWindowPayload,
+	StatsWindowPayload
 } from './windowTypes';
 
 /** Every catalog entry the sidebar can launch a window for. Ground kinds open a `map` window
  * directly; the "Cortes" group opens a derived-chart window sourced from the currently-focused
  * map window (see `windowStore`/`+page.svelte`). */
-export type CatalogProductKind = GroundProductKind | 'CROSS_LINE' | 'PROFILE' | 'RHI';
+export type CatalogProductKind = GroundProductKind | 'CROSS_LINE' | 'PROFILE' | 'RHI' | 'STATS';
 
 export const GROUND_KINDS: GroundProductKind[] = [
 	'PPI',
@@ -67,7 +68,8 @@ export const PRODUCT_GROUPS: CatalogGroup[] = [
 		items: [
 			{ id: 'CROSS_LINE', label: 'catalog.items.crossLine', icon: 'timeline' },
 			{ id: 'PROFILE', label: 'catalog.items.profile', icon: 'monitoring' },
-			{ id: 'RHI', label: 'catalog.items.rhi', icon: 'radar' }
+			{ id: 'RHI', label: 'catalog.items.rhi', icon: 'radar' },
+			{ id: 'STATS', label: 'catalog.items.stats', icon: 'query_stats' }
 		]
 	}
 ];
@@ -149,4 +151,8 @@ export function defaultCrossSectionPayload(
 
 export function defaultProfilePayload(sourceMapWindowId: string): ProfileWindowPayload {
 	return { sourceMapWindowId, maxHeightKm: 18, point: null };
+}
+
+export function defaultStatsPayload(sourceMapWindowId: string): StatsWindowPayload {
+	return { sourceMapWindowId, region: null, threshold: 0 };
 }

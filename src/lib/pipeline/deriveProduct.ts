@@ -47,6 +47,46 @@ export interface DerivedProduct {
 	unit: string;
 }
 
+/** The subset of `MapWindowPayload` (windows/windowTypes.ts) that determines `DeriveOptions` --
+ * structural rather than importing that type directly, so this pipeline module doesn't depend on
+ * the windows layer. */
+export interface MapPayloadDeriveFields {
+	elevationDeg: number;
+	cappiBottomKm: number;
+	cappiTopKm: number;
+	topsMinDbz: number;
+	vilBottomKm: number;
+	vilTopKm: number;
+	vilC1: number;
+	vilC2: number;
+	zrA: number;
+	zrB: number;
+}
+
+/** Builds `DeriveOptions` from a map window's own payload -- shared by `MapWindow.svelte` (its own
+ * rendering) and any sibling window that needs to recompute the SAME ground product the map is
+ * currently showing (e.g. a stats window, so its numbers match what's on screen). */
+export function deriveOptionsFromMapPayload(
+	payload: MapPayloadDeriveFields,
+	beamWidthDeg: number,
+	siteAltM: number
+): DeriveOptions {
+	return {
+		elevationDeg: payload.elevationDeg,
+		beamWidthDeg,
+		siteAltM,
+		cappiBottomM: payload.cappiBottomKm * 1000,
+		cappiTopM: payload.cappiTopKm * 1000,
+		topsMinDbz: payload.topsMinDbz,
+		vilBottomM: payload.vilBottomKm * 1000,
+		vilTopM: payload.vilTopKm * 1000,
+		vilC1: payload.vilC1,
+		vilC2: payload.vilC2,
+		zrA: payload.zrA,
+		zrB: payload.zrB
+	};
+}
+
 export function deriveGroundProduct(
 	channel: Channel,
 	kind: GroundProductKind,

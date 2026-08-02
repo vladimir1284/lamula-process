@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { Channel } from '$lib/domain/types';
 import { makeScan } from '$lib/render/scanFixtures';
-import { deriveGroundProduct, type GroundProductKind, type DeriveOptions } from './deriveProduct';
+import {
+	deriveGroundProduct,
+	deriveOptionsFromMapPayload,
+	type GroundProductKind,
+	type DeriveOptions,
+	type MapPayloadDeriveFields
+} from './deriveProduct';
 
 const channel: Channel = {
 	id: 0,
@@ -51,5 +57,37 @@ describe('deriveGroundProduct', () => {
 	it('column products collapse to a ground-range scan (elevation 0)', () => {
 		expect(deriveGroundProduct(channel, 'VIL', OPTS).scan.angleDeg).toBe(0);
 		expect(deriveGroundProduct(channel, 'TOPS', OPTS).scan.angleDeg).toBe(0);
+	});
+});
+
+describe('deriveOptionsFromMapPayload', () => {
+	const payload: MapPayloadDeriveFields = {
+		elevationDeg: 0.5,
+		cappiBottomKm: 1,
+		cappiTopKm: 3,
+		topsMinDbz: 18,
+		vilBottomKm: 0,
+		vilTopKm: 15,
+		vilC1: 0.00524,
+		vilC2: 0.57143,
+		zrA: 300,
+		zrB: 1.4
+	};
+
+	it('maps km fields to metres and passes beamWidthDeg/siteAltM through', () => {
+		expect(deriveOptionsFromMapPayload(payload, 1.2, 500)).toEqual({
+			elevationDeg: 0.5,
+			beamWidthDeg: 1.2,
+			siteAltM: 500,
+			cappiBottomM: 1000,
+			cappiTopM: 3000,
+			topsMinDbz: 18,
+			vilBottomM: 0,
+			vilTopM: 15000,
+			vilC1: 0.00524,
+			vilC2: 0.57143,
+			zrA: 300,
+			zrB: 1.4
+		});
 	});
 });

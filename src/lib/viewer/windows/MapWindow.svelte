@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { ChannelRef, GroundProductKind } from '$lib/pipeline';
-	import { listElevationsDeg, deriveGroundProduct, type DeriveOptions } from '$lib/pipeline';
+	import {
+		listElevationsDeg,
+		deriveGroundProduct,
+		deriveOptionsFromMapPayload
+	} from '$lib/pipeline';
 	import type { Observation } from '$lib/domain/types';
 	import type { PaletteBook } from '$lib/platform';
 	import { paletteForMoment } from '$lib/platform';
@@ -25,10 +29,12 @@
 		type RhiWindowPayload,
 		type CrossSectionWindowPayload
 	} from '$lib/windows';
+	import type { RectangleRegion } from '$lib/analysis';
 	import {
 		catalogLabel,
 		defaultCrossSectionPayload,
 		defaultProfilePayload,
+		defaultStatsPayload,
 		paletteKeyForGroundProduct
 	} from '$lib/windows/productCatalog';
 	import { _ } from '$lib/i18n';
@@ -76,20 +82,9 @@
 	const palette = $derived(paletteForMoment(book, paletteKey));
 	const productTitle = $derived($_(catalogLabel(payload.product)));
 
-	const deriveOpts = $derived<DeriveOptions>({
-		elevationDeg: payload.elevationDeg,
-		beamWidthDeg: channel?.beamWidthDeg ?? 1.0,
-		siteAltM: effectiveSiteAltM,
-		cappiBottomM: payload.cappiBottomKm * 1000,
-		cappiTopM: payload.cappiTopKm * 1000,
-		topsMinDbz: payload.topsMinDbz,
-		vilBottomM: payload.vilBottomKm * 1000,
-		vilTopM: payload.vilTopKm * 1000,
-		vilC1: payload.vilC1,
-		vilC2: payload.vilC2,
-		zrA: payload.zrA,
-		zrB: payload.zrB
-	});
+	const deriveOpts = $derived(
+		deriveOptionsFromMapPayload(payload, channel?.beamWidthDeg ?? 1.0, effectiveSiteAltM)
+	);
 
 	const ground = $derived.by(() => {
 		if (!channel || channel.scans.length === 0) return null;
@@ -122,14 +117,17 @@
 	// before any chart window exists (see productCatalog CROSS_LINE/PROFILE handlers in +page.svelte).
 	const armingCrossSection = $derived(windowStore.armedCrossSection === win.id);
 	const armingProfile = $derived(windowStore.armedProfile === win.id);
+	const armingStats = $derived(windowStore.armedStats === win.id);
 	const pickerMode = $derived(
 		armingCrossSection
 			? 'cross-section'
 			: armingProfile
 				? 'profile'
-				: showPicker && activeChild
-					? activeChild.type
-					: null
+				: armingStats
+					? 'stats'
+					: showPicker && activeChild
+						? activeChild.type
+						: null
 	);
 
 	function onAzimuthSelect(a: number) {
@@ -157,6 +155,18 @@
 			return;
 		}
 		if (activeChild?.type === 'profile') windowStore.setPayload(activeChild.id, { point: p });
+	}
+	function onStatsRegionSelect(r: { minXM: number; minYM: number; maxXM: number; maxYM: number }) {
+		const region: RectangleRegion = { kind: 'rectangle', name: '', ...r };
+		if (armingStats) {
+			windowStore.disarmStats();
+			windowStore.open('stats', {
+				title: $_('window.statsTitle'),
+				payload: { ...defaultStatsPayload(win.id), region }
+			});
+			return;
+		}
+		if (activeChild?.type === 'stats') windowStore.setPayload(activeChild.id, { region });
 	}
 
 	let readout = $state<Readout | null>(null);
@@ -507,9 +517,11 @@
 				azimuthDeg={pickerMode === 'rhi'
 					? (activeChild?.payload as RhiWindowPayload).azimuthDeg
 					: null}
+				statsSelectEnabled={pickerMode === 'stats'}
 				{onCutLine}
 				{onPointSelect}
 				{onAzimuthSelect}
+				{onStatsRegionSelect}
 				onreadout={(r) => (readout = r)}
 			/>
 		{/if}

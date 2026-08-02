@@ -27,3 +27,4 @@ export {
 } from './paletteStore';
 export type { AppSettings } from './settingsStore';
 export { DEFAULT_SETTINGS, loadSettings, saveSettings } from './settingsStore';
+export { downloadTextFile } from './download';
