@@ -8,6 +8,7 @@
 	import VectorLayer from 'ol/layer/Vector';
 	import VectorSource from 'ol/source/Vector';
 	import Draw from 'ol/interaction/Draw';
+	import Modify from 'ol/interaction/Modify';
 	import LineString from 'ol/geom/LineString';
 	import Feature from 'ol/Feature';
 	import Point from 'ol/geom/Point';
@@ -99,6 +100,7 @@
 	let radialsLayer: VectorLayer<VectorSource> | undefined;
 	let drawLayer: VectorLayer<VectorSource> | undefined;
 	let draw: Draw | undefined;
+	let cutModify: Modify | undefined;
 	let pointDraw: Draw | undefined;
 	let azimuthDraw: Draw | undefined;
 	let extraGroup: BaseLayer[] = [];
@@ -280,10 +282,12 @@
 		radialsLayer?.setVisible(showRadials);
 	});
 
-	// Two-point line-draw interaction for the free-hand cross-section tool. Only one interaction
-	// lives at a time; re-created whenever drawEnabled toggles so a stale one never lingers.
+	// Two-point line-draw interaction for the free-hand cross-section tool. Only for tracing a
+	// fresh line (no cut yet) -- once a line exists, endpoint dragging (the Modify interaction
+	// below) takes over instead. Only one interaction lives at a time; re-created whenever
+	// drawEnabled/presetLine toggles so a stale one never lingers.
 	$effect(() => {
-		const enabled = drawEnabled;
+		const enabled = drawEnabled && presetLine === null;
 		if (!map || !drawLayer) return;
 		if (draw) {
 			map.removeInteraction(draw);
@@ -340,6 +344,45 @@
 		const endFeature = new Feature(new Point(end));
 		endFeature.setStyle(endpointStyle('B', CUT_END_COLOR));
 		source.addFeatures([startFeature, endFeature]);
+	});
+
+	// Once a cut line exists, let the user drag its A/B endpoints to redefine the cut in place --
+	// no need to reset and re-trace. Vertex insert/delete are disabled so the line always stays a
+	// straight two-point cut.
+	$effect(() => {
+		const line = presetLine;
+		if (!map || !drawLayer) return;
+		if (cutModify) {
+			map.removeInteraction(cutModify);
+			cutModify = undefined;
+		}
+		if (!line) return;
+		const source = drawLayer.getSource()!;
+		const interaction = new Modify({
+			source,
+			insertVertexCondition: () => false,
+			deleteCondition: () => false
+		});
+		interaction.on('modifyend', () => {
+			if (!onCutLine) return;
+			const lineFeature = source
+				.getFeatures()
+				.find((f) => f.getGeometry()?.getType() === 'LineString');
+			if (!lineFeature) return;
+			const coords = (lineFeature.getGeometry() as LineString).getCoordinates();
+			const start = coords[0];
+			const end = coords[coords.length - 1];
+			const s3857 = siteXY();
+			const sc = scale();
+			onCutLine({
+				ax: (start[0] - s3857[0]) / sc,
+				ay: (start[1] - s3857[1]) / sc,
+				bx: (end[0] - s3857[0]) / sc,
+				by: (end[1] - s3857[1]) / sc
+			});
+		});
+		map.addInteraction(interaction);
+		cutModify = interaction;
 	});
 
 	// Single-point pick interaction for the vertical-profile tool. Same lifecycle pattern as the

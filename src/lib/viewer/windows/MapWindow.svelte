@@ -25,7 +25,11 @@
 		type RhiWindowPayload,
 		type CrossSectionWindowPayload
 	} from '$lib/windows';
-	import { catalogLabel, paletteKeyForGroundProduct } from '$lib/windows/productCatalog';
+	import {
+		catalogLabel,
+		defaultCrossSectionPayload,
+		paletteKeyForGroundProduct
+	} from '$lib/windows/productCatalog';
 
 	interface Props {
 		win: RadarWindow;
@@ -109,12 +113,25 @@
 		activeChild !== null &&
 			(windowStore.focusedId === win.id || windowStore.focusedId === activeChildId)
 	);
-	const pickerMode = $derived(showPicker && activeChild ? activeChild.type : null);
+	// Armed: this map is waiting for a free cross-section line to be traced, before any
+	// cross-section window exists (see productCatalog CROSS_LINE handler in +page.svelte).
+	const arming = $derived(windowStore.armedCrossSection === win.id);
+	const pickerMode = $derived(
+		arming ? 'cross-section' : showPicker && activeChild ? activeChild.type : null
+	);
 
 	function onAzimuthSelect(a: number) {
 		if (activeChild?.type === 'rhi') windowStore.setPayload(activeChild.id, { azimuthDeg: a });
 	}
 	function onCutLine(l: CrossSectionWindowPayload['line']) {
+		if (arming) {
+			windowStore.disarmCrossSection();
+			windowStore.open('cross-section', {
+				title: 'Corte',
+				payload: { ...defaultCrossSectionPayload(win.id), line: l }
+			});
+			return;
+		}
 		if (activeChild?.type === 'cross-section') windowStore.setPayload(activeChild.id, { line: l });
 	}
 	function onPointSelect(p: { xEastM: number; yNorthM: number }) {
@@ -418,7 +435,7 @@
 				{unitSystem}
 				drawEnabled={pickerMode === 'cross-section'}
 				presetLine={pickerMode === 'cross-section'
-					? (activeChild?.payload as CrossSectionWindowPayload).line
+					? ((activeChild?.payload as CrossSectionWindowPayload | undefined)?.line ?? null)
 					: null}
 				pointSelectEnabled={pickerMode === 'profile'}
 				azimuthSelectEnabled={pickerMode === 'rhi'}

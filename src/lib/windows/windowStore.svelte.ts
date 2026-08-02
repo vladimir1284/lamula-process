@@ -31,6 +31,10 @@ let nextOpenOffset = 0;
 class WindowManagerStore {
 	windows = $state<RadarWindow[]>([]);
 	focusedId = $state<string | null>(null);
+	/** Map window id currently armed to trace a free cross-section line -- set before any
+	 * cross-section window exists so the map shows the draw interaction first; cleared once the
+	 * line is completed and the chart window opens (see `MapWindow.svelte`). */
+	armedCrossSection = $state<string | null>(null);
 	/** Live magnetic-snap guide lines for the window currently being dragged/resized; null when
 	 * idle or when the current pointer position isn't within snap threshold of anything. */
 	snapGuides = $state<SnapGuides | null>(null);
@@ -64,6 +68,14 @@ class WindowManagerStore {
 		this.windows.push(w);
 		this.focus(w.id);
 		return w;
+	}
+
+	armCrossSection(sourceMapWindowId: string) {
+		this.armedCrossSection = sourceMapWindowId;
+	}
+
+	disarmCrossSection() {
+		this.armedCrossSection = null;
 	}
 
 	close(id: string) {

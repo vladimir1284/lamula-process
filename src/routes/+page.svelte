@@ -52,7 +52,6 @@
 		catalogLabel,
 		defaultMapPayload,
 		defaultRhiPayload,
-		defaultCrossSectionPayload,
 		defaultProfilePayload,
 		type CatalogProductKind
 	} from '$lib/windows/productCatalog';
@@ -295,10 +294,9 @@
 		if (id === 'RHI') {
 			windowStore.open('rhi', { title: 'RHI', payload: defaultRhiPayload(src.id) });
 		} else if (id === 'CROSS_LINE') {
-			windowStore.open('cross-section', {
-				title: 'Corte',
-				payload: defaultCrossSectionPayload(src.id)
-			});
+			// Arm draw mode on the source map first; the window opens once the line is traced
+			// (see MapWindow.svelte's onCutLine).
+			windowStore.armCrossSection(src.id);
 		} else if (id === 'PROFILE') {
 			windowStore.open('profile', {
 				title: 'Perfil vertical',
