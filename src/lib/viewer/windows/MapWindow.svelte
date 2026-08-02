@@ -41,6 +41,8 @@
 		unitSystem: UnitSystem;
 		site: { lon: number; lat: number } | null;
 		effectiveSiteAltM: number;
+		/** Seeds the `smooth` field of any cross-section window armed from this map. */
+		imageSmoothing: boolean;
 		onOpenLocationEditor: () => void;
 		onShowVad: (channelIndex: number) => void;
 		onEditScale: (paletteKey: string) => void;
@@ -54,6 +56,7 @@
 		unitSystem,
 		site,
 		effectiveSiteAltM,
+		imageSmoothing,
 		onOpenLocationEditor,
 		onShowVad,
 		onEditScale
@@ -137,7 +140,7 @@
 			windowStore.disarmCrossSection();
 			windowStore.open('cross-section', {
 				title: $_('window.crossSectionTitle'),
-				payload: { ...defaultCrossSectionPayload(win.id), line: l }
+				payload: { ...defaultCrossSectionPayload(win.id, imageSmoothing), line: l }
 			});
 			return;
 		}
@@ -399,10 +402,19 @@
 				/>
 				{$_('window.radialsAbbr')}
 			</label>
+			<label
+				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+				title={$_('window.scaleTitle')}
+			>
+				<input type="checkbox" bind:checked={payload.showScale} class="accent-primary-container" />
+				{$_('window.scaleAbbr')}
+			</label>
 		{/if}
 
 		<div class="ml-auto flex items-center gap-2">
-			<ScaleLegend {palette} />
+			{#if payload.showScale}
+				<ScaleLegend {palette} />
+			{/if}
 			<button
 				type="button"
 				class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"

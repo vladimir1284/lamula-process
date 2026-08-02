@@ -57,6 +57,8 @@
 			"units": "Units",
 			"sites": "Sites",
 			"palettes": "Palettes",
+			"calc": "Calc",
+			"view": "View",
 			"language": "Language"
 		},
 		"units": {
@@ -88,6 +90,16 @@
 				"rain": "Rain",
 				"windSpeed": "Wind"
 			}
+		},
+		"calc": {
+			"heading": "Rain-rate calculation constants",
+			"description": "Z-R coefficients (R = (Z/A)^(1/B)) used by default when opening a new rain-rate window. Each window can adjust them individually afterward."
+		},
+		"view": {
+			"heading": "Default view",
+			"description": "Values used when opening new windows -- each window can adjust them individually afterward.",
+			"showScale": "Show color scale",
+			"imageSmoothing": "Image smoothing (RHI / cross-sections)"
 		}
 	},
 	"nav": {
@@ -175,7 +187,11 @@
 			"value": "VALUE",
 			"status": "STATUS",
 			"distanceAB": "DISTANCE (A→B)"
-		}
+		},
+		"scaleTitle": "Color scale",
+		"scaleAbbr": "SCL",
+		"smoothTitle": "Image smoothing",
+		"smoothAbbr": "SMTH"
 	},
 	"analysisReport": {
 		"region": "Region",

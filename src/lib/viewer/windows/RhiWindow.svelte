@@ -130,6 +130,13 @@
 			/>
 			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
 		</label>
+		<label
+			class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+			title={$_('window.smoothTitle')}
+		>
+			<input type="checkbox" bind:checked={payload.smooth} class="accent-primary-container" />
+			{$_('window.smoothAbbr')}
+		</label>
 		<ZoomControl {zoom} onZoom={(z) => (zoom = z)} />
 		<button
 			type="button"
@@ -194,6 +201,7 @@
 				{palette}
 				maxHeightM={payload.maxHeightKm * 1000}
 				{unitSystem}
+				smooth={payload.smooth}
 				{zoom}
 				onZoomChange={(z) => (zoom = z)}
 				onreadout={(r) => (readout = r)}

@@ -32,6 +32,7 @@ export interface MapWindowPayload {
 	dataOpacity: number;
 	showRings: boolean;
 	showRadials: boolean;
+	showScale: boolean;
 }
 
 export interface ChartWindowPayloadBase {
@@ -42,10 +43,16 @@ export interface ChartWindowPayloadBase {
 
 export interface RhiWindowPayload extends ChartWindowPayloadBase {
 	azimuthDeg: number;
+	/** Raster interpolation for the Pixi heatmap (`scaleMode`): false = nearest (blocky, exact
+	 * cell boundaries), true = linear (smoothed). */
+	smooth: boolean;
 }
 
 export interface CrossSectionWindowPayload extends ChartWindowPayloadBase {
 	line: CutLine | null;
+	/** Raster interpolation for the Pixi heatmap (`scaleMode`): false = nearest (blocky, exact
+	 * cell boundaries), true = linear (smoothed). */
+	smooth: boolean;
 }
 
 export interface ProfileWindowPayload extends ChartWindowPayloadBase {

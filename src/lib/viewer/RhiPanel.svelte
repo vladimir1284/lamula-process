@@ -17,6 +17,8 @@
 		maxHeightM?: number;
 		/** Unit system for the ground-range axis. Default metric (km). */
 		unitSystem?: UnitSystem;
+		/** Texture interpolation: false = nearest (blocky), true = linear (smoothed). */
+		smooth?: boolean;
 		/** Current zoom level (real pan/zoom transform scale, 1 = fit). Wheel-zoom on the plot
 		 * updates this via `onZoomChange`; external controls (ZoomControl) can also drive it. */
 		zoom?: number;
@@ -30,6 +32,7 @@
 		maxRangeM,
 		maxHeightM = 18_000,
 		unitSystem = 'metric',
+		smooth = false,
 		zoom = 1,
 		onZoomChange,
 		onreadout
@@ -127,6 +130,7 @@
 			xLabel: distanceUnitLabel(unitSystem),
 			yLabel: 'km'
 		}}
+		{smooth}
 		{zoom}
 		{onZoomChange}
 		onplotmove={handlePlotMove}

@@ -12,13 +12,25 @@ export interface AppSettings {
 	baseMap: BaseMapId;
 	showRings: boolean;
 	showRadials: boolean;
+	/** Z-R rain-rate coefficients (R = (Z/A)^(1/B)), seed newly-opened RAIN windows' own editable
+	 * a/b fields -- see legacy/Units/Configuration.pas `Rain_A`/`Rain_B`. */
+	zrA: number;
+	zrB: number;
+	/** Seeds newly-opened map windows' scale-legend visibility. */
+	showScale: boolean;
+	/** Seeds newly-opened RHI/cross-section windows' raster interpolation (Pixi `scaleMode`). */
+	imageSmoothing: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
 	unitSystem: 'metric',
 	baseMap: 'carto-dark',
 	showRings: true,
-	showRadials: false
+	showRadials: false,
+	zrA: 300,
+	zrB: 1.4,
+	showScale: true,
+	imageSmoothing: false
 };
 const STORAGE_KEY = 'lamula-process:settings';
 
@@ -38,7 +50,15 @@ export async function loadSettings(): Promise<AppSettings> {
 			showRings:
 				typeof parsed.showRings === 'boolean' ? parsed.showRings : DEFAULT_SETTINGS.showRings,
 			showRadials:
-				typeof parsed.showRadials === 'boolean' ? parsed.showRadials : DEFAULT_SETTINGS.showRadials
+				typeof parsed.showRadials === 'boolean' ? parsed.showRadials : DEFAULT_SETTINGS.showRadials,
+			zrA: typeof parsed.zrA === 'number' ? parsed.zrA : DEFAULT_SETTINGS.zrA,
+			zrB: typeof parsed.zrB === 'number' ? parsed.zrB : DEFAULT_SETTINGS.zrB,
+			showScale:
+				typeof parsed.showScale === 'boolean' ? parsed.showScale : DEFAULT_SETTINGS.showScale,
+			imageSmoothing:
+				typeof parsed.imageSmoothing === 'boolean'
+					? parsed.imageSmoothing
+					: DEFAULT_SETTINGS.imageSmoothing
 		};
 	} catch {
 		return { ...DEFAULT_SETTINGS };

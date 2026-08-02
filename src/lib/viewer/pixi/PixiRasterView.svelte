@@ -33,6 +33,9 @@
 		extraOverlay?: (ctx: CanvasRenderingContext2D) => void;
 		/** Heatmap background fill, as a Pixi hex color. Default matches the panels' dark bg. */
 		background?: number;
+		/** Texture interpolation: false = nearest (blocky, exact cell boundaries, current default),
+		 * true = linear (smoothed). */
+		smooth?: boolean;
 		/** Current zoom level (1 = fit, no min above 1). Wheel-zoom updates this via `onZoomChange`;
 		 * external controls (e.g. ZoomControl's +/-/reset buttons) can also drive it directly. */
 		zoom?: number;
@@ -51,6 +54,7 @@
 		axisOpts = {},
 		extraOverlay,
 		background = 0x0b0f14,
+		smooth = false,
 		zoom = 1,
 		onZoomChange,
 		onplotmove,
@@ -100,7 +104,7 @@
 	let heatmapContainer: Container | null = null;
 	let sprite: Sprite | null = null;
 	let currentTexture: Texture | null = null;
-	let currentDims = { widthPx: 0, heightPx: 0, dpr: 0 };
+	let currentDims = { widthPx: 0, heightPx: 0, dpr: 0, smooth: false };
 	let ready = $state(false);
 
 	// Pan offset (screen px, pre-scale) -- lives only here, not lifted to the caller. `zoom` (the
@@ -240,7 +244,8 @@
 			currentTexture &&
 			currentDims.widthPx === r.widthPx &&
 			currentDims.heightPx === r.heightPx &&
-			currentDims.dpr === dpr;
+			currentDims.dpr === dpr &&
+			currentDims.smooth === smooth;
 		if (sameDims && currentTexture) {
 			const source = currentTexture.source as BufferImageSource;
 			source.resource = r.rgba;
@@ -259,7 +264,7 @@
 				resource: r.rgba,
 				width: r.widthPx,
 				height: r.heightPx,
-				scaleMode: 'nearest',
+				scaleMode: smooth ? 'linear' : 'nearest',
 				// Pixi's default format for a Uint8ClampedArray buffer is 'bgra8unorm' -- our
 				// rasterizers write RGBA byte order (same convention as ImageData/putImageData), so
 				// this must be explicit or red/blue channels swap.
@@ -270,7 +275,7 @@
 			sprite.setSize(plotW, plotH);
 			currentTexture?.destroy(true);
 			currentTexture = texture;
-			currentDims = { widthPx: r.widthPx, heightPx: r.heightPx, dpr };
+			currentDims = { widthPx: r.widthPx, heightPx: r.heightPx, dpr, smooth };
 		}
 		app.render();
 	});

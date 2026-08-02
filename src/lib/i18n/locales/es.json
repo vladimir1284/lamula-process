@@ -57,6 +57,8 @@
 			"units": "Unidades",
 			"sites": "Sitios",
 			"palettes": "Paletas",
+			"calc": "Cálculo",
+			"view": "Vista",
 			"language": "Idioma"
 		},
 		"units": {
@@ -88,6 +90,16 @@
 				"rain": "Lluvia",
 				"windSpeed": "Viento"
 			}
+		},
+		"calc": {
+			"heading": "Constantes de cálculo de lluvia",
+			"description": "Coeficientes Z-R (R = (Z/A)^(1/B)) usados por defecto al abrir una nueva ventana de tasa de lluvia. Cada ventana permite ajustarlos individualmente después."
+		},
+		"view": {
+			"heading": "Vista por defecto",
+			"description": "Valores usados al abrir nuevas ventanas -- cada ventana puede ajustarlos individualmente después.",
+			"showScale": "Mostrar escala de colores",
+			"imageSmoothing": "Suavizado de imagen (RHI / cortes)"
 		}
 	},
 	"nav": {
@@ -175,7 +187,11 @@
 			"value": "VALOR",
 			"status": "ESTADO",
 			"distanceAB": "DISTANCIA (A→B)"
-		}
+		},
+		"scaleTitle": "Escala de colores",
+		"scaleAbbr": "ESC",
+		"smoothTitle": "Suavizado de imagen",
+		"smoothAbbr": "SUAV"
 	},
 	"analysisReport": {
 		"region": "Región",

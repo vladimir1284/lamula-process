@@ -112,7 +112,9 @@
 	// Settings modal: which section is active, and (for "Sitios") which saved site is being
 	// edited -- reusing SiteLocationEditor for both the header's "editar ubicación" shortcut and
 	// the general site-data management, so there's a single settings entry point, not two.
-	let settingsTab = $state<'unidades' | 'sitios' | 'paletas' | 'idioma'>('unidades');
+	let settingsTab = $state<'unidades' | 'sitios' | 'paletas' | 'calculo' | 'vista' | 'idioma'>(
+		'unidades'
+	);
 	let editingSiteKey = $state<string | null>(null);
 	let siteList = $state<SiteDataStore>({});
 	async function refreshSiteList() {
@@ -284,7 +286,10 @@
 				payload: defaultMapPayload(id, {
 					baseMap: settings.baseMap,
 					showRings: settings.showRings,
-					showRadials: settings.showRadials
+					showRadials: settings.showRadials,
+					showScale: settings.showScale,
+					zrA: settings.zrA,
+					zrB: settings.zrB
 				})
 			});
 			return;
@@ -292,7 +297,10 @@
 		const src = focusedMap;
 		if (!src) return;
 		if (id === 'RHI') {
-			windowStore.open('rhi', { title: 'RHI', payload: defaultRhiPayload(src.id) });
+			windowStore.open('rhi', {
+				title: 'RHI',
+				payload: defaultRhiPayload(src.id, settings.imageSmoothing)
+			});
 		} else if (id === 'CROSS_LINE') {
 			// Arm draw mode on the source map first; the window opens once the line is traced
 			// (see MapWindow.svelte's onCutLine).
@@ -612,6 +620,7 @@
 								{unitSystem}
 								{site}
 								effectiveSiteAltM={effectiveSite?.altM ?? 0}
+								imageSmoothing={settings.imageSmoothing}
 								onOpenLocationEditor={openLocationEditor}
 								onShowVad={(idx) => (vadChannelIndex = idx)}
 								onEditScale={(key) => (scaleEditorKey = key)}
@@ -694,7 +703,7 @@
 		<div class="flex flex-col gap-4">
 			<!-- Section tabs. -->
 			<div class="flex gap-1 border-b border-outline-variant font-mono text-label-mono uppercase">
-				{#each [{ id: 'unidades', label: 'settings.tabs.units', icon: 'straighten' }, { id: 'sitios', label: 'settings.tabs.sites', icon: 'pin_drop' }, { id: 'paletas', label: 'settings.tabs.palettes', icon: 'palette' }, { id: 'idioma', label: 'settings.tabs.language', icon: 'translate' }] as tab (tab.id)}
+				{#each [{ id: 'unidades', label: 'settings.tabs.units', icon: 'straighten' }, { id: 'sitios', label: 'settings.tabs.sites', icon: 'pin_drop' }, { id: 'paletas', label: 'settings.tabs.palettes', icon: 'palette' }, { id: 'calculo', label: 'settings.tabs.calc', icon: 'functions' }, { id: 'vista', label: 'settings.tabs.view', icon: 'visibility' }, { id: 'idioma', label: 'settings.tabs.language', icon: 'translate' }] as tab (tab.id)}
 					<button
 						class="flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors {settingsTab ===
 						tab.id
@@ -916,6 +925,68 @@
 							/>
 						</label>
 					</div>
+				</div>
+			{:else if settingsTab === 'calculo'}
+				<div class="space-y-3">
+					<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
+						{$_('settings.calc.heading')}
+					</h3>
+					<p class="font-mono text-[10px] text-on-surface-variant">
+						{$_('settings.calc.description')}
+					</p>
+					<div class="flex gap-4">
+						<label class="flex items-center gap-2">
+							<span class="font-mono text-label-mono text-on-surface-variant">Z-R A</span>
+							<input
+								type="number"
+								step="10"
+								class="w-20 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+								value={settings.zrA}
+								onchange={(e) =>
+									updateSettings({ zrA: Number((e.currentTarget as HTMLInputElement).value) })}
+							/>
+						</label>
+						<label class="flex items-center gap-2">
+							<span class="font-mono text-label-mono text-on-surface-variant">Z-R B</span>
+							<input
+								type="number"
+								step="0.1"
+								class="w-20 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+								value={settings.zrB}
+								onchange={(e) =>
+									updateSettings({ zrB: Number((e.currentTarget as HTMLInputElement).value) })}
+							/>
+						</label>
+					</div>
+				</div>
+			{:else if settingsTab === 'vista'}
+				<div class="space-y-3">
+					<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
+						{$_('settings.view.heading')}
+					</h3>
+					<p class="font-mono text-[10px] text-on-surface-variant">
+						{$_('settings.view.description')}
+					</p>
+					<label class="flex items-center gap-2 font-mono text-label-mono text-on-surface-variant">
+						<input
+							type="checkbox"
+							checked={settings.showScale}
+							class="accent-primary-container"
+							onchange={(e) =>
+								updateSettings({ showScale: (e.currentTarget as HTMLInputElement).checked })}
+						/>
+						{$_('settings.view.showScale')}
+					</label>
+					<label class="flex items-center gap-2 font-mono text-label-mono text-on-surface-variant">
+						<input
+							type="checkbox"
+							checked={settings.imageSmoothing}
+							class="accent-primary-container"
+							onchange={(e) =>
+								updateSettings({ imageSmoothing: (e.currentTarget as HTMLInputElement).checked })}
+						/>
+						{$_('settings.view.imageSmoothing')}
+					</label>
 				</div>
 			{:else if settingsTab === 'idioma'}
 				<div class="space-y-3">

@@ -32,6 +32,8 @@
 		markEndpoints?: boolean;
 		/** Unit system for the distance axis. Default metric (km). */
 		unitSystem?: UnitSystem;
+		/** Texture interpolation: false = nearest (blocky), true = linear (smoothed). */
+		smooth?: boolean;
 		/** Current zoom level (real pan/zoom transform scale, 1 = fit). Wheel-zoom on the plot
 		 * updates this via `onZoomChange`; external controls (ZoomControl) can also drive it. */
 		zoom?: number;
@@ -46,6 +48,7 @@
 		maxHeightM = 18_000,
 		markEndpoints = false,
 		unitSystem = 'metric',
+		smooth = false,
 		zoom = 1,
 		onZoomChange,
 		onreadout
@@ -171,6 +174,7 @@
 			yLabel: 'km'
 		}}
 		extraOverlay={drawEndpoints}
+		{smooth}
 		{zoom}
 		{onZoomChange}
 		onplotmove={handlePlotMove}

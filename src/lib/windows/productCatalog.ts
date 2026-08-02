@@ -102,7 +102,14 @@ export function paletteKeyForGroundProduct(p: GroundProductKind, moment: MomentT
 
 export function defaultMapPayload(
 	product: GroundProductKind,
-	appDefaults: { baseMap: BaseMapId; showRings: boolean; showRadials: boolean }
+	appDefaults: {
+		baseMap: BaseMapId;
+		showRings: boolean;
+		showRadials: boolean;
+		showScale: boolean;
+		zrA: number;
+		zrB: number;
+	}
 ): MapWindowPayload {
 	return {
 		product,
@@ -115,21 +122,25 @@ export function defaultMapPayload(
 		vilTopKm: 15,
 		vilC1: 0.00524,
 		vilC2: 0.57143,
-		zrA: 300,
-		zrB: 1.4,
+		zrA: appDefaults.zrA,
+		zrB: appDefaults.zrB,
 		baseMap: appDefaults.baseMap,
 		dataOpacity: 0.8,
 		showRings: appDefaults.showRings,
-		showRadials: appDefaults.showRadials
+		showRadials: appDefaults.showRadials,
+		showScale: appDefaults.showScale
 	};
 }
 
-export function defaultRhiPayload(sourceMapWindowId: string): RhiWindowPayload {
-	return { sourceMapWindowId, maxHeightKm: 18, azimuthDeg: 0 };
+export function defaultRhiPayload(sourceMapWindowId: string, smooth: boolean): RhiWindowPayload {
+	return { sourceMapWindowId, maxHeightKm: 18, azimuthDeg: 0, smooth };
 }
 
-export function defaultCrossSectionPayload(sourceMapWindowId: string): CrossSectionWindowPayload {
-	return { sourceMapWindowId, maxHeightKm: 18, line: null };
+export function defaultCrossSectionPayload(
+	sourceMapWindowId: string,
+	smooth: boolean
+): CrossSectionWindowPayload {
+	return { sourceMapWindowId, maxHeightKm: 18, line: null, smooth };
 }
 
 export function defaultProfilePayload(sourceMapWindowId: string): ProfileWindowPayload {
