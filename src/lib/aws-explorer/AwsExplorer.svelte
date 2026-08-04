@@ -1,7 +1,15 @@
 <script lang="ts">
 	import RadarSiteMap from './RadarSiteMap.svelte';
-	import { geocodeZip, nearestSites, type RadarCatalogSite } from './radarCatalog';
-	import { listVolumeScans, fetchVolumeScanBytes, type VolumeScan } from './nexradS3';
+	import {
+		geocodeZip,
+		nearestSites,
+		US_RADAR_SITES,
+		CO_RADAR_SITES,
+		type RadarCatalogSite
+	} from './radarCatalog';
+	import * as nexradS3 from './nexradS3';
+	import * as ideamS3 from './ideamS3';
+	import type { VolumeScan } from './nexradS3';
 	import { distanceUnitLabel, toDisplayDistanceM, type UnitSystem } from '$lib/units';
 	import { _ } from '$lib/i18n';
 
@@ -18,6 +26,21 @@
 	}
 
 	let { onload, unitSystem = 'metric' }: Props = $props();
+
+	type Source = 'us' | 'co';
+	// Each bucket has its own client (nexradS3.ts / ideamS3.ts) and site catalog; picking the
+	// source picks which of both this component talks to for the rest of the flow.
+	const SOURCES: Record<
+		Source,
+		{ client: typeof nexradS3; sites: RadarCatalogSite[]; center: [number, number]; zoom: number }
+	> = {
+		us: { client: nexradS3, sites: US_RADAR_SITES, center: [-96, 39], zoom: 4 },
+		co: { client: ideamS3, sites: CO_RADAR_SITES, center: [-74, 4], zoom: 5 }
+	};
+
+	let source = $state<Source>('us');
+	let client = $derived(SOURCES[source].client);
+	let sites = $derived(SOURCES[source].sites);
 
 	let zip = $state('');
 	let geocodeStatus = $state<'idle' | 'loading' | 'not-found'>('idle');
@@ -38,20 +61,29 @@
 		return new Date().toISOString().slice(0, 10);
 	}
 
+	function selectSource(next: Source) {
+		if (next === source) return;
+		source = next;
+		zip = '';
+		geocodeStatus = 'idle';
+		nearest = [];
+		selectSite(null);
+	}
+
 	async function searchZip() {
 		if (!zip.trim()) return;
 		geocodeStatus = 'loading';
 		nearest = [];
-		const coords = await geocodeZip(zip.trim());
+		const coords = await geocodeZip(zip.trim(), source);
 		if (!coords) {
 			geocodeStatus = 'not-found';
 			return;
 		}
 		geocodeStatus = 'idle';
-		nearest = nearestSites(coords);
+		nearest = nearestSites(coords, sites);
 	}
 
-	function selectSite(code: string) {
+	function selectSite(code: string | null) {
 		selectedSite = code;
 		scans = [];
 		scansStatus = 'idle';
@@ -64,7 +96,7 @@
 		scansStatus = 'loading';
 		scansError = null;
 		try {
-			scans = await listVolumeScans(selectedSite, { year, month, day });
+			scans = await client.listVolumeScans(selectedSite, { year, month, day });
 			scansStatus = 'ready';
 		} catch (err) {
 			scansStatus = 'error';
@@ -83,7 +115,7 @@
 		loadingKey = scan.key;
 		loadError = null;
 		try {
-			const picked = await fetchVolumeScanBytes(scan.key);
+			const picked = await client.fetchVolumeScanBytes(scan.key);
 			onload({ ...picked, s3Key: scan.key });
 		} catch (err) {
 			loadError = err instanceof Error ? err.message : String(err);
@@ -95,8 +127,27 @@
 
 <div class="flex flex-col gap-4 font-mono text-label-mono">
 	<section class="flex flex-col gap-2">
+		<div class="flex gap-2">
+			<button
+				class="rounded border px-2 py-1 text-[12px] transition-colors {source === 'us'
+					? 'border-primary-container bg-primary-container text-on-primary-container'
+					: 'border-outline-variant bg-surface-container-high text-on-surface hover:border-primary-container'}"
+				onclick={() => selectSource('us')}
+			>
+				{$_('awsExplorer.sourceUs')}
+			</button>
+			<button
+				class="rounded border px-2 py-1 text-[12px] transition-colors {source === 'co'
+					? 'border-primary-container bg-primary-container text-on-primary-container'
+					: 'border-outline-variant bg-surface-container-high text-on-surface hover:border-primary-container'}"
+				onclick={() => selectSource('co')}
+			>
+				{$_('awsExplorer.sourceCo')}
+			</button>
+		</div>
+
 		<p class="text-body-sm text-on-surface-variant">
-			{$_('awsExplorer.searchHint')}
+			{$_(source === 'us' ? 'awsExplorer.searchHint' : 'awsExplorer.searchHintCo')}
 		</p>
 		<div class="flex gap-2">
 			<input
@@ -141,6 +192,9 @@
 		{/if}
 
 		<RadarSiteMap
+			{sites}
+			center={SOURCES[source].center}
+			zoom={SOURCES[source].zoom}
 			highlighted={nearest.map((s) => s.code)}
 			selected={selectedSite}
 			onselect={selectSite}

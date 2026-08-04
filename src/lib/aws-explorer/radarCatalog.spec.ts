@@ -1,14 +1,38 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { US_RADAR_SITES, nearestSites, geocodeZip } from './radarCatalog';
+import { US_RADAR_SITES, CO_RADAR_SITES, nearestSites, geocodeZip } from './radarCatalog';
 
 describe('US_RADAR_SITES', () => {
-	it('excludes the Cuban INSMET rd* keys, keeps WSR-88D ICAO codes', () => {
+	it('excludes the Cuban INSMET rd* keys and the IDEAM sites, keeps WSR-88D ICAO codes', () => {
 		expect(US_RADAR_SITES.some((s) => s.code.startsWith('rd'))).toBe(false);
+		expect(US_RADAR_SITES.some((s) => s.code === 'Bogota' || s.code === 'Munchique')).toBe(false);
 		expect(US_RADAR_SITES.find((s) => s.code === 'KBYX')).toEqual({
 			code: 'KBYX',
 			lat: 24.59694,
 			lon: -81.70333,
 			altM: 2.44
+		});
+	});
+});
+
+describe('CO_RADAR_SITES', () => {
+	it('has exactly the 8 IDEAM S3 folders, none of the US/Cuban keys', () => {
+		expect(CO_RADAR_SITES.map((s) => s.code).sort()).toEqual(
+			[
+				'Barrancabermeja',
+				'Bogota',
+				'Carimagua',
+				'Corozal',
+				'Guaviare',
+				'Munchique',
+				'Tablazo',
+				'santa_elena'
+			].sort()
+		);
+		expect(CO_RADAR_SITES.find((s) => s.code === 'Guaviare')).toEqual({
+			code: 'Guaviare',
+			lat: 2.56799,
+			lon: -72.63972,
+			altM: 180
 		});
 	});
 });
@@ -40,6 +64,17 @@ describe('geocodeZip', () => {
 		})) as unknown as typeof fetch;
 
 		expect(await geocodeZip('33040')).toEqual({ lat: 24.5551, lon: -81.78 });
+	});
+
+	it('passes the country param through to the Nominatim query (Colombia)', async () => {
+		let requestedUrl = '';
+		globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+			requestedUrl = String(input);
+			return { ok: true, json: async () => [{ lat: '4.7110', lon: '-74.0721' }] };
+		}) as unknown as typeof fetch;
+
+		await geocodeZip('110111', 'co');
+		expect(requestedUrl).toContain('country=co');
 	});
 
 	it('returns null when no result is found', async () => {

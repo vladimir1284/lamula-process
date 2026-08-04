@@ -16,17 +16,25 @@
 	import { US_RADAR_SITES, type RadarCatalogSite } from './radarCatalog';
 
 	interface Props {
+		/** Sites to plot. Defaults to the US WSR-88D catalog for backward compatibility. */
+		sites?: RadarCatalogSite[];
 		/** Highlighted (e.g. nearest-N from a zip search); rendered larger/brighter than the rest. */
 		highlighted?: string[];
 		selected?: string | null;
 		onselect: (code: string) => void;
+		/** [lon, lat] initial view center. Defaults to a CONUS-wide view. */
+		center?: [number, number];
+		zoom?: number;
 	}
 
-	let { highlighted = [], selected = null, onselect }: Props = $props();
-
-	// CONUS + Alaska/Hawaii/territories, matching the spread of known-sites.json's WSR-88D entries.
-	const DEFAULT_CENTER: [number, number] = [-96, 39];
-	const DEFAULT_ZOOM = 4;
+	let {
+		sites = US_RADAR_SITES,
+		highlighted = [],
+		selected = null,
+		onselect,
+		center: initialCenter = [-96, 39],
+		zoom: initialZoom = 4
+	}: Props = $props();
 
 	let mapEl: HTMLDivElement;
 	let map: Map | undefined;
@@ -46,7 +54,7 @@
 	}
 
 	function buildFeatures(): Feature[] {
-		return US_RADAR_SITES.map((site) => {
+		return sites.map((site) => {
 			const feature = new Feature(new Point(fromLonLat([site.lon, site.lat])));
 			feature.set('code', site.code);
 			feature.setStyle(styleFor(site));
@@ -71,7 +79,7 @@
 		map = new Map({
 			target: mapEl,
 			layers: [osmLayer, markerLayer],
-			view: new View({ center: fromLonLat(DEFAULT_CENTER), zoom: DEFAULT_ZOOM })
+			view: new View({ center: fromLonLat(initialCenter), zoom: initialZoom })
 		});
 		map.on('click', onMapClick);
 	});
@@ -80,13 +88,23 @@
 		map?.setTarget(undefined);
 	});
 
+	// Rebuild markers and re-center whenever the site list changes (e.g. switching the
+	// US/Colombia source tab) -- a plain re-style pass isn't enough since the feature set itself
+	// changes, not just which ones are highlighted/selected.
+	$effect(() => {
+		if (!markerSource || !map) return;
+		markerSource.clear();
+		markerSource.addFeatures(buildFeatures());
+		map.getView().animate({ center: fromLonLat(initialCenter), zoom: initialZoom, duration: 300 });
+	});
+
 	// Re-style markers whenever the highlighted/selected set changes (new zip search, new pick).
 	$effect(() => {
 		void selected;
 		void highlighted;
 		markerSource?.getFeatures().forEach((feature) => {
 			const code = feature.get('code');
-			const site = US_RADAR_SITES.find((s) => s.code === code);
+			const site = sites.find((s) => s.code === code);
 			if (site) feature.setStyle(styleFor(site));
 		});
 	});

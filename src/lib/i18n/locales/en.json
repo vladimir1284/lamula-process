@@ -120,7 +120,10 @@
 		"save": "Save"
 	},
 	"awsExplorer": {
+		"sourceUs": "USA (NEXRAD)",
+		"sourceCo": "Colombia (IDEAM)",
 		"searchHint": "Search for the nearest radar by ZIP code (US), or pick it directly on the map.",
+		"searchHintCo": "Search for the nearest radar by postal code (Colombia), or pick it directly on the map.",
 		"zipPlaceholder": "ZIP code",
 		"searching": "SEARCHING…",
 		"search": "SEARCH",

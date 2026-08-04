@@ -7,6 +7,7 @@
  * `noaa-nexrad-level2` (the other AWS Open Data mirror) returned 403 on the same kind of
  * listing call when this was verified -- don't switch to it.
  */
+import { listS3Objects, fetchS3ObjectBytes } from './s3ListObjects';
 
 const BUCKET_URL = 'https://unidata-nexrad-level2.s3.amazonaws.com/';
 
@@ -26,61 +27,19 @@ export interface ScanDate {
 /** Volume scans for one radar site on one UTC day, most recent first. Empty array is a normal result. */
 export async function listVolumeScans(site: string, date: ScanDate): Promise<VolumeScan[]> {
 	const prefix = `${date.year}/${pad2(date.month)}/${pad2(date.day)}/${site}/`;
-	const scans: VolumeScan[] = [];
-	let continuationToken: string | undefined;
-
-	do {
-		const url = new URL(BUCKET_URL);
-		url.searchParams.set('list-type', '2');
-		url.searchParams.set('prefix', prefix);
-		url.searchParams.set('delimiter', '/');
-		if (continuationToken) url.searchParams.set('continuation-token', continuationToken);
-
-		const res = await fetch(url);
-		if (!res.ok) throw new Error(`S3 listing failed for ${prefix}: HTTP ${res.status}`);
-		const xml = await res.text();
-
-		scans.push(...parseListing(xml));
-		continuationToken = /<IsTruncated>true<\/IsTruncated>/.test(xml)
-			? /<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(xml)?.[1]
-			: undefined;
-	} while (continuationToken);
-
-	return scans.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+	const objects = await listS3Objects(BUCKET_URL, prefix, parseTimestampFromKey);
+	return objects.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
 
 /** Downloads one volume scan's raw bytes, ready to hand to parseObservation(). */
-export async function fetchVolumeScanBytes(
+export function fetchVolumeScanBytes(
 	key: string
 ): Promise<{ fileName: string; bytes: Uint8Array }> {
-	const res = await fetch(BUCKET_URL + key);
-	if (!res.ok) throw new Error(`Failed to download ${key}: HTTP ${res.status}`);
-	const buf = await res.arrayBuffer();
-	return { fileName: key.split('/').pop() ?? key, bytes: new Uint8Array(buf) };
+	return fetchS3ObjectBytes(BUCKET_URL, key);
 }
 
 function pad2(n: number): string {
 	return String(n).padStart(2, '0');
-}
-
-// Deliberately minimal (mirrors src/lib/parsers/xml.ts's approach): this only ever needs to pull
-// <Key>/<Size> out of each <Contents> block of an S3 ListObjectsV2 response, so a couple of
-// regexes are simpler and more portable (no DOMParser dependency, works in Node test runs too)
-// than a general XML parser.
-function parseListing(xml: string): VolumeScan[] {
-	const scans: VolumeScan[] = [];
-	const contentsRe = /<Contents>([\s\S]*?)<\/Contents>/g;
-	let match: RegExpExecArray | null;
-	while ((match = contentsRe.exec(xml))) {
-		const block = match[1];
-		const key = /<Key>([^<]*)<\/Key>/.exec(block)?.[1];
-		const size = /<Size>(\d+)<\/Size>/.exec(block)?.[1];
-		if (!key || !size) continue;
-		const timestamp = parseTimestampFromKey(key);
-		if (!timestamp) continue; // not a volume-scan file (shouldn't happen given the SITE/ prefix)
-		scans.push({ key, sizeBytes: Number(size), timestamp });
-	}
-	return scans;
 }
 
 // Filenames are SITE + YYYYMMDD concatenated directly (no separator), then _HHMMSS_Vxx --

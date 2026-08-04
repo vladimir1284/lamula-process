@@ -120,7 +120,10 @@
 		"save": "Guardar"
 	},
 	"awsExplorer": {
+		"sourceUs": "EE.UU. (NEXRAD)",
+		"sourceCo": "Colombia (IDEAM)",
 		"searchHint": "Busca el radar más cercano por código postal (EE.UU.), o selecciónalo directo en el mapa.",
+		"searchHintCo": "Busca el radar más cercano por código postal (Colombia), o selecciónalo directo en el mapa.",
 		"zipPlaceholder": "Código postal",
 		"searching": "BUSCANDO…",
 		"search": "BUSCAR",
