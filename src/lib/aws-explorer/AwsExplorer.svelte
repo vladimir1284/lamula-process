@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteSet } from 'svelte/reactivity';
 	import RadarSiteMap from './RadarSiteMap.svelte';
 	import {
 		geocodeZip,
@@ -21,11 +22,14 @@
 
 	interface Props {
 		onload: (picked: Picked) => void;
+		/** Colombia-only: fires when a picked volume has more than one sweep file to merge (see
+		 * domain/mergeSweeps.ts) -- US NEXRAD volumes are always a single file and never use this. */
+		onloadVolume: (picked: Picked[]) => void;
 		/** Unit system for the nearest-site distance display. Default metric (km). */
 		unitSystem?: UnitSystem;
 	}
 
-	let { onload, unitSystem = 'metric' }: Props = $props();
+	let { onload, onloadVolume, unitSystem = 'metric' }: Props = $props();
 
 	type Source = 'us' | 'co';
 	// Each bucket has its own client (nexradS3.ts / ideamS3.ts) and site catalog; picking the
@@ -88,6 +92,7 @@
 		scans = [];
 		scansStatus = 'idle';
 		loadError = null;
+		selectedKeys.clear();
 	}
 
 	async function loadScans() {
@@ -95,6 +100,7 @@
 		const [year, month, day] = dateStr.split('-').map(Number);
 		scansStatus = 'loading';
 		scansError = null;
+		selectedKeys.clear();
 		try {
 			scans = await client.listVolumeScans(selectedSite, { year, month, day });
 			scansStatus = 'ready';
@@ -117,6 +123,45 @@
 		try {
 			const picked = await client.fetchVolumeScanBytes(scan.key);
 			onload({ ...picked, s3Key: scan.key });
+		} catch (err) {
+			loadError = err instanceof Error ? err.message : String(err);
+		} finally {
+			loadingKey = null;
+		}
+	}
+
+	// Colombia only: both IDEAM formats are one-elevation-sweep-per-file, and there's no reliable
+	// way to auto-detect which sweeps belong to the same volume from the listing alone -- verified
+	// live against a real day's Corozal listing, consecutive sweeps are ~26-30s apart *all day*
+	// with no gap marking where one volume ends and the next begins (an earlier gap-based grouping
+	// attempt lumped an entire day into one "volume" of 3000+ sweeps). So instead: the user
+	// explicitly checks the sweeps they want, and "load N selected" fetches+merges them (see
+	// domain/mergeSweeps.ts), still hiding the fetch/parse/merge mechanics behind one click.
+	const selectedKeys = new SvelteSet<string>();
+
+	function toggleSelected(key: string) {
+		if (selectedKeys.has(key)) selectedKeys.delete(key);
+		else selectedKeys.add(key);
+	}
+
+	async function loadSelected() {
+		const keys = [...selectedKeys];
+		if (keys.length === 0) return;
+		loadingKey = 'selection';
+		loadError = null;
+		try {
+			if (keys.length === 1) {
+				const picked = await client.fetchVolumeScanBytes(keys[0]);
+				onload({ ...picked, s3Key: keys[0] });
+				return;
+			}
+			const picked = await Promise.all(
+				keys.map(async (key) => {
+					const p = await client.fetchVolumeScanBytes(key);
+					return { ...p, s3Key: key };
+				})
+			);
+			onloadVolume(picked);
 		} catch (err) {
 			loadError = err instanceof Error ? err.message : String(err);
 		} finally {
@@ -234,12 +279,25 @@
 					{$_('awsExplorer.noScans', { values: { site: selectedSite } })}
 				</p>
 			{:else if scansStatus === 'ready'}
+				{#if source === 'co'}
+					<p class="text-[11px] text-on-surface-variant">{$_('awsExplorer.selectHintCo')}</p>
+				{/if}
 				<ul class="flex max-h-56 flex-col gap-1 overflow-y-auto">
 					{#each scans as scan (scan.key)}
 						<li
 							class="flex items-center justify-between gap-2 rounded border border-outline-variant bg-surface-container-high px-2 py-1"
 						>
-							<span class="text-on-surface">{scan.timestamp.toISOString().slice(11, 19)} UTC</span>
+							<span class="flex items-center gap-2">
+								{#if source === 'co'}
+									<input
+										type="checkbox"
+										checked={selectedKeys.has(scan.key)}
+										onchange={() => toggleSelected(scan.key)}
+									/>
+								{/if}
+								<span class="text-on-surface">{scan.timestamp.toISOString().slice(11, 19)} UTC</span
+								>
+							</span>
 							<span class="text-[11px] text-on-surface-variant"
 								>{(scan.sizeBytes / 1e6).toFixed(1)} MB</span
 							>
@@ -253,6 +311,17 @@
 						</li>
 					{/each}
 				</ul>
+				{#if source === 'co' && selectedKeys.size > 0}
+					<button
+						class="flex items-center justify-center gap-1 rounded bg-primary-container px-3 py-1.5 text-[12px] text-on-primary-container transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+						disabled={loadingKey !== null}
+						onclick={loadSelected}
+					>
+						{loadingKey === 'selection'
+							? $_('awsExplorer.loading')
+							: $_('awsExplorer.loadSelected', { values: { count: selectedKeys.size } })}
+					</button>
+				{/if}
 			{/if}
 
 			{#if loadError}

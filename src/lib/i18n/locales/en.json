@@ -15,6 +15,7 @@
 			"label": "File",
 			"opening": "Opening…",
 			"open": "Open file",
+			"openVolume": "Open volume (multiple sweeps)…",
 			"downloadAws": "Download (AWS)",
 			"openRecent": "Open recent",
 			"noRecent": "No recent files"
@@ -43,7 +44,7 @@
 	},
 	"onboarding": {
 		"title": "Open an observation",
-		"formats": "Formats: INSMET .obs · NEXRAD Level II · Rainbow5 .vol",
+		"formats": "Formats: INSMET .obs · NEXRAD Level II · Rainbow5 .vol · Sigmet/IRIS RAW · NetCDF CfRadial",
 		"openFile": "OPEN FILE",
 		"opening": "OPENING…",
 		"downloadAws": "DOWNLOAD (AWS)"
@@ -133,6 +134,8 @@
 		"noScans": "No observations for {site} that day.",
 		"loading": "LOADING…",
 		"load": "LOAD",
+		"selectHintCo": "This site has no reliable way to auto-group elevations into one volume -- check the sweeps you want and load them together.",
+		"loadSelected": "LOAD {count} SELECTED",
 		"scansError": "Couldn't load observations.",
 		"loadError": "Couldn't load the observation."
 	},

@@ -10,3 +10,4 @@ export type {
 	Observation
 } from './types';
 export { createCells, cellIndex, getCell, setCell, cellFlagCode, momentUnit } from './cells';
+export { mergeSweeps, type MergeSweepsResult } from './mergeSweeps';

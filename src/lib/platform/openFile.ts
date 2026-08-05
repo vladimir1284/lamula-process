@@ -5,7 +5,10 @@ export interface OpenedFile {
 	bytes: Uint8Array;
 }
 
-const ACCEPTED_EXTENSIONS = ['.vol', '.gz', '.ar2', '.ar2.bz2', '.obs'];
+// IDEAM's Sigmet RAW files (e.g. "COR250601000029.RAWYSAP") have no clean, listable extension --
+// same situation as NEXRAD L2's extensionless AWS files, see openViaInputElement below. There's
+// nothing to add here for that format; registry.ts's content-sniffing is the real gate.
+const ACCEPTED_EXTENSIONS = ['.vol', '.gz', '.ar2', '.ar2.bz2', '.obs', '.nc'];
 
 // Tauri desktop file access (@tauri-apps/plugin-dialog + plugin-fs) isn't wired up yet -- no Rust
 // toolchain is available in this sandbox to build/verify the plugin registration, see
@@ -13,6 +16,14 @@ const ACCEPTED_EXTENSIONS = ['.vol', '.gz', '.ar2', '.ar2.bz2', '.obs'];
 export async function openObservationFile(): Promise<OpenedFile | null> {
 	if (isTauri()) throw new Error('Tauri file picker not implemented yet');
 	return openViaWebPicker();
+}
+
+/** Multi-file variant for opening a volume's individual sweep files at once (Sigmet/IRIS RAW,
+ * CfRadial/PPIVol -- both one-elevation-per-file, see domain/mergeSweeps.ts). Empty array if the
+ * user picked nothing/cancelled; a single file is a valid "volume" of one sweep. */
+export async function openObservationFiles(): Promise<OpenedFile[]> {
+	if (isTauri()) throw new Error('Tauri file picker not implemented yet');
+	return openViaWebPickerMultiple();
 }
 
 interface FileSystemFileHandleLike {
@@ -96,6 +107,63 @@ function openViaInputElement(): Promise<OpenedFile | null> {
 				.catch(reject);
 		});
 		input.addEventListener('cancel', () => resolve(null));
+		input.click();
+	});
+}
+
+async function openViaWebPickerMultiple(): Promise<OpenedFile[]> {
+	if ('showOpenFilePicker' in window) {
+		try {
+			const picker = (
+				window as unknown as {
+					showOpenFilePicker(options: unknown): Promise<FileSystemFileHandleLike[]>;
+				}
+			).showOpenFilePicker;
+			const handles = await picker({
+				multiple: true,
+				types: [
+					{
+						description: 'Radar observation',
+						accept: { 'application/octet-stream': ACCEPTED_EXTENSIONS }
+					}
+				]
+			});
+			return Promise.all(
+				handles.map(async (handle) => {
+					const file = await handle.getFile();
+					rememberedHandles.set(file.name, handle);
+					return { fileName: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
+				})
+			);
+		} catch (err) {
+			if (err instanceof DOMException && err.name === 'AbortError') return []; // user cancelled
+			throw err;
+		}
+	}
+	return openViaInputElementMultiple();
+}
+
+function openViaInputElementMultiple(): Promise<OpenedFile[]> {
+	return new Promise((resolve, reject) => {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.multiple = true;
+		input.addEventListener('change', () => {
+			const files = input.files ? Array.from(input.files) : [];
+			if (files.length === 0) {
+				resolve([]);
+				return;
+			}
+			Promise.all(
+				files.map(async (file) => ({
+					fileName: file.name,
+					bytes: new Uint8Array(await file.arrayBuffer())
+				}))
+			)
+				.then(resolve)
+				.catch(reject);
+		});
+		input.addEventListener('cancel', () => resolve([]));
 		input.click();
 	});
 }

@@ -1,5 +1,16 @@
 import type { ParserDescriptor } from './types';
-import { hasExtension, isGzipMagic, startsWithAscii } from './sniff';
+import {
+	hasExtension,
+	isGzipMagic,
+	isNetcdf3Magic,
+	isSigmetRawMagic,
+	startsWithAscii
+} from './sniff';
+
+// IDEAM's Sigmet RAW filenames end in ".RAW" plus a 4-character hex-ish suffix (e.g.
+// "COR250601000029.RAWYSAP"), so a plain `.raw` suffix check (hasExtension) never matches --
+// this is the one format in this registry that needs its own filename pattern instead.
+const SIGMET_RAW_FILENAME_RE = /\.raw[0-9a-z]{0,8}$/i;
 
 // Extension check first (cheap, unambiguous when present), magic bytes as fallback for
 // extensionless input (e.g. dropped from a File System Access API picker without a rename).
@@ -29,5 +40,18 @@ export const PARSER_DESCRIPTORS: readonly ParserDescriptor[] = [
 		canParse: (input) =>
 			hasExtension(input.fileName, '.obs') || startsWithAscii(input.bytes, 'Vesta Observation'),
 		load: () => import('./insmet').then((m) => m.insmetParser)
+	},
+	{
+		id: 'sigmet-iris',
+		label: 'Sigmet/IRIS RAW (IDEAM Colombia)',
+		canParse: (input) =>
+			SIGMET_RAW_FILENAME_RE.test(input.fileName) || isSigmetRawMagic(input.bytes),
+		load: () => import('./sigmet-iris').then((m) => m.sigmetIrisParser)
+	},
+	{
+		id: 'netcdf-cfradial',
+		label: 'NetCDF CfRadial/PPIVol (IDEAM Colombia)',
+		canParse: (input) => hasExtension(input.fileName, '.nc') || isNetcdf3Magic(input.bytes),
+		load: () => import('./netcdf-cfradial').then((m) => m.cfRadialParser)
 	}
 ];

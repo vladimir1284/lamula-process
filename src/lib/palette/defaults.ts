@@ -119,6 +119,24 @@ const rhoHv: Palette = {
 	]
 };
 
+// Specific differential phase (KDP), °/km. No legend proposal covered this moment (KDP wasn't
+// among the .lgd files); thresholds/colors follow the common published dual-pol KDP operational
+// range (-2..8 °/km, diverging around 0 like ZDR) rather than a Vesta-legacy or NEXRAD scale.
+const kdp: Palette = {
+	name: 'KDP',
+	smooth: false,
+	stops: [
+		{ value: -2, color: [0, 0, 128], caption: '-2' },
+		{ value: -1, color: [0, 0, 255], caption: '-1' },
+		{ value: 0, color: [160, 160, 160], caption: '0' },
+		{ value: 1, color: [0, 200, 0], caption: '1' },
+		{ value: 2, color: [255, 255, 0], caption: '2' },
+		{ value: 3, color: [255, 160, 0], caption: '3' },
+		{ value: 5, color: [255, 0, 0], caption: '5' },
+		{ value: 8, color: [180, 0, 0], caption: '8' }
+	]
+};
+
 // Echo-top / column-max height, metres. `computeTops`/`computeMaxs` (products/tops.ts,
 // products/maxs.ts) report a height, not a moment, so it can't share the reflectivity ramp --
 // 1500 m of echo top isn't "5 dBZ". Thresholds from `hreet.lgd` (NEXRAD "echo top" legend: 14
@@ -192,6 +210,7 @@ export const defaultPalettes: Palette[] = [
 	zdr,
 	phiDp,
 	rhoHv,
+	kdp,
 	topsHeight,
 	vil,
 	rainRate,
@@ -209,7 +228,8 @@ export const defaultAssignments: Record<MomentType, string> = {
 	W: 'Ancho espectral',
 	ZDR: 'ZDR',
 	uPhiDP: 'PhiDP',
-	RhoHV: 'RhoHV'
+	RhoHV: 'RhoHV',
+	KDP: 'KDP'
 };
 
 /**

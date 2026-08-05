@@ -15,7 +15,7 @@ export interface RadarSite {
 }
 
 // Moment types seen across real fixtures (Rainbow5 + NEXRAD L2), see docs/formatos.md.
-export type MomentType = 'dBZ' | 'dBuZ' | 'V' | 'W' | 'ZDR' | 'uPhiDP' | 'RhoHV';
+export type MomentType = 'dBZ' | 'dBuZ' | 'V' | 'W' | 'ZDR' | 'uPhiDP' | 'RhoHV' | 'KDP';
 
 export type MovementKind = 'PPI' | 'RHI';
 

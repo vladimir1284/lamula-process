@@ -125,6 +125,48 @@ describe('observationMachine', () => {
 		expect(actor.getSnapshot().context.error).toMatch(/no se pudo reabrir/i);
 	});
 
+	it('LOAD_VOLUME parses+merges multiple picked files and lands in ready', async () => {
+		const machine = observationMachine.provide({
+			actors: {
+				parseVolumeFile: fromPromise(async (): Promise<ParseOut> => ({
+					observation: fakeObs,
+					recentFiles: [{ label: 'sweep0.RAW0001', source: 'aws' }]
+				}))
+			}
+		});
+		const actor = createActor(machine).start();
+		actor.send({
+			type: 'LOAD_VOLUME',
+			picked: [
+				{ fileName: 'sweep0.RAW0001', bytes: new Uint8Array(), source: 'aws' as const },
+				{ fileName: 'sweep1.RAW0002', bytes: new Uint8Array(), source: 'aws' as const }
+			]
+		});
+		expect(actor.getSnapshot().value).toBe('parsingVolume'); // synchronous transition
+		await waitFor(actor, 'ready');
+		expect(actor.getSnapshot().context.observation?.id).toBe('obs');
+		expect(actor.getSnapshot().context.recentFiles).toEqual([
+			{ label: 'sweep0.RAW0001', source: 'aws' }
+		]);
+	});
+
+	it('LOAD_VOLUME captures an error when merging/parsing fails', async () => {
+		const machine = observationMachine.provide({
+			actors: {
+				parseVolumeFile: fromPromise(async (): Promise<ParseOut> => {
+					throw new Error('mergeSweeps: no valid single-sweep observations for a shared site');
+				})
+			}
+		});
+		const actor = createActor(machine).start();
+		actor.send({
+			type: 'LOAD_VOLUME',
+			picked: [{ fileName: 'sweep0.RAW0001', bytes: new Uint8Array(), source: 'aws' as const }]
+		});
+		await waitFor(actor, 'error');
+		expect(actor.getSnapshot().context.error).toMatch(/mergeSweeps/);
+	});
+
 	it('RECENT_FILES_LOADED hydrates recentFiles without disturbing the current state', async () => {
 		const actor = createActor(observationMachine).start();
 		actor.send({

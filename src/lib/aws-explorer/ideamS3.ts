@@ -5,13 +5,20 @@
  * `l2_data/YYYY/MM/DD/RadarName/<file>`, one folder per UTC day, verified against the live
  * bucket via `curl "https://s3-radaresideam.s3.amazonaws.com/?list-type=2&prefix=l2_data/..."`.
  *
- * Two file families live in this bucket depending on the radar (verified against real keys):
+ * Two file families live in this bucket depending on the radar (verified against real keys),
+ * both parsed by src/lib/parsers/{sigmet-iris,netcdf-cfradial}:
  *  - Sigmet/IRIS RAW volumes for Guaviare/Munchique/Carimagua/Barrancabermeja/Corozal/Tablazo,
  *    e.g. "GUA230101000023.RAW7W6D" (site code + YYMMDDHHMMSS + ".RAW" + hex suffix).
  *  - NetCDF PPIVol volumes for Bogota and santa_elena (a different radar vendor -- SIATA operates
  *    the santa_elena site), e.g. "1399BOG-20250601-000042-PPIVol-7550.nc".
- * Neither format has a parser in this app yet -- this module only supports browsing/downloading
- * raw bytes, matching the current AWS NEXRAD explorer's scope.
+ * Both are one-elevation-sweep-per-file (unlike NEXRAD L2, which bundles a whole volume per
+ * file) -- AwsExplorer.svelte lets the user multi-select several sweeps to merge into one volume
+ * (see domain/mergeSweeps.ts). Automatic grouping by listing-timestamp proximity was tried and
+ * dropped: verified live against Corozal's real 2025-06-01 listing, consecutive sweeps are only
+ * ~26-30s apart *all day*, with no detectable gap marking where one volume ends and the next
+ * begins (min gap seen: 0s, max: 93s, no bimodal split) -- so there's no timing signal to group
+ * on without reading each file's own header (a real volume/sweep-number field), which needs a
+ * network fetch per candidate file. Left for later if it's worth the added round-trips.
  */
 import { listS3Objects, fetchS3ObjectBytes } from './s3ListObjects';
 

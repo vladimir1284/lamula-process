@@ -15,6 +15,7 @@
 			"label": "Archivo",
 			"opening": "Abriendo…",
 			"open": "Abrir archivo",
+			"openVolume": "Abrir volumen (varios cortes)…",
 			"downloadAws": "Descargar (AWS)",
 			"openRecent": "Abrir reciente",
 			"noRecent": "Sin archivos recientes"
@@ -43,7 +44,7 @@
 	},
 	"onboarding": {
 		"title": "Abre una observación",
-		"formats": "Formatos: INSMET .obs · NEXRAD Level II · Rainbow5 .vol",
+		"formats": "Formatos: INSMET .obs · NEXRAD Level II · Rainbow5 .vol · Sigmet/IRIS RAW · NetCDF CfRadial",
 		"openFile": "ABRIR ARCHIVO",
 		"opening": "ABRIENDO…",
 		"downloadAws": "DESCARGAR (AWS)"
@@ -133,6 +134,8 @@
 		"noScans": "Sin observaciones para {site} ese día.",
 		"loading": "CARGANDO…",
 		"load": "CARGAR",
+		"selectHintCo": "Este sitio no tiene una forma confiable de agrupar elevaciones en un volumen automáticamente -- marca los cortes que quieras y cárgalos juntos.",
+		"loadSelected": "CARGAR {count} SELECCIONADOS",
 		"scansError": "No se pudieron cargar las observaciones.",
 		"loadError": "No se pudo cargar la observación."
 	},

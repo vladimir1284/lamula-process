@@ -1,6 +1,7 @@
 import { setup, assign, fromPromise } from 'xstate';
 import {
 	openObservationFile,
+	openObservationFiles,
 	addRecentFile,
 	reopenLocalFile,
 	getRememberedFileHandle,
@@ -8,6 +9,7 @@ import {
 } from '$lib/platform';
 import { fetchVolumeScanBytes } from '$lib/aws-explorer/nexradS3';
 import { parseObservation } from '$lib/parsers';
+import { mergeSweeps } from '$lib/domain';
 import type { Observation } from '$lib/domain/types';
 
 /**
@@ -33,6 +35,7 @@ interface Ctx {
 	error: string | null;
 	recentFiles: RecentFileEntry[];
 	picked: Picked | null;
+	pickedVolume: Picked[] | null;
 }
 
 /** Re-fetches (aws) or re-reads (local, via the remembered handle) a recent-files entry. */
@@ -56,7 +59,9 @@ export const observationMachine = setup({
 		context: {} as Ctx,
 		events: {} as
 			| { type: 'OPEN' }
+			| { type: 'OPEN_VOLUME' }
 			| { type: 'LOAD_REMOTE'; picked: Picked }
+			| { type: 'LOAD_VOLUME'; picked: Picked[] }
 			| { type: 'OPEN_RECENT'; entry: RecentFileEntry }
 			| { type: 'RECENT_FILES_LOADED'; recentFiles: RecentFileEntry[] }
 	},
@@ -65,12 +70,34 @@ export const observationMachine = setup({
 			const picked = await openObservationFile();
 			return picked ? { ...picked, source: 'local' } : null;
 		}),
+		// Multi-file picker for opening a volume's sweep files at once (see parseVolumeFile).
+		openFiles: fromPromise(async (): Promise<Picked[]> => {
+			const files = await openObservationFiles();
+			return files.map((f) => ({ ...f, source: 'local' as const }));
+		}),
 		parseFile: fromPromise(async ({ input }: { input: Picked }) => {
 			const observation = await parseObservation(input);
 			const config = await addRecentFile({
 				label: input.fileName,
 				source: input.source,
 				s3Key: input.s3Key
+			});
+			return { observation, recentFiles: config.recentFiles };
+		}),
+		// Parses each single-sweep file and stitches them into one multi-tilt Observation (see
+		// domain/mergeSweeps.ts) -- feeds both the AWS-volume-grouping and local-multi-file-open
+		// paths, both of which only ever apply to Sigmet/IRIS RAW or NetCDF CfRadial (the two
+		// one-sweep-per-file formats). The recent-files entry represents just the first file
+		// (re-opening a merged volume later re-opens that one sweep, not the whole volume --
+		// exact volume re-open would need a RecentFileEntry shape carrying multiple keys, deferred).
+		parseVolumeFile: fromPromise(async ({ input }: { input: Picked[] }) => {
+			const parsed = await Promise.all(input.map((picked) => parseObservation(picked)));
+			const { observation } = mergeSweeps(parsed);
+			const first = input[0];
+			const config = await addRecentFile({
+				label: first.fileName,
+				source: first.source,
+				s3Key: first.s3Key
 			});
 			return { observation, recentFiles: config.recentFiles };
 		}),
@@ -83,6 +110,10 @@ export const observationMachine = setup({
 			error: null,
 			picked: ({ event }) => (event as { picked: Picked }).picked
 		}),
+		assignVolumePicked: assign({
+			error: null,
+			pickedVolume: ({ event }) => (event as { picked: Picked[] }).picked
+		}),
 		assignRecentFiles: assign({
 			recentFiles: ({ event }) => (event as { recentFiles: RecentFileEntry[] }).recentFiles
 		})
@@ -90,7 +121,7 @@ export const observationMachine = setup({
 }).createMachine({
 	id: 'observation',
 	initial: 'idle',
-	context: { observation: null, error: null, recentFiles: [], picked: null },
+	context: { observation: null, error: null, recentFiles: [], picked: null, pickedVolume: null },
 	// Internal (no target) so it applies from whichever state we're in without disturbing it --
 	// the page sends this once on mount, after `loadConfig()` resolves.
 	on: { RECENT_FILES_LOADED: { actions: 'assignRecentFiles' } },
@@ -98,7 +129,9 @@ export const observationMachine = setup({
 		idle: {
 			on: {
 				OPEN: 'opening',
+				OPEN_VOLUME: 'openingVolume',
 				LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' },
+				LOAD_VOLUME: { target: 'parsingVolume', actions: 'assignVolumePicked' },
 				OPEN_RECENT: 'reopening'
 			}
 		},
@@ -111,6 +144,24 @@ export const observationMachine = setup({
 						guard: ({ event }) => event.output !== null,
 						actions: assign({ picked: ({ event }) => event.output as Picked }),
 						target: 'parsing'
+					},
+					{ target: 'idle' } // picker cancelled
+				],
+				onError: {
+					target: 'error',
+					actions: assign({ error: ({ event }) => errText(event.error) })
+				}
+			}
+		},
+		openingVolume: {
+			entry: assign({ error: null }),
+			invoke: {
+				src: 'openFiles',
+				onDone: [
+					{
+						guard: ({ event }) => event.output.length > 0,
+						actions: assign({ pickedVolume: ({ event }) => event.output }),
+						target: 'parsingVolume'
 					},
 					{ target: 'idle' } // picker cancelled
 				],
@@ -155,17 +206,41 @@ export const observationMachine = setup({
 				}
 			}
 		},
+		parsingVolume: {
+			invoke: {
+				src: 'parseVolumeFile',
+				input: ({ context }) => context.pickedVolume as Picked[],
+				onDone: {
+					target: 'ready',
+					actions: assign({
+						observation: ({ event }) => event.output.observation,
+						recentFiles: ({ event }) => event.output.recentFiles
+					})
+				},
+				onError: {
+					target: 'error',
+					actions: assign({
+						observation: null,
+						error: ({ event }) => errText(event.error)
+					})
+				}
+			}
+		},
 		ready: {
 			on: {
 				OPEN: 'opening',
+				OPEN_VOLUME: 'openingVolume',
 				LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' },
+				LOAD_VOLUME: { target: 'parsingVolume', actions: 'assignVolumePicked' },
 				OPEN_RECENT: 'reopening'
 			}
 		},
 		error: {
 			on: {
 				OPEN: 'opening',
+				OPEN_VOLUME: 'openingVolume',
 				LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' },
+				LOAD_VOLUME: { target: 'parsingVolume', actions: 'assignVolumePicked' },
 				OPEN_RECENT: 'reopening'
 			}
 		}

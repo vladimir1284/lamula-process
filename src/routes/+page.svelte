@@ -64,7 +64,7 @@
 	} from '$lib/viewer/windows';
 
 	// Every moment the app can decode, for the settings assignment UI (domain/types.ts MomentType).
-	const MOMENTS: MomentType[] = ['dBZ', 'dBuZ', 'V', 'W', 'ZDR', 'uPhiDP', 'RhoHV'];
+	const MOMENTS: MomentType[] = ['dBZ', 'dBuZ', 'V', 'W', 'ZDR', 'uPhiDP', 'RhoHV', 'KDP'];
 
 	// i18n-ignore: language names shown in their own language, standard picker convention
 	const LOCALE_NAMES: Record<Locale, string> = { es: 'Español', en: 'English' };
@@ -128,7 +128,12 @@
 	}
 
 	const observation = $derived($snapshot.context.observation);
-	const loading = $derived($snapshot.value === 'opening' || $snapshot.value === 'parsing');
+	const loading = $derived(
+		$snapshot.value === 'opening' ||
+			$snapshot.value === 'openingVolume' ||
+			$snapshot.value === 'parsing' ||
+			$snapshot.value === 'parsingVolume'
+	);
 	const error = $derived($snapshot.context.error);
 	const recentFiles = $derived($snapshot.context.recentFiles);
 
@@ -387,6 +392,12 @@
 					icon: 'upload_file',
 					disabled: loading,
 					onclick: () => send({ type: 'OPEN' })
+				},
+				{
+					label: $_('menu.file.openVolume'),
+					icon: 'layers',
+					disabled: loading,
+					onclick: () => send({ type: 'OPEN_VOLUME' })
 				},
 				{
 					label: $_('menu.file.downloadAws'),
@@ -702,6 +713,13 @@
 			onload={(picked) => {
 				showAwsExplorer = false;
 				send({ type: 'LOAD_REMOTE', picked: { ...picked, source: 'aws' } });
+			}}
+			onloadVolume={(picked) => {
+				showAwsExplorer = false;
+				send({
+					type: 'LOAD_VOLUME',
+					picked: picked.map((p) => ({ ...p, source: 'aws' as const }))
+				});
 			}}
 		/>
 	</Modal>

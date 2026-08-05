@@ -10,7 +10,8 @@ const MOMENT_UNIT: Record<MomentType, string> = {
 	W: 'm/s',
 	ZDR: 'dB',
 	uPhiDP: '°',
-	RhoHV: ''
+	RhoHV: '',
+	KDP: '°/km'
 };
 
 export function momentUnit(moment: MomentType): string {

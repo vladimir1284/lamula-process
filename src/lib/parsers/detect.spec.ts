@@ -39,6 +39,22 @@ describe('detectParsers', () => {
 		const input = { fileName: 'notes.txt', bytes: new TextEncoder().encode('hello') };
 		expect(detectParsers(input)).toEqual([]);
 	});
+
+	it('picks sigmet-iris for a real IDEAM RAW fixture by filename pattern and content', () => {
+		const input = {
+			fileName: 'ideam/sigmet-raw/COR250601000029.RAWYSAP',
+			bytes: readFixture('ideam/sigmet-raw/COR250601000029.RAWYSAP')
+		};
+		expect(detectParsers(input).map((d) => d.id)).toEqual(['sigmet-iris']);
+	});
+
+	it('picks netcdf-cfradial for a real IDEAM NetCDF fixture by extension and content', () => {
+		const input = {
+			fileName: 'ideam/netcdf-ppivol/9100SAN-20240101-001327-PPIVol-03bc.nc',
+			bytes: readFixture('ideam/netcdf-ppivol/9100SAN-20240101-001327-PPIVol-03bc.nc')
+		};
+		expect(detectParsers(input).map((d) => d.id)).toEqual(['netcdf-cfradial']);
+	});
 });
 
 describe('parseObservation', () => {
@@ -74,6 +90,26 @@ describe('parseObservation', () => {
 		};
 		const obs = await parseObservation(input);
 		expect(obs.site.code).toBe('KMLB');
+		expect(obs.movements[0].channels.some((c) => c.moment === 'dBZ')).toBe(true);
+	});
+
+	it('routes a real IDEAM Sigmet RAW fixture through to a decoded Observation', async () => {
+		const input = {
+			fileName: 'ideam/sigmet-raw/COR250601000029.RAWYSAP',
+			bytes: readFixture('ideam/sigmet-raw/COR250601000029.RAWYSAP')
+		};
+		const obs = await parseObservation(input);
+		expect(obs.site.code).toBe('Corozal, Radar');
+		expect(obs.movements[0].channels.some((c) => c.moment === 'dBZ')).toBe(true);
+	});
+
+	it('routes a real IDEAM NetCDF CfRadial fixture through to a decoded Observation', async () => {
+		const input = {
+			fileName: 'ideam/netcdf-ppivol/9100SAN-20240101-001327-PPIVol-03bc.nc',
+			bytes: readFixture('ideam/netcdf-ppivol/9100SAN-20240101-001327-PPIVol-03bc.nc')
+		};
+		const obs = await parseObservation(input);
+		expect(obs.site.code).toBe('9100SAN');
 		expect(obs.movements[0].channels.some((c) => c.moment === 'dBZ')).toBe(true);
 	});
 
