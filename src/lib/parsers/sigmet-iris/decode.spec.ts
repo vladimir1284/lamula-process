@@ -23,8 +23,8 @@ describe('decodeBin2 / decodeBin4', () => {
 // (test-fixtures/observations/ideam/sigmet-raw/COR250601000029.RAWYSAP, see
 // test-fixtures/reference/ideam/sigmet_probe.py) -- not just the formula in isolation.
 describe('decodeDbz', () => {
-	it('raw=0 is a real -32 dBZ value, not no-data (matches fixture minimum)', () => {
-		expect(decodeDbz(0)).toBe(-32);
+	it('raw=0 is no-data (94.8% of every real Munchique/Corozal sweep, not a measurement)', () => {
+		expect(decodeDbz(0)).toBeNull();
 	});
 	it('raw=64 -> 0 dBZ; the formula has headroom to 95.5 (raw=255) even though this fixture never hits above 59', () => {
 		expect(decodeDbz(255)).toBeCloseTo(95.5);
@@ -33,8 +33,8 @@ describe('decodeDbz', () => {
 });
 
 describe('decodeZdr', () => {
-	it('raw=0 -> -8 dB (fixture minimum, not no-data)', () => {
-		expect(decodeZdr(0)).toBe(-8);
+	it('raw=0 is no-data (same background-sentinel shape as DBZ)', () => {
+		expect(decodeZdr(0)).toBeNull();
 	});
 	it('raw=128 -> 0 dB', () => {
 		expect(decodeZdr(128)).toBe(0);
@@ -42,8 +42,8 @@ describe('decodeZdr', () => {
 });
 
 describe('decodePhidp', () => {
-	it('raw=0 -> -0.7086614... (fixture minimum, not no-data)', () => {
-		expect(decodePhidp(0)).toBeCloseTo(-0.7086614173228346);
+	it('raw=0 is no-data (same background-sentinel shape as DBZ)', () => {
+		expect(decodePhidp(0)).toBeNull();
 	});
 	it('raw=255 -> 180 (fixture maximum)', () => {
 		expect(decodePhidp(255)).toBe(180);

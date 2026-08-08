@@ -265,7 +265,7 @@
 
 		<div class="ml-auto flex items-center gap-2">
 			{#if payload.showScale}
-				<ScaleLegend {palette} />
+				<ScaleLegend {palette} unit={result?.unit} />
 			{/if}
 			<button
 				type="button"

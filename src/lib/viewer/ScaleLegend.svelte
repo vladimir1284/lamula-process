@@ -3,9 +3,10 @@
 
 	interface Props {
 		palette: Palette;
+		unit?: string;
 	}
 
-	let { palette }: Props = $props();
+	let { palette, unit }: Props = $props();
 
 	function hex(c: readonly [number, number, number]): string {
 		return '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
@@ -17,9 +18,14 @@
 </script>
 
 <div class="flex items-center gap-2 overflow-hidden">
-	<span class="shrink-0 font-mono text-[9px] tracking-widest text-on-surface-variant uppercase"
-		>{palette.name}</span
-	>
+	<div class="flex shrink-0 flex-col leading-tight">
+		<span class="font-mono text-[9px] tracking-widest text-on-surface-variant uppercase"
+			>{palette.name}</span
+		>
+		{#if unit}
+			<span class="font-mono text-[8px] tracking-widest text-on-surface-variant/70">{unit}</span>
+		{/if}
+	</div>
 	<div class="flex w-40 min-w-0 flex-col sm:w-56">
 		<div class="flex h-2 overflow-hidden rounded-sm border border-outline-variant">
 			{#each stops as stop, i (i)}

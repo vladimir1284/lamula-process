@@ -80,19 +80,22 @@ describe('parseSigmetIris (Corozal fixture)', () => {
 		);
 		const byMoment = new Map(obs.movements[0].channels.map((c) => [c.moment, c.scans[0]]));
 
+		// dBZ/ZDR/uPhiDP raw=0 is now flagged no-data (background sentinel, 94.8% of the sweep --
+		// see decode.ts), so counts/mins below are the *remaining* xradar-verified valid gates, not
+		// the full 239040-gate grid.
 		const dbz = stats(byMoment.get('dBZ')!);
-		expect(dbz.count).toBe(239040);
-		expect(dbz.min).toBeCloseTo(-32);
+		expect(dbz.count).toBe(12467);
+		expect(dbz.min).toBeCloseTo(-17);
 		expect(dbz.max).toBeCloseTo(59);
 
 		const zdr = stats(byMoment.get('ZDR')!);
-		expect(zdr.count).toBe(239040);
-		expect(zdr.min).toBeCloseTo(-8);
+		expect(zdr.count).toBe(71905);
+		expect(zdr.min).toBeCloseTo(-7.9375);
 		expect(zdr.max).toBeCloseTo(7.875);
 
 		const phidp = stats(byMoment.get('uPhiDP')!);
-		expect(phidp.count).toBe(239040);
-		expect(phidp.min).toBeCloseTo(-0.7086614173228346);
+		expect(phidp.count).toBe(74077);
+		expect(phidp.min).toBeCloseTo(0);
 		expect(phidp.max).toBeCloseTo(180);
 
 		const kdp = stats(byMoment.get('KDP')!);

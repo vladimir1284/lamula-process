@@ -14,26 +14,34 @@ export function decodeBin4(raw: number): number {
 	return (360 * raw) / 4294967296;
 }
 
-// DB_DBZ (code 2, 1 byte): no mask -- every code 0..255 is a real value, decode_array(scale=2,
-// offset=-64). raw=0 -> -32 dBZ, confirmed as the fixture's real minimum (not a no-data sentinel).
-export function decodeDbz(raw: number): number {
+// DB_DBZ (code 2, 1 byte): xradar's decode_array(scale=2, offset=-64) applies no mask, so
+// raw=0 -> -32 dBZ is a formula-valid value, not a distinct byte code. But real IDEAM fixtures
+// (Munchique CEM250601000241.RAWYSBL, Corozal COR250601000029.RAWYSAP) show raw=0 at 94.8% of
+// every sweep's gates -- the same "overwhelming majority, unlike any in-range physical byte"
+// signature the insmet .obs decoder already uses to call raw=0 its shared no-data sentinel
+// (parsers/insmet/decode.ts). Treated as no-data here too, so PPI/RHI rendering leaves the
+// background transparent instead of painting it solid with the palette's lowest colour.
+export function decodeDbz(raw: number): number | null {
+	if (raw === 0) return null;
 	return (raw - 64) / 2;
 }
 
-// DB_ZDR (code 5, 1 byte): no mask, decode_array(scale=16, offset=-128). Same "no sentinel" shape
-// as DBZ -- raw=0 -> -8 dB, confirmed fixture minimum.
-export function decodeZdr(raw: number): number {
+// DB_ZDR (code 5, 1 byte): same "no mask, raw=0 is the format's background sentinel" shape as
+// DBZ above -- decode_array(scale=16, offset=-128).
+export function decodeZdr(raw: number): number | null {
+	if (raw === 0) return null;
 	return (raw - 128) / 16;
 }
 
-// DB_PHIDP (code 16, 1 byte): decode_phidp = 180 * decode_array(scale=254, offset=-1). No mask;
-// raw=0 legitimately decodes to a small negative edge value (-0.7086...), confirmed in the fixture.
-export function decodePhidp(raw: number): number {
+// DB_PHIDP (code 16, 1 byte): decode_phidp = 180 * decode_array(scale=254, offset=-1). Same
+// background-sentinel shape as DBZ/ZDR above.
+export function decodePhidp(raw: number): number | null {
+	if (raw === 0) return null;
 	return (180 * (raw - 1)) / 254;
 }
 
 // DB_VEL (code 3, 1 byte): decode_vel = decode_array(scale=127, offset=-128, mask=0) * nyquist.
-// mask=0 means raw===0 is the no-data sentinel here (unlike DBZ/ZDR/PHIDP above).
+// xradar itself masks raw===0 here (same no-data sentinel role as DBZ/ZDR/PHIDP above).
 export function decodeVel(raw: number, nyquistMs: number): number | null {
 	if (raw === 0) return null;
 	return ((raw - 128) / 127) * nyquistMs;
