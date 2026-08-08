@@ -7,7 +7,7 @@
 	import VectorSource from 'ol/source/Vector';
 	import Feature from 'ol/Feature';
 	import Point from 'ol/geom/Point';
-	import { Style, Circle, Fill, Stroke } from 'ol/style';
+	import { Style, Circle, Fill, Stroke, Text } from 'ol/style';
 	import { fromLonLat } from 'ol/proj';
 	import type { MapBrowserEvent } from 'ol';
 	import 'ol/ol.css';
@@ -49,6 +49,13 @@
 				radius: isSelected ? 8 : isHighlighted ? 6 : 4,
 				fill: new Fill({ color }),
 				stroke: new Stroke({ color: '#0f172a', width: 1.5 })
+			}),
+			text: new Text({
+				text: site.code,
+				font: isSelected ? 'bold 12px sans-serif' : '11px sans-serif',
+				offsetY: -12,
+				fill: new Fill({ color: '#e2e8f0' }),
+				stroke: new Stroke({ color: '#0f172a', width: 3 })
 			})
 		});
 	}
@@ -73,7 +80,7 @@
 
 	onMount(() => {
 		markerSource = new VectorSource({ features: buildFeatures() });
-		const markerLayer = new VectorLayer({ source: markerSource });
+		const markerLayer = new VectorLayer({ source: markerSource, declutter: true });
 		const osmLayer = new TileLayer({ source: createBaseMapSources('osm').base! });
 
 		map = new Map({
