@@ -7,9 +7,13 @@ import type { BaseMapId } from '$lib/viewer/baseMaps';
  * config.ts / siteData.ts / paletteStore.ts -- see config.ts for the Tauri caveat.
  */
 
+export type ThemeMode = 'dark' | 'light' | 'system';
+
 export interface AppSettings {
 	unitSystem: UnitSystem;
 	baseMap: BaseMapId;
+	/** UI color scheme. 'system' follows the OS `prefers-color-scheme`. */
+	themeMode: ThemeMode;
 	showRings: boolean;
 	showRadials: boolean;
 	/** Z-R rain-rate coefficients (R = (Z/A)^(1/B)), seed newly-opened RAIN windows' own editable
@@ -33,6 +37,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
 	unitSystem: 'metric',
 	baseMap: 'carto-dark',
+	themeMode: 'dark',
 	showRings: true,
 	showRadials: false,
 	zrA: 300,
@@ -49,6 +54,10 @@ function isUnitSystem(x: unknown): x is UnitSystem {
 	return x === 'metric' || x === 'imperial';
 }
 
+function isThemeMode(x: unknown): x is ThemeMode {
+	return x === 'dark' || x === 'light' || x === 'system';
+}
+
 export async function loadSettings(): Promise<AppSettings> {
 	if (isTauri()) throw new Error('Tauri settings store not implemented yet');
 	const raw = localStorage.getItem(STORAGE_KEY);
@@ -58,6 +67,7 @@ export async function loadSettings(): Promise<AppSettings> {
 		return {
 			unitSystem: isUnitSystem(parsed.unitSystem) ? parsed.unitSystem : DEFAULT_SETTINGS.unitSystem,
 			baseMap: typeof parsed.baseMap === 'string' ? parsed.baseMap : DEFAULT_SETTINGS.baseMap,
+			themeMode: isThemeMode(parsed.themeMode) ? parsed.themeMode : DEFAULT_SETTINGS.themeMode,
 			showRings:
 				typeof parsed.showRings === 'boolean' ? parsed.showRings : DEFAULT_SETTINGS.showRings,
 			showRadials:

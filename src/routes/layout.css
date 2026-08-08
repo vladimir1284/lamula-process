@@ -71,6 +71,39 @@
 	--radius-xl: 0.5rem;
 }
 
+/* ── Light theme override ─────────────────────────────────────────────────
+   Same token names, recolored for a white/light-gray surface. The dBZ ramp
+   and phosphor accent stay fixed -- they're the data-driven meteorological
+   scale, not chrome, and must read the same in both themes. Applied via a
+   `.light` class on <html>, toggled by the inline script in app.html (first
+   paint) and kept in sync with `settingsStore.themeMode` from +page.svelte. */
+html.light {
+	--color-surface: #f4f6f7;
+	--color-background: #f4f6f7;
+	--color-surface-container-lowest: #ffffff;
+	--color-surface-container-low: #f3f5f6;
+	--color-surface-container: #e9ecee;
+	--color-surface-container-high: #dde1e3;
+	--color-surface-container-highest: #d0d5d8;
+	--color-surface-variant: #d0d5d8;
+	--color-surface-bright: #ffffff;
+
+	--color-on-surface: #14181a;
+	--color-on-surface-variant: #3b4547;
+	--color-outline: #5c6b6c;
+	--color-outline-variant: #c3ced0;
+
+	--color-primary: #006874;
+	--color-primary-container: #b0f5fa;
+	--color-on-primary-container: #00363a;
+	--color-primary-fixed-dim: #00838f;
+
+	--color-error: #ba1a1a;
+	--color-error-container: #ffdad6;
+	--color-on-error: #ffffff;
+	--color-on-error-container: #410002;
+}
+
 html {
 	background-color: var(--color-surface-container-lowest);
 	color: var(--color-on-surface);
@@ -86,6 +119,9 @@ html {
    clashes with the near-white on-surface text used on closed controls. */
 select {
 	color-scheme: dark;
+}
+html.light select {
+	color-scheme: light;
 }
 
 select option {
@@ -107,9 +143,16 @@ select option {
 	backdrop-filter: blur(12px);
 	border: 1px solid #2d3741;
 }
+html.light .glass-panel {
+	background: rgba(255, 255, 255, 0.75);
+	border: 1px solid #c3ced0;
+}
 .radar-grid-bg {
 	background-image: radial-gradient(#2d3741 1px, transparent 1px);
 	background-size: 20px 20px;
+}
+html.light .radar-grid-bg {
+	background-image: radial-gradient(#c3ced0 1px, transparent 1px);
 }
 .cyan-glow:focus-within {
 	box-shadow: inset 0 0 4px 1px rgba(0, 240, 255, 0.3);
@@ -144,4 +187,13 @@ select option {
 }
 ::-webkit-scrollbar-thumb:hover {
 	background: #00f0ff;
+}
+html.light ::-webkit-scrollbar-track {
+	background: #f3f5f6;
+}
+html.light ::-webkit-scrollbar-thumb {
+	background: #c3ced0;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+	background: #00838f;
 }

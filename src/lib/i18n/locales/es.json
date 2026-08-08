@@ -2,6 +2,7 @@
 	"common": {
 		"appName": "LAMULA Process",
 		"settings": "Configuración",
+		"toggleTheme": "Alternar tema claro/oscuro",
 		"editLocation": "Editar ubicación",
 		"export": "Exportar",
 		"import": "Importar",
@@ -101,6 +102,9 @@
 		"view": {
 			"heading": "Vista por defecto",
 			"description": "Valores usados al abrir nuevas ventanas -- cada ventana puede ajustarlos individualmente después.",
+			"themeDark": "Oscuro",
+			"themeLight": "Claro",
+			"themeSystem": "Sistema",
 			"showScale": "Mostrar escala de colores",
 			"imageSmoothing": "Suavizado de imagen (RHI / cortes)",
 			"showSiteMarker": "Mostrar marcador del sitio",

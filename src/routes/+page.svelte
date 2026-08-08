@@ -115,6 +115,23 @@
 		settings = { ...settings, ...patch };
 		await saveSettings(settings);
 	}
+
+	// Keeps <html class="light"> (set synchronously pre-hydration by app.html's inline script)
+	// in sync with the persisted preference, and follows the OS setting live when mode is 'system'.
+	// `isLightTheme` mirrors the same result for the header toggle button's icon.
+	let isLightTheme = $state(false);
+	$effect(() => {
+		const mode = settings.themeMode;
+		const mq = window.matchMedia('(prefers-color-scheme: light)');
+		const apply = () => {
+			isLightTheme = mode === 'light' || (mode === 'system' && mq.matches);
+			document.documentElement.classList.toggle('light', isLightTheme);
+		};
+		apply();
+		if (mode !== 'system') return;
+		mq.addEventListener('change', apply);
+		return () => mq.removeEventListener('change', apply);
+	});
 	// Settings modal: which section is active, and (for "Sitios") which saved site is being
 	// edited -- reusing SiteLocationEditor for both the header's "editar ubicación" shortcut and
 	// the general site-data management, so there's a single settings entry point, not two.
@@ -513,6 +530,16 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-3">
+			<button
+				class="flex h-10 w-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
+				onclick={() => updateSettings({ themeMode: isLightTheme ? 'dark' : 'light' })}
+				aria-label={$_('common.toggleTheme')}
+				title={$_('common.toggleTheme')}
+			>
+				<span class="material-symbols-outlined text-[20px]"
+					>{isLightTheme ? 'dark_mode' : 'light_mode'}</span
+				>
+			</button>
 			<button
 				class="flex h-10 w-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary-container"
 				onclick={() => (showSettings = true)}
@@ -1036,6 +1063,23 @@
 					<p class="font-mono text-[10px] text-on-surface-variant">
 						{$_('settings.view.description')}
 					</p>
+					<div class="flex gap-2">
+						{#each [
+							['dark', 'settings.view.themeDark'],
+							['light', 'settings.view.themeLight'],
+							['system', 'settings.view.themeSystem']
+						] as [mode, labelKey] (mode)}
+							<button
+								class="flex items-center gap-2 rounded border px-4 py-2 font-mono text-label-mono transition-colors {settings.themeMode ===
+								mode
+									? 'border-primary-container bg-primary-container text-on-primary-container'
+									: 'border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-primary-container'}"
+								onclick={() => updateSettings({ themeMode: mode as AppSettings['themeMode'] })}
+							>
+								{$_(labelKey)}
+							</button>
+						{/each}
+					</div>
 					<label class="flex items-center gap-2 font-mono text-label-mono text-on-surface-variant">
 						<input
 							type="checkbox"

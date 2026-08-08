@@ -14,6 +14,23 @@
 			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
 			rel="stylesheet"
 		/>
+		<script>
+			// Runs before first paint so the light/dark class matches the saved preference --
+			// avoids a flash of the wrong theme. Mirrors settingsStore.ts's storage key/shape;
+			// duplicated here (not imported) because this is a static inline script, not a module.
+			(function () {
+				try {
+					var raw = localStorage.getItem('lamula-process:settings');
+					var mode = raw ? JSON.parse(raw).themeMode : 'dark';
+					var isLight =
+						mode === 'light' ||
+						(mode === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
+					if (isLight) document.documentElement.classList.add('light');
+				} catch (e) {
+					/* localStorage unavailable or corrupt -- fall back to dark, the built-in default */
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
