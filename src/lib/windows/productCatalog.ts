@@ -2,6 +2,7 @@ import type { GroundProductKind } from '$lib/pipeline';
 import type { MomentType } from '$lib/domain/types';
 import type { BaseMapId } from '$lib/viewer/baseMaps';
 import type {
+	AccumulateWindowPayload,
 	CrossSectionWindowPayload,
 	MapWindowPayload,
 	ProfileWindowPayload,
@@ -10,9 +11,12 @@ import type {
 } from './windowTypes';
 
 /** Every catalog entry the sidebar can launch a window for. Ground kinds open a `map` window
- * directly; the "Cortes" group opens a derived-chart window sourced from the currently-focused
- * map window (see `windowStore`/`+page.svelte`). */
-export type CatalogProductKind = GroundProductKind | 'CROSS_LINE' | 'PROFILE' | 'RHI' | 'STATS';
+ * directly; `ACCUMULATE` opens an `accumulate` window sourced from the loaded `TimeSpan` (not
+ * `focusedMap`/the single current Observation -- see `+page.svelte`'s `launchCatalogItem`); the
+ * "Cortes" group opens a derived-chart window sourced from the currently-focused map window (see
+ * `windowStore`/`+page.svelte`). */
+export type CatalogProductKind =
+	GroundProductKind | 'ACCUMULATE' | 'CROSS_LINE' | 'PROFILE' | 'RHI' | 'STATS';
 
 export const GROUND_KINDS: GroundProductKind[] = [
 	'PPI',
@@ -60,7 +64,8 @@ export const PRODUCT_GROUPS: CatalogGroup[] = [
 		label: 'catalog.groups.precipWind',
 		items: [
 			{ id: 'RAIN', label: 'catalog.items.rain', icon: 'rainy' },
-			{ id: 'WIND_SPEED', label: 'catalog.items.windSpeed', icon: 'air' }
+			{ id: 'WIND_SPEED', label: 'catalog.items.windSpeed', icon: 'air' },
+			{ id: 'ACCUMULATE', label: 'catalog.items.accumulate', icon: 'water_drop' }
 		]
 	},
 	{
@@ -126,6 +131,33 @@ export function defaultMapPayload(
 		vilTopKm: 15,
 		vilC1: 0.00524,
 		vilC2: 0.57143,
+		zrA: appDefaults.zrA,
+		zrB: appDefaults.zrB,
+		baseMap: appDefaults.baseMap,
+		dataOpacity: 0.8,
+		showRings: appDefaults.showRings,
+		showRadials: appDefaults.showRadials,
+		showScale: appDefaults.showScale,
+		showSiteMarker: appDefaults.showSiteMarker,
+		showCutGuide: appDefaults.showCutGuide
+	};
+}
+
+export function defaultAccumulatePayload(appDefaults: {
+	baseMap: BaseMapId;
+	showRings: boolean;
+	showRadials: boolean;
+	showScale: boolean;
+	showSiteMarker: boolean;
+	showCutGuide: boolean;
+	zrA: number;
+	zrB: number;
+}): AccumulateWindowPayload {
+	return {
+		channelIndex: 0,
+		bottomKm: 0,
+		topKm: 3,
+		intervalMin: 5,
 		zrA: appDefaults.zrA,
 		zrB: appDefaults.zrB,
 		baseMap: appDefaults.baseMap,

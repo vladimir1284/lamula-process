@@ -52,11 +52,13 @@
 		isGroundKind,
 		catalogLabel,
 		defaultMapPayload,
+		defaultAccumulatePayload,
 		defaultRhiPayload,
 		type CatalogProductKind
 	} from '$lib/windows/productCatalog';
 	import {
 		MapWindow,
+		AccumulateWindow,
 		RhiWindow,
 		CrossSectionWindow,
 		ProfileWindow,
@@ -75,7 +77,8 @@
 		{ key: 'TOPS_HEIGHT', label: 'settings.palettes.keys.topsHeight' },
 		{ key: 'VIL', label: 'settings.palettes.keys.vil' },
 		{ key: 'RAIN', label: 'settings.palettes.keys.rain' },
-		{ key: 'WIND_SPEED', label: 'settings.palettes.keys.windSpeed' }
+		{ key: 'WIND_SPEED', label: 'settings.palettes.keys.windSpeed' },
+		{ key: 'ACCUMULATE', label: 'settings.palettes.keys.accumulate' }
 	];
 
 	const { snapshot, send } = useMachine(observationMachine);
@@ -98,9 +101,22 @@
 		localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
 	}
 	function itemTitle(item: { id: CatalogProductKind; label: string }): string | undefined {
-		const hint = !isGroundKind(item.id) && !focusedMap ? $_('sidebar.crossSectionHint') : undefined;
+		const hint =
+			item.id === 'ACCUMULATE'
+				? !timeSpan
+					? $_('sidebar.needsTimeSpan')
+					: undefined
+				: !isGroundKind(item.id) && !focusedMap
+					? $_('sidebar.crossSectionHint')
+					: undefined;
 		if (sidebarCollapsed) return hint ? `${$_(item.label)} — ${hint}` : $_(item.label);
 		return hint;
+	}
+
+	function isCatalogItemDisabled(id: CatalogProductKind): boolean {
+		if (id === 'ACCUMULATE') return !timeSpan;
+		if (isGroundKind(id)) return !observation;
+		return !observation || !focusedMap;
 	}
 	let vadChannelIndex = $state<number | null>(null);
 
@@ -145,11 +161,16 @@
 	}
 
 	const observation = $derived($snapshot.context.observation);
+	// Independent from `observation` -- a second, parallel data source (multiple observations
+	// across time, for the accumulate product). Loading one never touches the other.
+	const timeSpan = $derived($snapshot.context.timeSpan);
 	const loading = $derived(
 		$snapshot.value === 'opening' ||
 			$snapshot.value === 'openingVolume' ||
+			$snapshot.value === 'openingAccumulate' ||
 			$snapshot.value === 'parsing' ||
-			$snapshot.value === 'parsingVolume'
+			$snapshot.value === 'parsingVolume' ||
+			$snapshot.value === 'parsingAccumulate'
 	);
 	const error = $derived($snapshot.context.error);
 	const recentFiles = $derived($snapshot.context.recentFiles);
@@ -194,6 +215,43 @@
 	});
 	const site = $derived(effectiveSite ? { lon: effectiveSite.lon, lat: effectiveSite.lat } : null);
 
+	// ── Accumulate (TimeSpan): same site-resolution dance as `observation` above, but kept as a
+	// separate copy rather than shared -- a loaded TimeSpan can carry a different radar site than
+	// whatever single `observation` happens to be loaded at the same time. ──────────────────────
+	const timeSpanChannels = $derived(
+		timeSpan && timeSpan.observations.length > 0
+			? observationChannels(timeSpan.observations[0])
+			: []
+	);
+	let accumSiteOverride = $state<{ lat: number; lon: number; altM: number } | null>(null);
+	let accumSiteLookupToken = 0;
+	$effect(() => {
+		const obs = timeSpan?.observations[0] ?? null;
+		accumSiteOverride = null;
+		if (!obs || hasGeoref(obs)) return;
+		const token = ++accumSiteLookupToken;
+		getSiteLocation(siteKey(obs.site)).then((loc) => {
+			if (token !== accumSiteLookupToken || !loc) return; // superseded by a newer load
+			accumSiteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+		});
+	});
+	const accumEffectiveSite = $derived.by(() => {
+		const obs = timeSpan?.observations[0];
+		if (!obs) return null;
+		if (obs.site.lat !== undefined && obs.site.lon !== undefined) {
+			return { lat: obs.site.lat, lon: obs.site.lon, altM: obs.site.altM };
+		}
+		return accumSiteOverride;
+	});
+	const accumSite = $derived(
+		accumEffectiveSite ? { lon: accumEffectiveSite.lon, lat: accumEffectiveSite.lat } : null
+	);
+	function openAccumLocationEditor() {
+		editingSiteKey = timeSpan?.observations[0] ? siteKey(timeSpan.observations[0].site) : null;
+		settingsTab = 'sitios';
+		showSettings = true;
+	}
+
 	const vadChannel = $derived(
 		vadChannelIndex !== null ? channels[vadChannelIndex]?.channel : undefined
 	);
@@ -221,6 +279,9 @@
 		editingSiteKey = null;
 		if (!key) return;
 		if (observation && siteKey(observation.site) === key) siteOverride = loc;
+		if (timeSpan?.observations[0] && siteKey(timeSpan.observations[0].site) === key) {
+			accumSiteOverride = loc;
+		}
 		await setSiteLocation(key, loc);
 		await refreshSiteList();
 	}
@@ -315,6 +376,23 @@
 	});
 
 	function launchCatalogItem(id: CatalogProductKind) {
+		if (id === 'ACCUMULATE') {
+			if (!timeSpan) return;
+			windowStore.open('accumulate', {
+				title: $_(catalogLabel('ACCUMULATE')),
+				payload: defaultAccumulatePayload({
+					baseMap: settings.baseMap,
+					showRings: settings.showRings,
+					showRadials: settings.showRadials,
+					showScale: settings.showScale,
+					showSiteMarker: settings.showSiteMarker,
+					showCutGuide: settings.showCutGuide,
+					zrA: settings.zrA,
+					zrB: settings.zrB
+				})
+			});
+			return;
+		}
 		if (isGroundKind(id)) {
 			windowStore.open('map', {
 				title: $_(catalogLabel(id)),
@@ -415,6 +493,12 @@
 					icon: 'layers',
 					disabled: loading,
 					onclick: () => send({ type: 'OPEN_VOLUME' })
+				},
+				{
+					label: $_('menu.file.openAccumulate'),
+					icon: 'water_drop',
+					disabled: loading,
+					onclick: () => send({ type: 'OPEN_ACCUMULATE' })
 				},
 				{
 					label: $_('menu.file.downloadAws'),
@@ -589,7 +673,7 @@
 								<button
 									type="button"
 									class={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-on-surface-variant transition-all hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${sidebarCollapsed ? 'justify-center' : ''}`}
-									disabled={!observation || (!isGroundKind(item.id) && !focusedMap)}
+									disabled={isCatalogItemDisabled(item.id)}
 									title={itemTitle(item)}
 									onclick={() => launchCatalogItem(item.id)}
 								>
@@ -680,6 +764,18 @@
 								imageSmoothing={settings.imageSmoothing}
 								onOpenLocationEditor={openLocationEditor}
 								onShowVad={(idx) => (vadChannelIndex = idx)}
+								onEditScale={(key) => (scaleEditorKey = key)}
+							/>
+						{:else if w.type === 'accumulate'}
+							<AccumulateWindow
+								win={w}
+								{timeSpan}
+								channels={timeSpanChannels}
+								{book}
+								{unitSystem}
+								site={accumSite}
+								effectiveSiteAltM={accumEffectiveSite?.altM ?? 0}
+								onOpenLocationEditor={openAccumLocationEditor}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'rhi'}
@@ -1064,11 +1160,7 @@
 						{$_('settings.view.description')}
 					</p>
 					<div class="flex gap-2">
-						{#each [
-							['dark', 'settings.view.themeDark'],
-							['light', 'settings.view.themeLight'],
-							['system', 'settings.view.themeSystem']
-						] as [mode, labelKey] (mode)}
+						{#each [['dark', 'settings.view.themeDark'], ['light', 'settings.view.themeLight'], ['system', 'settings.view.themeSystem']] as [mode, labelKey] (mode)}
 							<button
 								class="flex items-center gap-2 rounded border px-4 py-2 font-mono text-label-mono transition-colors {settings.themeMode ===
 								mode

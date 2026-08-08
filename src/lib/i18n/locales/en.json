@@ -17,6 +17,7 @@
 			"opening": "Opening…",
 			"open": "Open file",
 			"openVolume": "Open volume (multiple sweeps)…",
+			"openAccumulate": "Open accumulation…",
 			"downloadAws": "Download (AWS)",
 			"openRecent": "Open recent",
 			"noRecent": "No recent files"
@@ -41,7 +42,8 @@
 		"expandPanel": "Expand panel",
 		"collapsePanel": "Collapse panel",
 		"needsFocusedMap": "Requires a focused map window.",
-		"crossSectionHint": "Focus a map window to create this derived product"
+		"crossSectionHint": "Focus a map window to create this derived product",
+		"needsTimeSpan": "Requires loading an accumulation (File → Open accumulation…)."
 	},
 	"onboarding": {
 		"title": "Open an observation",
@@ -90,7 +92,8 @@
 				"topsHeight": "Tops / Max alt.",
 				"vil": "VIL",
 				"rain": "Rain",
-				"windSpeed": "Wind"
+				"windSpeed": "Wind",
+				"accumulate": "Accumulation"
 			}
 		},
 		"calc": {
@@ -179,6 +182,7 @@
 		"emptyCrossSection": "Draw a line on the source map (or use East-West/North-South) to see the cross-section.",
 		"emptyProfile": "Click on the source map to see the vertical profile.",
 		"noObservationMap": "Open a file to see this map.",
+		"noTimeSpanAccumulate": "Open an accumulation (File → Open accumulation…) to see this map.",
 		"noSitePosition": "This format doesn't carry the site position. Set the location to georeference the",
 		"defineLocation": "SET LOCATION",
 		"baseMapTitle": "Base map",
@@ -193,6 +197,7 @@
 			"base": "BASE",
 			"top": "TOP",
 			"threshold": "THRESH",
+			"interval": "INTERVAL",
 			"lat": "LAT",
 			"lon": "LON",
 			"azimuth": "AZIMUTH",
@@ -272,6 +277,7 @@
 			"vil": "VIL",
 			"rain": "Rain rate (Z-R)",
 			"windSpeed": "Wind (VAD)",
+			"accumulate": "Accumulation (mm)",
 			"crossLine": "Cross-section (free line)",
 			"profile": "Vertical profile",
 			"rhi": "RHI",

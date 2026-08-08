@@ -167,6 +167,50 @@ describe('observationMachine', () => {
 		expect(actor.getSnapshot().context.error).toMatch(/mergeSweeps/);
 	});
 
+	it('LOAD_ACCUMULATE parses multiple picked files into a TimeSpan, leaving observation untouched', async () => {
+		const machine = observationMachine.provide({
+			actors: {
+				parseAccumulateFile: fromPromise(
+					async (): Promise<{ timeSpan: { observations: Observation[] } }> => ({
+						timeSpan: { observations: [fakeObs] }
+					})
+				)
+			}
+		});
+		const actor = createActor(machine).start();
+		actor.send({
+			type: 'LOAD_ACCUMULATE',
+			picked: [
+				{ fileName: 'a.obs', bytes: new Uint8Array(), source: 'local' as const },
+				{ fileName: 'b.obs', bytes: new Uint8Array(), source: 'local' as const }
+			]
+		});
+		expect(actor.getSnapshot().value).toBe('parsingAccumulate'); // synchronous transition
+		await waitFor(actor, 'ready');
+		expect(actor.getSnapshot().context.timeSpan?.observations).toEqual([fakeObs]);
+		expect(actor.getSnapshot().context.observation).toBeNull();
+	});
+
+	it('LOAD_ACCUMULATE captures an error and leaves timeSpan null', async () => {
+		const machine = observationMachine.provide({
+			actors: {
+				parseAccumulateFile: fromPromise(
+					async (): Promise<{ timeSpan: { observations: Observation[] } }> => {
+						throw new Error('createTimeSpan: nothing to merge');
+					}
+				)
+			}
+		});
+		const actor = createActor(machine).start();
+		actor.send({
+			type: 'LOAD_ACCUMULATE',
+			picked: [{ fileName: 'a.obs', bytes: new Uint8Array(), source: 'local' as const }]
+		});
+		await waitFor(actor, 'error');
+		expect(actor.getSnapshot().context.error).toMatch(/createTimeSpan/);
+		expect(actor.getSnapshot().context.timeSpan).toBeNull();
+	});
+
 	it('RECENT_FILES_LOADED hydrates recentFiles without disturbing the current state', async () => {
 		const actor = createActor(observationMachine).start();
 		actor.send({

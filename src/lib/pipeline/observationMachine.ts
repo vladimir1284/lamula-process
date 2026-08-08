@@ -9,7 +9,7 @@ import {
 } from '$lib/platform';
 import { fetchVolumeScanBytes } from '$lib/aws-explorer/nexradS3';
 import { parseObservation } from '$lib/parsers';
-import { mergeSweeps } from '$lib/domain';
+import { mergeSweeps, createTimeSpan, type TimeSpan } from '$lib/domain';
 import type { Observation } from '$lib/domain/types';
 
 /**
@@ -36,6 +36,11 @@ interface Ctx {
 	recentFiles: RecentFileEntry[];
 	picked: Picked | null;
 	pickedVolume: Picked[] | null;
+	/** Independent from `observation` -- a TimeSpan is a second, parallel data source (multiple
+	 * observations across time, for the accumulate product), not a variation of the single current
+	 * Observation. Loading one never touches the other. */
+	timeSpan: TimeSpan | null;
+	pickedAccum: Picked[] | null;
 }
 
 /** Re-fetches (aws) or re-reads (local, via the remembered handle) a recent-files entry. */
@@ -60,8 +65,10 @@ export const observationMachine = setup({
 		events: {} as
 			| { type: 'OPEN' }
 			| { type: 'OPEN_VOLUME' }
+			| { type: 'OPEN_ACCUMULATE' }
 			| { type: 'LOAD_REMOTE'; picked: Picked }
 			| { type: 'LOAD_VOLUME'; picked: Picked[] }
+			| { type: 'LOAD_ACCUMULATE'; picked: Picked[] }
 			| { type: 'OPEN_RECENT'; entry: RecentFileEntry }
 			| { type: 'RECENT_FILES_LOADED'; recentFiles: RecentFileEntry[] }
 	},
@@ -103,7 +110,16 @@ export const observationMachine = setup({
 		}),
 		resolveRecent: fromPromise(async ({ input }: { input: RecentFileEntry }) =>
 			resolveRecentFile(input)
-		)
+		),
+		// Parses each file and stitches them into a TimeSpan by TIME (unlike parseVolumeFile, which
+		// stitches single-sweep files by ELEVATION into one Observation) -- feeds the accumulate
+		// product's multi-file load. No recent-files entry: reopening 1-of-N files as if it were the
+		// whole time series would be misleading (worse than parseVolumeFile's own known wart).
+		parseAccumulateFile: fromPromise(async ({ input }: { input: Picked[] }) => {
+			const parsed = await Promise.all(input.map((picked) => parseObservation(picked)));
+			const { span } = createTimeSpan(parsed);
+			return { timeSpan: span };
+		})
 	},
 	actions: {
 		assignRemotePicked: assign({
@@ -114,6 +130,10 @@ export const observationMachine = setup({
 			error: null,
 			pickedVolume: ({ event }) => (event as { picked: Picked[] }).picked
 		}),
+		assignAccumPicked: assign({
+			error: null,
+			pickedAccum: ({ event }) => (event as { picked: Picked[] }).picked
+		}),
 		assignRecentFiles: assign({
 			recentFiles: ({ event }) => (event as { recentFiles: RecentFileEntry[] }).recentFiles
 		})
@@ -121,7 +141,15 @@ export const observationMachine = setup({
 }).createMachine({
 	id: 'observation',
 	initial: 'idle',
-	context: { observation: null, error: null, recentFiles: [], picked: null, pickedVolume: null },
+	context: {
+		observation: null,
+		error: null,
+		recentFiles: [],
+		picked: null,
+		pickedVolume: null,
+		timeSpan: null,
+		pickedAccum: null
+	},
 	// Internal (no target) so it applies from whichever state we're in without disturbing it --
 	// the page sends this once on mount, after `loadConfig()` resolves.
 	on: { RECENT_FILES_LOADED: { actions: 'assignRecentFiles' } },
@@ -130,8 +158,10 @@ export const observationMachine = setup({
 			on: {
 				OPEN: 'opening',
 				OPEN_VOLUME: 'openingVolume',
+				OPEN_ACCUMULATE: 'openingAccumulate',
 				LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' },
 				LOAD_VOLUME: { target: 'parsingVolume', actions: 'assignVolumePicked' },
+				LOAD_ACCUMULATE: { target: 'parsingAccumulate', actions: 'assignAccumPicked' },
 				OPEN_RECENT: 'reopening'
 			}
 		},
@@ -162,6 +192,24 @@ export const observationMachine = setup({
 						guard: ({ event }) => event.output.length > 0,
 						actions: assign({ pickedVolume: ({ event }) => event.output }),
 						target: 'parsingVolume'
+					},
+					{ target: 'idle' } // picker cancelled
+				],
+				onError: {
+					target: 'error',
+					actions: assign({ error: ({ event }) => errText(event.error) })
+				}
+			}
+		},
+		openingAccumulate: {
+			entry: assign({ error: null }),
+			invoke: {
+				src: 'openFiles',
+				onDone: [
+					{
+						guard: ({ event }) => event.output.length > 0,
+						actions: assign({ pickedAccum: ({ event }) => event.output }),
+						target: 'parsingAccumulate'
 					},
 					{ target: 'idle' } // picker cancelled
 				],
@@ -226,12 +274,31 @@ export const observationMachine = setup({
 				}
 			}
 		},
+		parsingAccumulate: {
+			invoke: {
+				src: 'parseAccumulateFile',
+				input: ({ context }) => context.pickedAccum as Picked[],
+				onDone: {
+					target: 'ready',
+					actions: assign({ timeSpan: ({ event }) => event.output.timeSpan })
+				},
+				onError: {
+					target: 'error',
+					actions: assign({
+						timeSpan: null,
+						error: ({ event }) => errText(event.error)
+					})
+				}
+			}
+		},
 		ready: {
 			on: {
 				OPEN: 'opening',
 				OPEN_VOLUME: 'openingVolume',
+				OPEN_ACCUMULATE: 'openingAccumulate',
 				LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' },
 				LOAD_VOLUME: { target: 'parsingVolume', actions: 'assignVolumePicked' },
+				LOAD_ACCUMULATE: { target: 'parsingAccumulate', actions: 'assignAccumPicked' },
 				OPEN_RECENT: 'reopening'
 			}
 		},
@@ -239,8 +306,10 @@ export const observationMachine = setup({
 			on: {
 				OPEN: 'opening',
 				OPEN_VOLUME: 'openingVolume',
+				OPEN_ACCUMULATE: 'openingAccumulate',
 				LOAD_REMOTE: { target: 'parsing', actions: 'assignRemotePicked' },
 				LOAD_VOLUME: { target: 'parsingVolume', actions: 'assignVolumePicked' },
+				LOAD_ACCUMULATE: { target: 'parsingAccumulate', actions: 'assignAccumPicked' },
 				OPEN_RECENT: 'reopening'
 			}
 		}

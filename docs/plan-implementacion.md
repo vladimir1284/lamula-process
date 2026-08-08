@@ -260,8 +260,12 @@ ya extraído 1:1) y QA visual diferida a revisión manual. Solo target **web**.
   corte E-O/N-S contra la estructura vertical esperada, el perfil, y el viento VAD contra un caso
   de viento conocido. Las paletas siguen siendo la rampa dBZ por defecto — cada producto necesita
   su propia escala (pendiente en el editor).
-- **Acumulado sin UI** — `computeAccumulate` existe y está testeado, pero el `+page.svelte` de un
-  solo archivo no construye un `TimeSpan`; falta un flujo multi-archivo para exponerlo.
+- ~~**Acumulado sin UI**~~ — cerrado: flujo "Abrir acumulado…" (menú Archivo, multi-archivo) →
+  `TimeSpan` (`observationMachine` `OPEN_ACCUMULATE`/`LOAD_ACCUMULATE`, campo de contexto
+  independiente de `observation`) → ítem de catálogo `ACCUMULATE` → `AccumulateWindow.svelte`,
+  paleta propia (mm de profundidad, distinta de la tasa mm/h de `RAIN`). Verificado en navegador
+  real con 2 `.obs` INSMET del mismo sitio (RDCAMAGUEY1). Limitación v1: sin RHI/corte/perfil/stats
+  derivados de un acumulado (esas ventanas leen la `Observation` única de página).
 - **Estadísticas/reportes sin UI** — `analysis/*` está completo y testeado, pero falta el panel
   para dibujar regiones y disparar el reporte (dibujo de polígono sobre el mapa OL, pendiente).
 - **Paneles Svelte sin tests de componente** (frágiles headless) — misma decisión que P1; toda la

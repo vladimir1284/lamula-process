@@ -20,4 +20,4 @@ export interface Palette {
  * moment palette (e.g. reflectivity's -30..85 dBZ ramp is meaningless for a 0..21000 m echo-top
  * value). `MAXS_HEIGHT` and `TOPS` both report a height in metres, so they share `'TOPS_HEIGHT'`.
  */
-export type ProductPaletteKey = 'TOPS_HEIGHT' | 'VIL' | 'RAIN' | 'WIND_SPEED';
+export type ProductPaletteKey = 'TOPS_HEIGHT' | 'VIL' | 'RAIN' | 'WIND_SPEED' | 'ACCUMULATE';

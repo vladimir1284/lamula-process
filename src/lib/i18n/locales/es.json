@@ -17,6 +17,7 @@
 			"opening": "Abriendo…",
 			"open": "Abrir archivo",
 			"openVolume": "Abrir volumen (varios cortes)…",
+			"openAccumulate": "Abrir acumulado…",
 			"downloadAws": "Descargar (AWS)",
 			"openRecent": "Abrir reciente",
 			"noRecent": "Sin archivos recientes"
@@ -41,7 +42,8 @@
 		"expandPanel": "Expandir panel",
 		"collapsePanel": "Contraer panel",
 		"needsFocusedMap": "Requiere una ventana de mapa enfocada.",
-		"crossSectionHint": "Enfoca una ventana de mapa para crear este producto derivado"
+		"crossSectionHint": "Enfoca una ventana de mapa para crear este producto derivado",
+		"needsTimeSpan": "Requiere cargar un acumulado (Archivo → Abrir acumulado…)."
 	},
 	"onboarding": {
 		"title": "Abre una observación",
@@ -90,7 +92,8 @@
 				"topsHeight": "Topes / Alt. máx.",
 				"vil": "VIL",
 				"rain": "Lluvia",
-				"windSpeed": "Viento"
+				"windSpeed": "Viento",
+				"accumulate": "Acumulado"
 			}
 		},
 		"calc": {
@@ -179,6 +182,7 @@
 		"emptyCrossSection": "Traza una línea en el mapa de origen (o usa Este-Oeste/Norte-Sur) para ver el corte.",
 		"emptyProfile": "Haz clic en el mapa de origen para ver el perfil vertical.",
 		"noObservationMap": "Abre un archivo para ver este mapa.",
+		"noTimeSpanAccumulate": "Abre un acumulado (Archivo → Abrir acumulado…) para ver este mapa.",
 		"noSitePosition": "Este formato no trae posición del sitio. Define la ubicación para georreferenciar el",
 		"defineLocation": "DEFINIR UBICACIÓN",
 		"baseMapTitle": "Mapa de fondo",
@@ -193,6 +197,7 @@
 			"base": "BASE",
 			"top": "TOPE",
 			"threshold": "UMBRAL",
+			"interval": "INTERVALO",
 			"lat": "LAT",
 			"lon": "LON",
 			"azimuth": "AZIMUT",
@@ -272,6 +277,7 @@
 			"vil": "VIL",
 			"rain": "Tasa de lluvia (Z-R)",
 			"windSpeed": "Viento (VAD)",
+			"accumulate": "Acumulado (mm)",
 			"crossLine": "Corte (línea libre)",
 			"profile": "Perfil vertical",
 			"rhi": "RHI",

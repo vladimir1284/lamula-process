@@ -202,6 +202,31 @@ const windSpeed: Palette = {
 	]
 };
 
+// Accumulated precipitation, mm depth (products/accumulate.ts). Different physical quantity from
+// `rainRate`'s mm/h -- storm-total depth, not instantaneous rate -- so it needs its own scale even
+// though the unit label looks similar. `legacy/Palettes/MM.pal` ("Precipitación") exists but, like
+// `MMH.pal` before it, its raw byte stops have no known decode formula; thresholds here are the
+// common published storm-total depth bands (light/moderate/heavy/extreme) instead, same convention
+// already used for `rainRate` in this file.
+// i18n-ignore: palette name, a user-editable library entry like every other name in this file
+// (Reflectividad, Intensidad de lluvia, ...), not app-chrome copy routed through the locale files.
+const accumulate: Palette = {
+	name: 'Precipitación acumulada',
+	smooth: false,
+	stops: [
+		{ value: 1, color: [4, 233, 231], caption: '1' },
+		{ value: 5, color: [1, 159, 244], caption: '5' },
+		{ value: 10, color: [2, 253, 2], caption: '10' },
+		{ value: 25, color: [1, 197, 1], caption: '25' },
+		{ value: 50, color: [253, 248, 2], caption: '50' },
+		{ value: 75, color: [229, 188, 0], caption: '75' },
+		{ value: 100, color: [253, 149, 0], caption: '100' },
+		{ value: 150, color: [253, 0, 0], caption: '150' },
+		{ value: 200, color: [212, 0, 0], caption: '200' },
+		{ value: 300, color: [248, 0, 253], caption: '300' }
+	]
+};
+
 /** The built-in palette library, in a stable display order. */
 export const defaultPalettes: Palette[] = [
 	reflectivity,
@@ -214,7 +239,8 @@ export const defaultPalettes: Palette[] = [
 	topsHeight,
 	vil,
 	rainRate,
-	windSpeed
+	windSpeed,
+	accumulate
 ];
 
 /**
@@ -237,9 +263,11 @@ export const defaultAssignments: Record<MomentType, string> = {
  * here -- it reports the source moment's own unit (`valueUnit: momentUnit(channel.moment)`), so it
  * correctly keeps following the channel's moment assignment above.
  */
+// i18n-ignore: values reference palette names (see `accumulate` above), not app-chrome copy.
 export const defaultProductAssignments: Record<ProductPaletteKey, string> = {
 	TOPS_HEIGHT: 'Topes (altura)',
 	VIL: 'VIL',
 	RAIN: 'Intensidad de lluvia',
-	WIND_SPEED: 'Velocidad del viento'
+	WIND_SPEED: 'Velocidad del viento',
+	ACCUMULATE: 'Precipitación acumulada' // i18n-ignore: palette name, see `accumulate` above
 };

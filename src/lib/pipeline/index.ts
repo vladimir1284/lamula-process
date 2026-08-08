@@ -8,4 +8,6 @@ export type {
 	DerivedProduct,
 	MapPayloadDeriveFields
 } from './deriveProduct';
+export { buildAccumFrames, deriveAccumulateOptionsFromPayload } from './deriveAccumulate';
+export type { AccumulatePayloadDeriveFields } from './deriveAccumulate';
 export { applySpeckleFilter } from './applySpeckleFilter';

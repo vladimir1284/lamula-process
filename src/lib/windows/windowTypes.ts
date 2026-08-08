@@ -3,9 +3,11 @@ import type { CutLine } from '$lib/products';
 import type { BaseMapId } from '$lib/viewer/baseMaps';
 import type { RectangleRegion } from '$lib/analysis';
 
-/** Map windows show a georeferenced ground product; the other four are derived-chart windows,
- * each sourced from exactly one map window (see `ChartWindowPayloadBase.sourceMapWindowId`). */
-export type WindowType = 'map' | 'rhi' | 'cross-section' | 'profile' | 'stats';
+/** Map windows show a georeferenced ground product; `accumulate` is also a georeferenced ground
+ * map but sourced from a `TimeSpan` (multiple observations) instead of the page's single current
+ * Observation; the remaining four are derived-chart windows, each sourced from exactly one map
+ * window (see `ChartWindowPayloadBase.sourceMapWindowId`). */
+export type WindowType = 'map' | 'accumulate' | 'rhi' | 'cross-section' | 'profile' | 'stats';
 
 export interface WindowRect {
 	x: number;
@@ -27,6 +29,24 @@ export interface MapWindowPayload {
 	vilTopKm: number;
 	vilC1: number;
 	vilC2: number;
+	zrA: number;
+	zrB: number;
+	baseMap: BaseMapId;
+	dataOpacity: number;
+	showRings: boolean;
+	showRadials: boolean;
+	showScale: boolean;
+	showSiteMarker: boolean;
+	showCutGuide: boolean;
+}
+
+/** The accumulate window has one fixed algorithm (no product switch, no CAPPI/TOPS/VIL fields) --
+ * it always runs `computeAccumulate` over the loaded `TimeSpan`'s matching-moment channel. */
+export interface AccumulateWindowPayload {
+	channelIndex: number;
+	bottomKm: number;
+	topKm: number;
+	intervalMin: number;
 	zrA: number;
 	zrB: number;
 	baseMap: BaseMapId;
@@ -72,6 +92,7 @@ export interface StatsWindowPayload extends ChartWindowPayloadBase {
 
 export type WindowPayload =
 	| MapWindowPayload
+	| AccumulateWindowPayload
 	| RhiWindowPayload
 	| CrossSectionWindowPayload
 	| ProfileWindowPayload
@@ -103,6 +124,7 @@ export const MIN_WINDOW_HEIGHT = 240;
 
 export const WINDOW_TYPE_ICON: Record<WindowType, string> = {
 	map: 'my_location',
+	accumulate: 'water_drop',
 	rhi: 'radar',
 	'cross-section': 'timeline',
 	profile: 'monitoring',

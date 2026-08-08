@@ -6,6 +6,7 @@ export type {
 	RadarWindow,
 	WindowPayload,
 	MapWindowPayload,
+	AccumulateWindowPayload,
 	ChartWindowPayloadBase,
 	RhiWindowPayload,
 	CrossSectionWindowPayload,
