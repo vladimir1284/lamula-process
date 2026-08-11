@@ -30,6 +30,6 @@ export {
 	exportPaletteBook,
 	importPaletteBook
 } from './paletteStore';
-export type { AppSettings } from './settingsStore';
+export type { AppSettings, ThemeMode, OverlayLineColor } from './settingsStore';
 export { DEFAULT_SETTINGS, loadSettings, saveSettings } from './settingsStore';
 export { downloadTextFile } from './download';

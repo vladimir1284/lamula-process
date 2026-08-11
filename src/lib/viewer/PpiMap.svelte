@@ -16,17 +16,20 @@
 	import type BaseLayer from 'ol/layer/Base';
 	import 'ol/ol.css';
 
-	import { createBaseMapSources, type BaseMapId } from './baseMaps';
+	import { createBaseMapSources, isDarkBaseMap, type BaseMapId } from './baseMaps';
 
 	import type { Scan } from '$lib/domain/types';
 	import type { Palette } from '$lib/palette/types';
 	import type { CutLine } from '$lib/products/crossSection';
+	import type { OverlayLineColor } from '$lib/platform/settingsStore';
 	import { PpiRenderer } from '$lib/render/renderClient';
 	import { buildAzimuthLUT, maxGroundRangeM } from '$lib/render/scanSample';
 	import { siteExtent3857, siteCenter3857, mercatorScaleAtLat } from '$lib/geo/extent';
 	import { rasterToDataURL } from './radarImage';
-	import { ringFeatures, ringStyle, defaultRingsM } from './rings';
-	import { radialFeatures, radialStyle } from './radials';
+	import { ringFeatures, makeRingStyle, defaultRingsM } from './rings';
+	import { radialFeatures, makeRadialStyle } from './radials';
+	import { latLonGridFeatures, makeLatLonGridStyle } from './latLonGrid';
+	import type { OverlayBaseColor } from './overlayLineStyle';
 	import { siteMarkerFeature, siteMarkerStyle } from './siteMarker';
 	import { readoutAt, type Readout } from './readout';
 	import type { UnitSystem } from '$lib/units';
@@ -84,6 +87,20 @@
 		 * the pick interaction stays armed and still fires its callback even while this is false, it
 		 * just hides what's drawn. Default true. */
 		showCutGuide?: boolean;
+		/** Show the lat/lon graticule. Default false. */
+		showLatLonGrid?: boolean;
+		/** Shared line color for rings/radials/grid. 'auto' picks white on a dark base map, black
+		 * otherwise (see `baseMaps.ts`'s `isDarkBaseMap`). Default 'auto'. */
+		overlayLineColor?: OverlayLineColor;
+		/** Shared line width (px) for rings/radials/grid. Default 1. */
+		overlayLineWidthPx?: number;
+		/** Spacing between range rings, km. Default 50. */
+		ringsStepKm?: number;
+		/** Spacing between azimuth radials, degrees. Default 30. */
+		radialsStepDeg?: number;
+		/** Lat/lon grid spacing, degrees. Default 1/1. */
+		gridStepLatDeg?: number;
+		gridStepLonDeg?: number;
 	}
 
 	let {
@@ -109,8 +126,19 @@
 		showRings = true,
 		showRadials = false,
 		showSiteMarker = true,
-		showCutGuide = true
+		showCutGuide = true,
+		showLatLonGrid = false,
+		overlayLineColor = 'auto',
+		overlayLineWidthPx = 1,
+		ringsStepKm = 50,
+		radialsStepDeg = 30,
+		gridStepLatDeg = 1,
+		gridStepLonDeg = 1
 	}: Props = $props();
+
+	const effectiveOverlayColor: OverlayBaseColor = $derived(
+		overlayLineColor === 'auto' ? (isDarkBaseMap(baseMap) ? 'white' : 'black') : overlayLineColor
+	);
 
 	let mapEl: HTMLDivElement;
 	let map: Map | undefined;
@@ -119,6 +147,7 @@
 	let radarLayer: ImageLayer<Static> | undefined;
 	let ringsLayer: VectorLayer<VectorSource> | undefined;
 	let radialsLayer: VectorLayer<VectorSource> | undefined;
+	let gridLayer: VectorLayer<VectorSource> | undefined;
 	let siteLayer: VectorLayer<VectorSource> | undefined;
 	let drawLayer: VectorLayer<VectorSource> | undefined;
 	let draw: Draw | undefined;
@@ -184,20 +213,26 @@
 	}
 
 	onMount(() => {
-		// Ordering via zIndex: base(0) → radar(10) → CARTO names(15) → rings(20) → radials(21) →
-		// site marker(22) → draw(23) → overlays(25).
+		// Ordering via zIndex: base(0) → radar(10) → CARTO names(15) → grid(19) → rings(20) →
+		// radials(21) → site marker(22) → draw(23) → overlays(25).
 		baseLayer = new TileLayer({ zIndex: 0 });
 		labelsLayer = new TileLayer({ zIndex: 15 });
 		radarLayer = new ImageLayer<Static>({ zIndex: 10, opacity: dataOpacity });
+		gridLayer = new VectorLayer({
+			source: new VectorSource(),
+			style: makeLatLonGridStyle(effectiveOverlayColor, overlayLineWidthPx),
+			zIndex: 19,
+			visible: showLatLonGrid
+		});
 		ringsLayer = new VectorLayer({
 			source: new VectorSource(),
-			style: ringStyle,
+			style: makeRingStyle(effectiveOverlayColor, overlayLineWidthPx),
 			zIndex: 20,
 			visible: showRings
 		});
 		radialsLayer = new VectorLayer({
 			source: new VectorSource(),
-			style: radialStyle,
+			style: makeRadialStyle(effectiveOverlayColor, overlayLineWidthPx),
 			zIndex: 21,
 			visible: showRadials
 		});
@@ -220,6 +255,7 @@
 				baseLayer,
 				labelsLayer,
 				radarLayer,
+				gridLayer,
 				ringsLayer,
 				radialsLayer,
 				siteLayer,
@@ -254,6 +290,10 @@
 		const p = palette;
 		const px = sizePx;
 		const _site = site;
+		const ringsStep = ringsStepKm;
+		const radialsStep = radialsStepDeg;
+		const gridLatStep = gridStepLatDeg;
+		const gridLonStep = gridStepLonDeg;
 		if (!map || !radarLayer) return;
 
 		const token = ++renderToken;
@@ -274,9 +314,24 @@
 				src.addFeatures(
 					ringFeatures({
 						center3857: siteXY(),
-						ringsM: defaultRingsM(maxRangeM),
+						ringsM: defaultRingsM(maxRangeM, ringsStep * 1000),
 						mercatorScale: scale(),
 						unitSystem
+					})
+				);
+			}
+
+			// refresh lat/lon graticule for this extent
+			if (gridLayer) {
+				const src = gridLayer.getSource()!;
+				src.clear();
+				src.addFeatures(
+					latLonGridFeatures({
+						centerLon: _site.lon,
+						centerLat: _site.lat,
+						maxRangeM,
+						stepLatDeg: gridLatStep,
+						stepLonDeg: gridLonStep
 					})
 				);
 			}
@@ -289,7 +344,8 @@
 					radialFeatures({
 						center3857: siteXY(),
 						rangeM: maxRangeM,
-						mercatorScale: scale()
+						mercatorScale: scale(),
+						stepDeg: radialsStep
 					})
 				);
 			}
@@ -322,6 +378,19 @@
 	});
 	$effect(() => {
 		radialsLayer?.setVisible(showRadials);
+	});
+	$effect(() => {
+		gridLayer?.setVisible(showLatLonGrid);
+	});
+
+	// Re-style rings/radials/grid together whenever the shared color/width setting changes, or the
+	// base map switches (color can be 'auto', which depends on it).
+	$effect(() => {
+		const color = effectiveOverlayColor;
+		const width = overlayLineWidthPx;
+		ringsLayer?.setStyle(makeRingStyle(color, width));
+		radialsLayer?.setStyle(makeRadialStyle(color, width));
+		gridLayer?.setStyle(makeLatLonGridStyle(color, width));
 	});
 	$effect(() => {
 		siteLayer?.setVisible(showSiteMarker);

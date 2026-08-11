@@ -9,6 +9,11 @@ import type { BaseMapId } from '$lib/viewer/baseMaps';
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 
+/** Shared line style for range rings, azimuth radials, and the lat/lon grid (grouped as one
+ * style, not per-overlay). 'auto' = white on a dark base map ('off'/'carto-dark'), black
+ * otherwise -- see `baseMaps.ts`'s `isDarkBaseMap`. */
+export type OverlayLineColor = 'auto' | 'white' | 'black';
+
 export interface AppSettings {
 	unitSystem: UnitSystem;
 	baseMap: BaseMapId;
@@ -16,6 +21,18 @@ export interface AppSettings {
 	themeMode: ThemeMode;
 	showRings: boolean;
 	showRadials: boolean;
+	/** Line color for range rings, azimuth radials, and the lat/lon grid, as a group. */
+	overlayLineColor: OverlayLineColor;
+	/** Line width (px) for range rings, azimuth radials, and the lat/lon grid, as a group. */
+	overlayLineWidthPx: number;
+	/** Spacing between range rings, km. */
+	ringsStepKm: number;
+	/** Spacing between azimuth radials, degrees. */
+	radialsStepDeg: number;
+	/** Lat/lon grid spacing, degrees -- latitude and longitude are independent since the grid is
+	 * two-dimensional and each axis can need a different step at a given site latitude. */
+	gridStepLatDeg: number;
+	gridStepLonDeg: number;
 	/** Z-R rain-rate coefficients (R = (Z/A)^(1/B)), seed newly-opened RAIN windows' own editable
 	 * a/b fields -- see legacy/Units/Configuration.pas `Rain_A`/`Rain_B`. */
 	zrA: number;
@@ -40,6 +57,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	themeMode: 'dark',
 	showRings: true,
 	showRadials: false,
+	overlayLineColor: 'auto',
+	overlayLineWidthPx: 1,
+	ringsStepKm: 50,
+	radialsStepDeg: 30,
+	gridStepLatDeg: 1,
+	gridStepLonDeg: 1,
 	zrA: 300,
 	zrB: 1.4,
 	showScale: true,
@@ -58,6 +81,10 @@ function isThemeMode(x: unknown): x is ThemeMode {
 	return x === 'dark' || x === 'light' || x === 'system';
 }
 
+function isOverlayLineColor(x: unknown): x is OverlayLineColor {
+	return x === 'auto' || x === 'white' || x === 'black';
+}
+
 export async function loadSettings(): Promise<AppSettings> {
 	if (isTauri()) throw new Error('Tauri settings store not implemented yet');
 	const raw = localStorage.getItem(STORAGE_KEY);
@@ -72,6 +99,27 @@ export async function loadSettings(): Promise<AppSettings> {
 				typeof parsed.showRings === 'boolean' ? parsed.showRings : DEFAULT_SETTINGS.showRings,
 			showRadials:
 				typeof parsed.showRadials === 'boolean' ? parsed.showRadials : DEFAULT_SETTINGS.showRadials,
+			overlayLineColor: isOverlayLineColor(parsed.overlayLineColor)
+				? parsed.overlayLineColor
+				: DEFAULT_SETTINGS.overlayLineColor,
+			overlayLineWidthPx:
+				typeof parsed.overlayLineWidthPx === 'number'
+					? parsed.overlayLineWidthPx
+					: DEFAULT_SETTINGS.overlayLineWidthPx,
+			ringsStepKm:
+				typeof parsed.ringsStepKm === 'number' ? parsed.ringsStepKm : DEFAULT_SETTINGS.ringsStepKm,
+			radialsStepDeg:
+				typeof parsed.radialsStepDeg === 'number'
+					? parsed.radialsStepDeg
+					: DEFAULT_SETTINGS.radialsStepDeg,
+			gridStepLatDeg:
+				typeof parsed.gridStepLatDeg === 'number'
+					? parsed.gridStepLatDeg
+					: DEFAULT_SETTINGS.gridStepLatDeg,
+			gridStepLonDeg:
+				typeof parsed.gridStepLonDeg === 'number'
+					? parsed.gridStepLonDeg
+					: DEFAULT_SETTINGS.gridStepLonDeg,
 			zrA: typeof parsed.zrA === 'number' ? parsed.zrA : DEFAULT_SETTINGS.zrA,
 			zrB: typeof parsed.zrB === 'number' ? parsed.zrB : DEFAULT_SETTINGS.zrB,
 			showScale:

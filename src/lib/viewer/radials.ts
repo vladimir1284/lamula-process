@@ -3,6 +3,7 @@ import type { FeatureLike } from 'ol/Feature';
 import LineString from 'ol/geom/LineString';
 import Point from 'ol/geom/Point';
 import { Style, Stroke, Text, Fill } from 'ol/style';
+import { overlayRgba, overlayOutline, type OverlayBaseColor } from './overlayLineStyle';
 
 /**
  * Azimuth-radial features for the PPI overlay. Radials are straight lines from the site out to
@@ -52,19 +53,27 @@ export function radialFeatures(opts: RadialOptions): Feature[] {
 	return feats;
 }
 
-export function radialStyle(feature: FeatureLike): Style {
-	const kind = feature.get('kind');
-	if (kind === 'radial-label') {
+/** Style factory so color/width follow the shared overlay-line settings (group config covering
+ * rings/radials/grid) instead of a fixed white. */
+export function makeRadialStyle(
+	base: OverlayBaseColor,
+	widthPx: number
+): (feature: FeatureLike) => Style {
+	const outline = overlayOutline(base);
+	return (feature) => {
+		const kind = feature.get('kind');
+		if (kind === 'radial-label') {
+			return new Style({
+				text: new Text({
+					text: feature.get('text'),
+					font: '10px sans-serif',
+					fill: new Fill({ color: overlayRgba(base, 0.7) }),
+					stroke: new Stroke({ color: overlayRgba(outline, 0.7), width: 2 })
+				})
+			});
+		}
 		return new Style({
-			text: new Text({
-				text: feature.get('text'),
-				font: '10px sans-serif',
-				fill: new Fill({ color: 'rgba(255,255,255,0.7)' }),
-				stroke: new Stroke({ color: 'rgba(0,0,0,0.7)', width: 2 })
-			})
+			stroke: new Stroke({ color: overlayRgba(base, 0.2), width: widthPx, lineDash: [2, 4] })
 		});
-	}
-	return new Style({
-		stroke: new Stroke({ color: 'rgba(255,255,255,0.2)', width: 1, lineDash: [2, 4] })
-	});
+	};
 }

@@ -7,7 +7,7 @@
 		deriveOptionsFromMapPayload
 	} from '$lib/pipeline';
 	import type { Observation } from '$lib/domain/types';
-	import type { PaletteBook } from '$lib/platform';
+	import type { PaletteBook, OverlayLineColor } from '$lib/platform';
 	import { paletteForMoment } from '$lib/platform';
 	import { formatDistanceM, formatReading, type UnitSystem } from '$lib/units';
 	import { standardOverlays } from '$lib/overlays';
@@ -49,6 +49,14 @@
 		effectiveSiteAltM: number;
 		/** Seeds the `smooth` field of any cross-section window armed from this map. */
 		imageSmoothing: boolean;
+		/** Shared line style for rings/radials/grid, live from Settings -- see
+		 * `platform/settingsStore.ts`'s `overlayLineColor`/`overlayLineWidthPx`/etc. */
+		overlayLineColor: OverlayLineColor;
+		overlayLineWidthPx: number;
+		ringsStepKm: number;
+		radialsStepDeg: number;
+		gridStepLatDeg: number;
+		gridStepLonDeg: number;
 		onOpenLocationEditor: () => void;
 		onShowVad: (channelIndex: number) => void;
 		onEditScale: (paletteKey: string) => void;
@@ -63,10 +71,18 @@
 		site,
 		effectiveSiteAltM,
 		imageSmoothing,
+		overlayLineColor,
+		overlayLineWidthPx,
+		ringsStepKm,
+		radialsStepDeg,
+		gridStepLatDeg,
+		gridStepLonDeg,
 		onOpenLocationEditor,
 		onShowVad,
 		onEditScale
 	}: Props = $props();
+
+	let showLinesMenu = $state(false);
 
 	const payload = $derived(win.payload as MapWindowPayload);
 	const overlays = standardOverlays();
@@ -81,6 +97,19 @@
 	);
 	const palette = $derived(paletteForMoment(book, paletteKey));
 	const productTitle = $derived($_(catalogLabel(payload.product)));
+
+	// Header info block (hora/fecha/radar/VCP) -- observation.timestamp is the scan's own time
+	// (UTC, matching the rest of the app's fixed-UTC display convention), not a live wall clock.
+	const timeLabel = $derived(observation ? formatUtcTime(observation.timestamp) : '--:--:--');
+	const dateLabel = $derived(observation ? formatUtcDate(observation.timestamp) : '');
+	function formatUtcTime(ts: string): string {
+		const d = new Date(ts);
+		return isNaN(d.getTime()) ? ts : d.toISOString().slice(11, 19);
+	}
+	function formatUtcDate(ts: string): string {
+		const d = new Date(ts);
+		return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+	}
 
 	const deriveOpts = $derived(
 		deriveOptionsFromMapPayload(payload, channel?.beamWidthDeg ?? 1.0, effectiveSiteAltM)
@@ -195,13 +224,51 @@
 </script>
 
 <div class="flex h-full flex-col">
-	<!-- Toolbar: channel/elevation + per-product params + base map/overlay controls. -->
+	<!-- Header info: hora/fecha, radar, producto, paleta, VCP (in that order, per spec). -->
 	<div
-		class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
+		class="flex flex-wrap items-center gap-3 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
 	>
+		<div class="flex flex-col leading-none">
+			<span class="font-mono text-[20px] font-bold text-on-surface">{timeLabel}</span>
+			<span class="font-mono text-[10px] text-on-surface-variant">{dateLabel}</span>
+		</div>
+		{#if observation}
+			<span class="flex items-center gap-1 font-mono text-[11px]">
+				<span class="text-on-surface-variant">{$_('window.radarLabel')}</span>
+				<span class="text-primary-container">{observation.site.name}</span>
+			</span>
+		{/if}
 		<span class="font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
 			>{productTitle}</span
 		>
+		<span class="flex items-center gap-1 font-mono text-[11px]" title={palette.name}>
+			<span class="material-symbols-outlined text-[14px] text-primary-container">palette</span>
+			<span class="text-on-surface">{palette.name}</span>
+			<button
+				type="button"
+				class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-on-surface-variant hover:text-primary-container"
+				onclick={() => onEditScale(paletteKey)}
+				aria-label={$_('window.editScale')}
+				title={$_('window.editScale')}
+			>
+				<span class="material-symbols-outlined text-[12px]">edit</span>
+			</button>
+		</span>
+		{#if observation?.design}
+			<span class="flex items-center gap-1 font-mono text-[10px]">
+				<span class="text-on-surface-variant">{$_('window.vcpLabel')}</span>
+				<span
+					class="rounded border border-primary-container/30 bg-surface-container-lowest px-1.5 py-0.5 text-primary-container"
+					>{observation.design}</span
+				>
+			</span>
+		{/if}
+	</div>
+
+	<!-- Toolbar: channel/elevation + per-product params. -->
+	<div
+		class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
+	>
 		<label
 			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
@@ -363,55 +430,69 @@
 				<span class="material-symbols-outlined text-[14px]">air</span> VAD
 			</button>
 		{/if}
+	</div>
 
-		{#if site}
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.baseMapTitle')}
-			>
-				<span class="material-symbols-outlined text-[14px] text-primary-container">map</span>
-				<select
-					bind:value={payload.baseMap}
-					class="rounded border border-outline-variant bg-surface-container-lowest px-1 text-on-surface focus:border-primary-container focus:outline-none"
+	{#if site}
+		<!-- Overlays: rings, lat/lon grid, radials, scale, site marker, cut guide. -->
+		<div
+			class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
+		>
+			<div class="relative">
+				<button
+					type="button"
+					class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2 font-mono text-[10px] text-on-surface-variant hover:border-primary-container hover:text-primary-container"
+					onclick={() => (showLinesMenu = !showLinesMenu)}
+					aria-haspopup="true"
+					aria-expanded={showLinesMenu}
 				>
-					<option value="off">{$_(BASE_MAP_LABELS.off)}</option>
-					{#each BASE_MAP_IDS as id (id)}
-						<option value={id}>{$_(BASE_MAP_LABELS[id])}</option>
-					{/each}
-				</select>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.opacityTitle')}
-			>
-				<span class="material-symbols-outlined text-[14px] text-primary-container">opacity</span>
-				<input
-					type="range"
-					min="0"
-					max="1"
-					step="0.05"
-					bind:value={payload.dataOpacity}
-					class="h-1 w-14 accent-primary-container"
-				/>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.ringsTitle')}
-			>
-				<input type="checkbox" bind:checked={payload.showRings} class="accent-primary-container" />
-				{$_('window.ringsAbbr')}
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.radialsTitle')}
-			>
-				<input
-					type="checkbox"
-					bind:checked={payload.showRadials}
-					class="accent-primary-container"
-				/>
-				{$_('window.radialsAbbr')}
-			</label>
+					<span class="material-symbols-outlined text-[14px]">layers</span>
+					{$_('window.linesMenu')}
+					<span class="material-symbols-outlined text-[14px]">arrow_drop_down</span>
+				</button>
+				{#if showLinesMenu}
+					<ul
+						role="menu"
+						class="absolute top-full left-0 z-50 mt-1 min-w-40 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
+					>
+						<li>
+							<label
+								class="flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] text-on-surface hover:bg-surface-variant/20"
+							>
+								<input
+									type="checkbox"
+									bind:checked={payload.showRings}
+									class="accent-primary-container"
+								/>
+								{$_('window.ringsTitle')}
+							</label>
+						</li>
+						<li>
+							<label
+								class="flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] text-on-surface hover:bg-surface-variant/20"
+							>
+								<input
+									type="checkbox"
+									bind:checked={payload.showLatLonGrid}
+									class="accent-primary-container"
+								/>
+								{$_('window.latLonGridTitle')}
+							</label>
+						</li>
+						<li>
+							<label
+								class="flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] text-on-surface hover:bg-surface-variant/20"
+							>
+								<input
+									type="checkbox"
+									bind:checked={payload.showRadials}
+									class="accent-primary-container"
+								/>
+								{$_('window.radialsTitle')}
+							</label>
+						</li>
+					</ul>
+				{/if}
+			</div>
 			<label
 				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
 				title={$_('window.scaleTitle')}
@@ -441,32 +522,58 @@
 				/>
 				{$_('window.cutGuideAbbr')}
 			</label>
-		{/if}
 
-		<div class="ml-auto flex items-center gap-2">
-			{#if payload.showScale}
-				<ScaleLegend {palette} unit={ground?.unit} />
-			{/if}
-			<button
-				type="button"
-				class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
-				onclick={() => onEditScale(paletteKey)}
-				aria-label={$_('window.editScale')}
-				title={$_('window.editScale')}
-			>
-				<span class="material-symbols-outlined text-[14px]">palette</span>
-			</button>
-			<button
-				type="button"
-				class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
-				onclick={exportCurrentImage}
-				aria-label={$_('window.exportImage')}
-				title={$_('window.exportImage')}
-			>
-				<span class="material-symbols-outlined text-[14px]">download</span>
-			</button>
+			<div class="ml-auto flex items-center gap-2">
+				{#if payload.showScale}
+					<ScaleLegend {palette} unit={ground?.unit} />
+				{/if}
+				<button
+					type="button"
+					class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
+					onclick={exportCurrentImage}
+					aria-label={$_('window.exportImage')}
+					title={$_('window.exportImage')}
+				>
+					<span class="material-symbols-outlined text-[14px]">download</span>
+				</button>
+			</div>
 		</div>
-	</div>
+
+		<!-- Mapa underlay. -->
+		<div
+			class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
+		>
+			<label
+				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+				title={$_('window.baseMapTitle')}
+			>
+				<span class="material-symbols-outlined text-[14px] text-primary-container">map</span>
+				<select
+					bind:value={payload.baseMap}
+					class="rounded border border-outline-variant bg-surface-container-lowest px-1 text-on-surface focus:border-primary-container focus:outline-none"
+				>
+					<option value="off">{$_(BASE_MAP_LABELS.off)}</option>
+					{#each BASE_MAP_IDS as id (id)}
+						<option value={id}>{$_(BASE_MAP_LABELS[id])}</option>
+					{/each}
+				</select>
+			</label>
+			<label
+				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+				title={$_('window.opacityTitle')}
+			>
+				<span class="material-symbols-outlined text-[14px] text-primary-container">opacity</span>
+				<input
+					type="range"
+					min="0"
+					max="1"
+					step="0.05"
+					bind:value={payload.dataOpacity}
+					class="h-1 w-14 accent-primary-container"
+				/>
+			</label>
+		</div>
+	{/if}
 
 	<!-- Map. -->
 	<div class="relative min-h-0 flex-1 overflow-hidden bg-black">
@@ -506,6 +613,13 @@
 				showRadials={payload.showRadials}
 				showSiteMarker={payload.showSiteMarker}
 				showCutGuide={payload.showCutGuide}
+				showLatLonGrid={payload.showLatLonGrid}
+				{overlayLineColor}
+				{overlayLineWidthPx}
+				{ringsStepKm}
+				{radialsStepDeg}
+				{gridStepLatDeg}
+				{gridStepLonDeg}
 				extraLayers={overlays}
 				{unitSystem}
 				drawEnabled={pickerMode === 'cross-section'}

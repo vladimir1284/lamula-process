@@ -111,7 +111,20 @@
 			"showScale": "Show color scale",
 			"imageSmoothing": "Image smoothing (RHI / cross-sections)",
 			"showSiteMarker": "Show site marker",
-			"showCutGuide": "Show cut guide"
+			"showCutGuide": "Show cut guide",
+			"overlayLines": {
+				"heading": "Rings, radials & grid",
+				"description": "Color and width are shared by all three; spacing is per overlay.",
+				"color": "Line color",
+				"colorAuto": "Automatic",
+				"colorWhite": "White",
+				"colorBlack": "Black",
+				"width": "Line width",
+				"ringsStep": "Ring spacing",
+				"radialsStep": "Radial spacing",
+				"gridStepLat": "Grid spacing (lat)",
+				"gridStepLon": "Grid spacing (lon)"
+			}
 		}
 	},
 	"nav": {
@@ -187,10 +200,15 @@
 		"defineLocation": "SET LOCATION",
 		"baseMapTitle": "Base map",
 		"opacityTitle": "Opacity",
+		"linesMenu": "Lines",
 		"ringsTitle": "Range rings",
 		"radialsTitle": "Radials",
 		"ringsAbbr": "RNG",
 		"radialsAbbr": "RAD",
+		"latLonGridTitle": "Lat/lon grid",
+		"latLonGridAbbr": "GRID",
+		"radarLabel": "RADAR",
+		"vcpLabel": "VCP",
 		"readout": {
 			"channel": "CHANNEL",
 			"elevation": "ELEV",

@@ -4,7 +4,7 @@
 	import { buildAccumFrames, deriveAccumulateOptionsFromPayload } from '$lib/pipeline';
 	import type { TimeSpan } from '$lib/domain';
 	import { computeAccumulate, type ProductResult } from '$lib/products';
-	import type { PaletteBook } from '$lib/platform';
+	import type { PaletteBook, OverlayLineColor } from '$lib/platform';
 	import { paletteForMoment } from '$lib/platform';
 	import { formatDistanceM, formatReading, type UnitSystem } from '$lib/units';
 	import { standardOverlays } from '$lib/overlays';
@@ -29,6 +29,12 @@
 		unitSystem: UnitSystem;
 		site: { lon: number; lat: number } | null;
 		effectiveSiteAltM: number;
+		/** Shared line style for rings/radials, live from Settings -- see
+		 * `platform/settingsStore.ts`'s `overlayLineColor`/`overlayLineWidthPx`/etc. */
+		overlayLineColor: OverlayLineColor;
+		overlayLineWidthPx: number;
+		ringsStepKm: number;
+		radialsStepDeg: number;
 		onOpenLocationEditor: () => void;
 		onEditScale: (paletteKey: string) => void;
 	}
@@ -41,6 +47,10 @@
 		unitSystem,
 		site,
 		effectiveSiteAltM,
+		overlayLineColor,
+		overlayLineWidthPx,
+		ringsStepKm,
+		radialsStepDeg,
 		onOpenLocationEditor,
 		onEditScale
 	}: Props = $props();
@@ -324,6 +334,10 @@
 				dataOpacity={payload.dataOpacity}
 				showRings={payload.showRings}
 				showRadials={payload.showRadials}
+				{overlayLineColor}
+				{overlayLineWidthPx}
+				{ringsStepKm}
+				{radialsStepDeg}
 				showSiteMarker={payload.showSiteMarker}
 				showCutGuide={payload.showCutGuide}
 				extraLayers={overlays}

@@ -139,7 +139,8 @@ export function defaultMapPayload(
 		showRadials: appDefaults.showRadials,
 		showScale: appDefaults.showScale,
 		showSiteMarker: appDefaults.showSiteMarker,
-		showCutGuide: appDefaults.showCutGuide
+		showCutGuide: appDefaults.showCutGuide,
+		showLatLonGrid: false
 	};
 }
 

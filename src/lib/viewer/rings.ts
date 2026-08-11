@@ -4,6 +4,7 @@ import CircleGeom from 'ol/geom/Circle';
 import Point from 'ol/geom/Point';
 import { Style, Stroke, Text, Fill } from 'ol/style';
 import { formatDistanceM, type UnitSystem } from '$lib/units';
+import { overlayRgba, overlayOutline, type OverlayBaseColor } from './overlayLineStyle';
 
 /**
  * Range-ring features for the PPI overlay. Rings are drawn in the map projection (EPSG:3857)
@@ -42,22 +43,30 @@ export function ringFeatures(opts: RingOptions): Feature[] {
 	return feats;
 }
 
-export function ringStyle(feature: FeatureLike): Style {
-	const kind = feature.get('kind');
-	if (kind === 'ring-label') {
+/** Style factory so color/width follow the shared overlay-line settings (group config covering
+ * rings/radials/grid) instead of a fixed white. */
+export function makeRingStyle(
+	base: OverlayBaseColor,
+	widthPx: number
+): (feature: FeatureLike) => Style {
+	const outline = overlayOutline(base);
+	return (feature) => {
+		const kind = feature.get('kind');
+		if (kind === 'ring-label') {
+			return new Style({
+				text: new Text({
+					text: feature.get('text'),
+					font: '11px sans-serif',
+					fill: new Fill({ color: overlayRgba(base, 0.9) }),
+					stroke: new Stroke({ color: overlayRgba(outline, 0.7), width: 2 }),
+					offsetY: -6
+				})
+			});
+		}
 		return new Style({
-			text: new Text({
-				text: feature.get('text'),
-				font: '11px sans-serif',
-				fill: new Fill({ color: 'rgba(255,255,255,0.9)' }),
-				stroke: new Stroke({ color: 'rgba(0,0,0,0.7)', width: 2 }),
-				offsetY: -6
-			})
+			stroke: new Stroke({ color: overlayRgba(base, 0.35), width: widthPx })
 		});
-	}
-	return new Style({
-		stroke: new Stroke({ color: 'rgba(255,255,255,0.35)', width: 1 })
-	});
+	};
 }
 
 /** Default rings covering an extent's half-width, one every `stepM` metres. */

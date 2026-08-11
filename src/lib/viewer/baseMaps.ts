@@ -26,6 +26,11 @@ export function isBaseMapId(v: unknown): v is BaseMapId {
 	return v === 'off' || (BASE_MAP_IDS as readonly string[]).includes(v as string);
 }
 
+/** 'off' (radar over black) and 'carto-dark' read as a dark background; the rest are light. */
+export function isDarkBaseMap(id: BaseMapId): boolean {
+	return id === 'off' || id === 'carto-dark';
+}
+
 const CARTO_ATTRIBUTION =
 	'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 

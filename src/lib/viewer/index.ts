@@ -17,6 +17,6 @@ export {
 	buildExportFilename,
 	composeSideBySide
 } from './exportImage';
-export { ringFeatures, ringStyle, defaultRingsM } from './rings';
+export { ringFeatures, makeRingStyle, defaultRingsM } from './rings';
 export { readoutAt } from './readout';
 export type { Readout } from './readout';

@@ -111,7 +111,20 @@
 			"showScale": "Mostrar escala de colores",
 			"imageSmoothing": "Suavizado de imagen (RHI / cortes)",
 			"showSiteMarker": "Mostrar marcador del sitio",
-			"showCutGuide": "Mostrar guía de corte"
+			"showCutGuide": "Mostrar guía de corte",
+			"overlayLines": {
+				"heading": "Anillos, radiales y cuadrícula",
+				"description": "Color y grosor compartidos por los tres; el espaciado es propio de cada uno.",
+				"color": "Color de línea",
+				"colorAuto": "Automático",
+				"colorWhite": "Blanco",
+				"colorBlack": "Negro",
+				"width": "Grosor de línea",
+				"ringsStep": "Espaciado de anillos",
+				"radialsStep": "Espaciado de radiales",
+				"gridStepLat": "Espaciado de cuadrícula (lat)",
+				"gridStepLon": "Espaciado de cuadrícula (lon)"
+			}
 		}
 	},
 	"nav": {
@@ -187,10 +200,15 @@
 		"defineLocation": "DEFINIR UBICACIÓN",
 		"baseMapTitle": "Mapa de fondo",
 		"opacityTitle": "Opacidad",
+		"linesMenu": "Líneas",
 		"ringsTitle": "Anillos",
 		"radialsTitle": "Radiales",
 		"ringsAbbr": "AN",
 		"radialsAbbr": "RAD",
+		"latLonGridTitle": "Cuadrícula lat/lon",
+		"latLonGridAbbr": "CUAD",
+		"radarLabel": "RADAR",
+		"vcpLabel": "VCP",
 		"readout": {
 			"channel": "CANAL",
 			"elevation": "ELEV",

@@ -38,6 +38,7 @@ export interface MapWindowPayload {
 	showScale: boolean;
 	showSiteMarker: boolean;
 	showCutGuide: boolean;
+	showLatLonGrid: boolean;
 }
 
 /** The accumulate window has one fixed algorithm (no product switch, no CAPPI/TOPS/VIL fields) --

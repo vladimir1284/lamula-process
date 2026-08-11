@@ -762,6 +762,12 @@
 								{site}
 								effectiveSiteAltM={effectiveSite?.altM ?? 0}
 								imageSmoothing={settings.imageSmoothing}
+								overlayLineColor={settings.overlayLineColor}
+								overlayLineWidthPx={settings.overlayLineWidthPx}
+								ringsStepKm={settings.ringsStepKm}
+								radialsStepDeg={settings.radialsStepDeg}
+								gridStepLatDeg={settings.gridStepLatDeg}
+								gridStepLonDeg={settings.gridStepLonDeg}
 								onOpenLocationEditor={openLocationEditor}
 								onShowVad={(idx) => (vadChannelIndex = idx)}
 								onEditScale={(key) => (scaleEditorKey = key)}
@@ -775,6 +781,10 @@
 								{unitSystem}
 								site={accumSite}
 								effectiveSiteAltM={accumEffectiveSite?.altM ?? 0}
+								overlayLineColor={settings.overlayLineColor}
+								overlayLineWidthPx={settings.overlayLineWidthPx}
+								ringsStepKm={settings.ringsStepKm}
+								radialsStepDeg={settings.radialsStepDeg}
 								onOpenLocationEditor={openAccumLocationEditor}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
@@ -1212,6 +1222,130 @@
 						/>
 						{$_('settings.view.imageSmoothing')}
 					</label>
+					<div class="space-y-2 border-t border-outline-variant pt-4">
+						<h3 class="font-mono text-label-mono tracking-widest text-on-surface uppercase">
+							{$_('settings.view.overlayLines.heading')}
+						</h3>
+						<p class="font-mono text-[10px] text-on-surface-variant">
+							{$_('settings.view.overlayLines.description')}
+						</p>
+						<div class="flex items-center gap-2">
+							<span class="font-mono text-label-mono text-on-surface-variant"
+								>{$_('settings.view.overlayLines.color')}</span
+							>
+							{#each [['auto', 'settings.view.overlayLines.colorAuto'], ['white', 'settings.view.overlayLines.colorWhite'], ['black', 'settings.view.overlayLines.colorBlack']] as [mode, labelKey] (mode)}
+								<button
+									class="flex items-center gap-2 rounded border px-3 py-1.5 font-mono text-label-mono transition-colors {settings.overlayLineColor ===
+									mode
+										? 'border-primary-container bg-primary-container text-on-primary-container'
+										: 'border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-primary-container'}"
+									onclick={() =>
+										updateSettings({ overlayLineColor: mode as AppSettings['overlayLineColor'] })}
+								>
+									{$_(labelKey)}
+								</button>
+							{/each}
+						</div>
+						<label class="flex items-center gap-2">
+							<span class="font-mono text-label-mono text-on-surface-variant"
+								>{$_('settings.view.overlayLines.width')}</span
+							>
+							<input
+								type="number"
+								min="1"
+								step="1"
+								class="w-16 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+								value={settings.overlayLineWidthPx}
+								onchange={(e) =>
+									updateSettings({
+										overlayLineWidthPx: Math.max(
+											1,
+											Number((e.currentTarget as HTMLInputElement).value)
+										)
+									})}
+							/>
+							<span class="font-mono text-label-mono text-on-surface-variant">px</span>
+						</label>
+						<div class="flex flex-wrap gap-4">
+							<label class="flex items-center gap-2">
+								<span class="font-mono text-label-mono text-on-surface-variant"
+									>{$_('settings.view.overlayLines.ringsStep')}</span
+								>
+								<input
+									type="number"
+									min="1"
+									step="10"
+									class="w-20 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+									value={settings.ringsStepKm}
+									onchange={(e) =>
+										updateSettings({
+											ringsStepKm: Math.max(1, Number((e.currentTarget as HTMLInputElement).value))
+										})}
+								/>
+								<span class="font-mono text-label-mono text-on-surface-variant">km</span>
+							</label>
+							<label class="flex items-center gap-2">
+								<span class="font-mono text-label-mono text-on-surface-variant"
+									>{$_('settings.view.overlayLines.radialsStep')}</span
+								>
+								<input
+									type="number"
+									min="1"
+									step="5"
+									class="w-20 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+									value={settings.radialsStepDeg}
+									onchange={(e) =>
+										updateSettings({
+											radialsStepDeg: Math.max(
+												1,
+												Number((e.currentTarget as HTMLInputElement).value)
+											)
+										})}
+								/>
+								<span class="font-mono text-label-mono text-on-surface-variant">°</span>
+							</label>
+							<label class="flex items-center gap-2">
+								<span class="font-mono text-label-mono text-on-surface-variant"
+									>{$_('settings.view.overlayLines.gridStepLat')}</span
+								>
+								<input
+									type="number"
+									min="0.01"
+									step="0.5"
+									class="w-20 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+									value={settings.gridStepLatDeg}
+									onchange={(e) =>
+										updateSettings({
+											gridStepLatDeg: Math.max(
+												0.01,
+												Number((e.currentTarget as HTMLInputElement).value)
+											)
+										})}
+								/>
+								<span class="font-mono text-label-mono text-on-surface-variant">°</span>
+							</label>
+							<label class="flex items-center gap-2">
+								<span class="font-mono text-label-mono text-on-surface-variant"
+									>{$_('settings.view.overlayLines.gridStepLon')}</span
+								>
+								<input
+									type="number"
+									min="0.01"
+									step="0.5"
+									class="w-20 rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label-mono text-on-surface"
+									value={settings.gridStepLonDeg}
+									onchange={(e) =>
+										updateSettings({
+											gridStepLonDeg: Math.max(
+												0.01,
+												Number((e.currentTarget as HTMLInputElement).value)
+											)
+										})}
+								/>
+								<span class="font-mono text-label-mono text-on-surface-variant">°</span>
+							</label>
+						</div>
+					</div>
 				</div>
 			{:else if settingsTab === 'idioma'}
 				<div class="space-y-3">
