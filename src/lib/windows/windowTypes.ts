@@ -39,6 +39,16 @@ export interface MapWindowPayload {
 	showSiteMarker: boolean;
 	showCutGuide: boolean;
 	showLatLonGrid: boolean;
+	/** Docked N-S/E-W vertical-section strips (height x distance, real data) around the map --
+	 * see `crossSection.ts`'s `eastWestLine`/`northSouthLine`, rendered via `CrossSectionPanel`. */
+	showCutPanels: boolean;
+	/** North-south position (km, +north/-south of the site) of the docked E-W cut -- named after
+	 * the coordinate's own axis, not which panel it feeds. Draggable on the map (a horizontal
+	 * guide line) or via the toolbar's "N-S" input. Default 0 (through the site). */
+	nsPositionKm: number;
+	/** East-west position (km, +east/-west of the site) of the docked N-S cut. Draggable on the
+	 * map (a vertical guide line) or via the toolbar's "E-W" input. Default 0 (through the site). */
+	ewPositionKm: number;
 }
 
 /** The accumulate window has one fixed algorithm (no product switch, no CAPPI/TOPS/VIL fields) --

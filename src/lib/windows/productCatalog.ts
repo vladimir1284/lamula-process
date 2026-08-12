@@ -140,7 +140,10 @@ export function defaultMapPayload(
 		showScale: appDefaults.showScale,
 		showSiteMarker: appDefaults.showSiteMarker,
 		showCutGuide: appDefaults.showCutGuide,
-		showLatLonGrid: false
+		showLatLonGrid: false,
+		showCutPanels: false,
+		nsPositionKm: 0,
+		ewPositionKm: 0
 	};
 }
 

@@ -9,6 +9,7 @@
 	import VectorSource from 'ol/source/Vector';
 	import Draw, { createBox } from 'ol/interaction/Draw';
 	import Modify from 'ol/interaction/Modify';
+	import PointerInteraction from 'ol/interaction/Pointer';
 	import LineString from 'ol/geom/LineString';
 	import Feature from 'ol/Feature';
 	import Point from 'ol/geom/Point';
@@ -74,6 +75,24 @@
 			maxXM: number;
 			maxYM: number;
 		}) => void;
+		/** North-south position (site-relative metres) of the docked E-W cut's guide line -- a
+		 * horizontal line drawn across the map, always on regardless of `drawEnabled`/etc. `null`
+		 * hides it (matches `azimuthDeg`'s null-hides convention). Draggable: dropping it near the
+		 * line and dragging vertically calls `onNsPositionChange`. */
+		nsPositionM?: number | null;
+		/** East-west position (site-relative metres) of the docked N-S cut's guide line (vertical). */
+		ewPositionM?: number | null;
+		/** Called with the new north-south position (metres) while dragging the E-W guide line. */
+		onNsPositionChange?: (m: number) => void;
+		/** Called with the new east-west position (metres) while dragging the N-S guide line. */
+		onEwPositionChange?: (m: number) => void;
+		/** Called with the current viewport (ground scale + centre, both site-relative) whenever the
+		 * view's pan/zoom settles, and once immediately after the initial/re-fit. Lets a caller size
+		 * a docked panel's span to match what's visible, and re-centre its cut on wherever the map
+		 * itself is currently looking (panning moves the map's centre -> this fires -> the caller
+		 * recomputes the cut's absolute position as centre + its own drag-set offset, so panning
+		 * carries the cut along while the offset the user dragged in stays put, relative to centre). */
+		onViewChange?: (v: { groundMPerPx: number; centerEastM: number; centerNorthM: number }) => void;
 		/** Unit system for range-ring labels. Default metric (km). */
 		unitSystem?: UnitSystem;
 		/** Show distance-from-radar range rings. Default true. */
@@ -122,6 +141,11 @@
 		onAzimuthSelect,
 		statsSelectEnabled = false,
 		onStatsRegionSelect,
+		nsPositionM = null,
+		ewPositionM = null,
+		onNsPositionChange,
+		onEwPositionChange,
+		onViewChange,
 		unitSystem = 'metric',
 		showRings = true,
 		showRadials = false,
@@ -150,6 +174,11 @@
 	let gridLayer: VectorLayer<VectorSource> | undefined;
 	let siteLayer: VectorLayer<VectorSource> | undefined;
 	let drawLayer: VectorLayer<VectorSource> | undefined;
+	let guideLayer: VectorLayer<VectorSource> | undefined;
+	// Which axis-line the pointer is currently dragging, if any -- set in handleDownEvent, read by
+	// handleDragEvent/handleUpEvent. Not Svelte state: it's read-and-written only from inside the
+	// interaction's own handlers, never from a template or effect.
+	let draggingGuideAxis: 'ns' | 'ew' | null = null;
 	let draw: Draw | undefined;
 	let cutModify: Modify | undefined;
 	let pointDraw: Draw | undefined;
@@ -181,6 +210,14 @@
 		stroke: new Stroke({ color: '#ffcc00', width: 2 })
 	});
 
+	// Docked N-S/E-W cut position guides -- dashed so they read as "draggable reference", distinct
+	// from the solid free-line cut (drawStyle) and RHI radial (azimuthLineStyle).
+	const guideLineStyle = new Style({
+		stroke: new Stroke({ color: '#94a3b8', width: 1, lineDash: [6, 4] })
+	});
+	// Hit-test tolerance for grabbing a guide line, in screen pixels.
+	const GUIDE_HIT_PX = 8;
+
 	function endpointStyle(label: string, color: string): Style {
 		return new Style({
 			image: new CircleStyle({
@@ -203,6 +240,22 @@
 	}
 	function scale(): number {
 		return mercatorScaleAtLat(site.lat);
+	}
+	// view.getResolution() is map units (EPSG:3857 "metres") per CSS pixel; view.getCenter() is a
+	// 3857 coordinate. Both convert to site-relative ground metres the same way every other
+	// prop/callback here already does: divide/subtract-then-divide by the site's mercator scale.
+	function reportView() {
+		if (!map || !onViewChange) return;
+		const res = map.getView().getResolution();
+		const center = map.getView().getCenter();
+		if (res == null || center == null) return;
+		const s3857 = siteXY();
+		const sc = scale();
+		onViewChange({
+			groundMPerPx: res / sc,
+			centerEastM: (center[0] - s3857[0]) / sc,
+			centerNorthM: (center[1] - s3857[1]) / sc
+		});
 	}
 
 	function applyBaseMap(id: BaseMapId) {
@@ -248,6 +301,11 @@
 			zIndex: 23,
 			visible: showCutGuide
 		});
+		guideLayer = new VectorLayer({
+			source: new VectorSource(),
+			style: guideLineStyle,
+			zIndex: 24
+		});
 		for (const l of extraLayers) l.setZIndex(25);
 		map = new Map({
 			target: mapEl,
@@ -260,6 +318,7 @@
 				radialsLayer,
 				siteLayer,
 				drawLayer,
+				guideLayer,
 				...extraLayers
 			],
 			view: new View({ center: siteXY(), zoom: 8 })
@@ -272,7 +331,64 @@
 			const lut = buildAzimuthLUT(scan);
 			onreadout(readoutAt(ev.coordinate as [number, number], siteXY(), scale(), scan, lut));
 		});
+		// 'moveend' fires once a pan/zoom gesture settles (not per drag frame), so this is cheap --
+		// no debounce needed. Also covers the render effect's own `.fit()` re-centering below.
+		map.on('moveend', reportView);
+
+		// Cursor feedback for the N-S/E-W guide lines: resize-style cursor when hovering one, so a
+		// user discovers they're draggable without needing a tooltip.
+		map.on('pointermove', (ev) => {
+			const target = map!.getTargetElement();
+			if (draggingGuideAxis) return; // handleDragEvent below owns the cursor mid-drag
+			const axis = hitTestGuideAxis(ev.coordinate as [number, number]);
+			target.style.cursor = axis === 'ns' ? 'ns-resize' : axis === 'ew' ? 'ew-resize' : '';
+		});
+
+		// Custom constrained drag: OL's Modify/Translate interactions move a feature freely in both
+		// axes, but a guide line must only slide perpendicular to itself (E-W guide moves N-S only,
+		// N-S guide moves E-W only). Pointer lets us hand-roll exactly that, hit-testing against the
+		// *current* nsPositionM/ewPositionM props (read live -- these are reactive $props reads, not
+		// a snapshot, so they always reflect the latest value without needing to recreate this
+		// interaction on every position change).
+		const dragInteraction = new PointerInteraction({
+			handleDownEvent: (evt) => {
+				const axis = hitTestGuideAxis(evt.coordinate as [number, number]);
+				draggingGuideAxis = axis;
+				return axis !== null;
+			},
+			handleDragEvent: (evt) => {
+				if (!draggingGuideAxis || !map) return;
+				map.getTargetElement().style.cursor = draggingGuideAxis === 'ns' ? 'ns-resize' : 'ew-resize';
+				const [mx, my] = evt.coordinate as [number, number];
+				const s3857 = siteXY();
+				const sc = scale();
+				const maxRangeM = maxGroundRangeM(scan);
+				const clamp = (v: number) => Math.max(-maxRangeM, Math.min(maxRangeM, v));
+				if (draggingGuideAxis === 'ns') onNsPositionChange?.(clamp((my - s3857[1]) / sc));
+				else onEwPositionChange?.(clamp((mx - s3857[0]) / sc));
+			},
+			handleUpEvent: () => {
+				draggingGuideAxis = null;
+				return false;
+			}
+		});
+		map.addInteraction(dragInteraction);
 	});
+
+	/** Which guide line (if any) a map coordinate is within `GUIDE_HIT_PX` screen pixels of. */
+	function hitTestGuideAxis(coord: [number, number]): 'ns' | 'ew' | null {
+		if (!map) return null;
+		const res = map.getView().getResolution() ?? 1;
+		const toleranceM = res * GUIDE_HIT_PX;
+		const s3857 = siteXY();
+		const sc = scale();
+		const [mx, my] = coord;
+		const nsDist = nsPositionM == null ? null : Math.abs(my - (s3857[1] + nsPositionM * sc));
+		const ewDist = ewPositionM == null ? null : Math.abs(mx - (s3857[0] + ewPositionM * sc));
+		if (nsDist !== null && nsDist <= toleranceM && (ewDist === null || nsDist <= ewDist)) return 'ns';
+		if (ewDist !== null && ewDist <= toleranceM) return 'ew';
+		return null;
+	}
 
 	onDestroy(() => {
 		renderer.terminate();
@@ -359,6 +475,9 @@
 
 			// centre + frame the radar on first render
 			map!.getView().fit(extent, { padding: [20, 20, 20, 20] });
+			// `fit()` is synchronous (no animation) but 'moveend' still fires on the next frame --
+			// report the new scale immediately so a caller doesn't render one frame stale.
+			reportView();
 		});
 	});
 
@@ -606,6 +725,43 @@
 		const feature = new Feature(new LineString([s3857, end]));
 		feature.setStyle(azimuthLineStyle);
 		source.addFeature(feature);
+	});
+
+	// Draws the two docked-panel guide lines (E-W: horizontal, at nsPositionM; N-S: vertical, at
+	// ewPositionM), spanning the scan's full range. Always on -- these aren't gated by a "draw
+	// mode" toggle, only by `nsPositionM`/`ewPositionM` being non-null (see prop doc).
+	$effect(() => {
+		if (!map || !guideLayer) return;
+		const ns = nsPositionM;
+		const ew = ewPositionM;
+		const s = scan;
+		const source = guideLayer.getSource()!;
+		source.clear();
+		const s3857 = siteXY();
+		const sc = scale();
+		const maxRangeM = maxGroundRangeM(s) * sc;
+		if (ns != null) {
+			const y = s3857[1] + ns * sc;
+			source.addFeature(
+				new Feature(
+					new LineString([
+						[s3857[0] - maxRangeM, y],
+						[s3857[0] + maxRangeM, y]
+					])
+				)
+			);
+		}
+		if (ew != null) {
+			const x = s3857[0] + ew * sc;
+			source.addFeature(
+				new Feature(
+					new LineString([
+						[x, s3857[1] - maxRangeM],
+						[x, s3857[1] + maxRangeM]
+					])
+				)
+			);
+		}
 	});
 
 	// Keep the map's extra layers in sync if the prop changes.

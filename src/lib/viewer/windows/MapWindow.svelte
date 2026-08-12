@@ -6,15 +6,18 @@
 		deriveGroundProduct,
 		deriveOptionsFromMapPayload
 	} from '$lib/pipeline';
-	import type { Observation } from '$lib/domain/types';
+	import type { Observation, Scan } from '$lib/domain/types';
 	import type { PaletteBook, OverlayLineColor } from '$lib/platform';
 	import { paletteForMoment } from '$lib/platform';
 	import { formatDistanceM, formatReading, type UnitSystem } from '$lib/units';
 	import { standardOverlays } from '$lib/overlays';
+	import { eastWestLine, northSouthLine } from '$lib/products';
+	import { observeContainerSize } from '$lib/viewer/chartCanvas';
 	import { BASE_MAP_IDS, BASE_MAP_LABELS } from '$lib/viewer/baseMaps';
 	import {
 		PpiMap,
 		ScaleLegend,
+		CrossSectionPanel,
 		exportMapToCanvas,
 		downloadCanvasAsPng,
 		buildExportFilename
@@ -109,6 +112,88 @@
 	function formatUtcDate(ts: string): string {
 		const d = new Date(ts);
 		return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+	}
+
+	// Self-healing default: a payload object created before `nsPositionKm`/`ewPositionKm` existed
+	// (a stale in-memory window surviving a hot-reload, or a layout JSON exported from an older
+	// build) has these fields `undefined`, not `0` -- and `undefined * 1000` is `NaN`, which silently
+	// breaks both the cut's data (rasterizeCrossSection samples nowhere) and its guide line (OL
+	// can't place a feature at a NaN coordinate, so nothing gets drawn -- looks like "cuts are
+	// empty, no guides"). Patch it once per payload instead of scattering `?? 0` at every read site.
+	$effect(() => {
+		if (payload.nsPositionKm === undefined) payload.nsPositionKm = 0;
+		if (payload.ewPositionKm === undefined) payload.ewPositionKm = 0;
+	});
+
+	// Optional docked N-S/E-W vertical-section strips (real data, not just a guide line) -- same
+	// full-range preset lines the standalone CrossSectionWindow offers, reused inline via
+	// CrossSectionPanel so there's no second rendering pipeline for this.
+	function maxScanRangeM(scans: Scan[]): number {
+		return Math.max(...scans.map((s) => s.rangeToFirstGateM + (s.numGates - 1) * s.gateLengthM));
+	}
+	const maxRangeKm = $derived(
+		channel && channel.scans.length > 0 ? maxScanRangeM(channel.scans) / 1000 : 400
+	);
+
+	// The two docked cuts are orthogonal projections of the same volume the map itself is showing --
+	// both their SPAN and their CENTRE must track the map's own viewport, or panning/zooming the
+	// map and the cuts would disagree about what ground is on screen. `payload.nsPositionKm`/
+	// `ewPositionKm` are NOT absolute site-relative coordinates -- they're the user's drag/input
+	// offset FROM the viewport's current centre, so panning carries the cut along (its absolute
+	// position shifts with the centre) while the offset itself stays put until the user changes it
+	// again. `centerEastM`/`centerNorthM`/`groundMPerPx` come from PpiMap's `onViewChange`, fired on
+	// 'moveend' (and once synchronously after its render effect's own `.fit()`).
+	let mapAreaEl: HTMLDivElement | undefined = $state();
+	let mapPxW = $state(0);
+	let mapPxH = $state(0);
+	let groundMPerPx = $state(0);
+	let centerEastM = $state(0);
+	let centerNorthM = $state(0);
+	$effect(() => {
+		const el = mapAreaEl;
+		if (!el) return;
+		return observeContainerSize(el, (w, h) => {
+			mapPxW = w;
+			mapPxH = h;
+		});
+	});
+	function onViewChange(v: { groundMPerPx: number; centerEastM: number; centerNorthM: number }) {
+		groundMPerPx = v.groundMPerPx;
+		centerEastM = v.centerEastM;
+		centerNorthM = v.centerNorthM;
+	}
+	const ewMaxRangeM = $derived(
+		groundMPerPx > 0 && mapPxW > 0
+			? (mapPxW / 2) * groundMPerPx
+			: channel && channel.scans.length > 0
+				? maxScanRangeM(channel.scans)
+				: 400_000
+	);
+	const nsMaxRangeM = $derived(
+		groundMPerPx > 0 && mapPxH > 0
+			? (mapPxH / 2) * groundMPerPx
+			: channel && channel.scans.length > 0
+				? maxScanRangeM(channel.scans)
+				: 400_000
+	);
+	// Absolute site-relative position of each guide: viewport centre + the user's own offset.
+	const absNsPositionM = $derived(centerNorthM + payload.nsPositionKm * 1000);
+	const absEwPositionM = $derived(centerEastM + payload.ewPositionKm * 1000);
+	const cutLineEW = $derived(
+		channel && channel.scans.length > 0 ? eastWestLine(absNsPositionM, ewMaxRangeM) : null
+	);
+	const cutLineNS = $derived(
+		channel && channel.scans.length > 0 ? northSouthLine(absEwPositionM, nsMaxRangeM) : null
+	);
+	// The drag callback reports the dropped point's ABSOLUTE site-relative position (PpiMap has no
+	// notion of "offset from centre") -- subtract the viewport centre to get back the relative
+	// offset this payload actually stores. Rounded to 0.1 km so the toolbar input doesn't jitter to
+	// long decimals mid-drag.
+	function onNsPositionChange(m: number) {
+		payload.nsPositionKm = Math.round(((m - centerNorthM) / 1000) * 10) / 10;
+	}
+	function onEwPositionChange(m: number) {
+		payload.ewPositionKm = Math.round(((m - centerEastM) / 1000) * 10) / 10;
 	}
 
 	const deriveOpts = $derived(
@@ -433,7 +518,7 @@
 	</div>
 
 	{#if site}
-		<!-- Overlays: rings, lat/lon grid, radials, scale, site marker, cut guide. -->
+		<!-- Overlays: rings, lat/lon grid, radials, scale, site marker, cut guide, cut panels. -->
 		<div
 			class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
 		>
@@ -522,6 +607,53 @@
 				/>
 				{$_('window.cutGuideAbbr')}
 			</label>
+			<label
+				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+				title={$_('window.cutPanelsTitle')}
+			>
+				<input
+					type="checkbox"
+					bind:checked={payload.showCutPanels}
+					class="accent-primary-container"
+				/>
+				{$_('window.cutPanelsAbbr')}
+			</label>
+			{#if payload.showCutPanels}
+				<label
+					class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+					title={$_('window.nsPositionTitle')}
+				>
+					<span class="font-mono text-[9px] text-on-surface-variant"
+						>{$_('window.readout.nsPosition')}</span
+					>
+					<input
+						type="number"
+						step="0.1"
+						min={-maxRangeKm}
+						max={maxRangeKm}
+						class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+						bind:value={payload.nsPositionKm}
+					/>
+					<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+				</label>
+				<label
+					class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+					title={$_('window.ewPositionTitle')}
+				>
+					<span class="font-mono text-[9px] text-on-surface-variant"
+						>{$_('window.readout.ewPosition')}</span
+					>
+					<input
+						type="number"
+						step="0.1"
+						min={-maxRangeKm}
+						max={maxRangeKm}
+						class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+						bind:value={payload.ewPositionKm}
+					/>
+					<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+				</label>
+			{/if}
 
 			<div class="ml-auto flex items-center gap-2">
 				{#if payload.showScale}
@@ -575,69 +707,115 @@
 		</div>
 	{/if}
 
-	<!-- Map. -->
-	<div class="relative min-h-0 flex-1 overflow-hidden bg-black">
-		{#if !observation}
-			<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-				<span class="material-symbols-outlined text-[32px] text-on-surface-variant"
-					>upload_file</span
-				>
-				<p class="max-w-xs text-body-sm text-on-surface-variant">
-					{$_('window.noObservationMap')}
-				</p>
+	<!-- 2x2 grid: the E-W cut (row 1) shares its column width with the map (row 2, col 1), and the
+		N-S cut (col 2) shares its height with the map (col 1) -- a corner filler occupies row
+		1/col 2 so the grid tracks stay simple 2x2 rather than an L-shape. This is what makes the
+		three views (map + 2 cuts) line up pixel-for-pixel as orthogonal projections of one volume,
+		not just three separately-sized panels. Both cuts are grid-only (no axis labels/ticks) --
+		there's no room for tick text at this thickness. -->
+	<div
+		class="relative grid min-h-0 flex-1 overflow-hidden bg-black"
+		style="grid-template-columns: 1fr {payload.showCutPanels ? 160 : 0}px; grid-template-rows: {payload.showCutPanels
+			? 160
+			: 0}px 1fr;"
+	>
+		{#if payload.showCutPanels && channel && channel.scans.length > 0 && cutLineEW}
+			<div class="col-start-1 row-start-1 min-h-0 min-w-0 border-b border-outline-variant">
+				<CrossSectionPanel
+					scans={channel.scans}
+					{palette}
+					line={cutLineEW}
+					maxHeightM={18000}
+					{unitSystem}
+					axisLines={false}
+					thicknessPx={160}
+				/>
 			</div>
-		{:else if !site}
-			<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-				<span class="material-symbols-outlined text-[32px] text-dbz-heavy">wrong_location</span>
-				<p class="max-w-xs text-body-sm text-on-surface-variant">
-					{$_('window.noSitePosition')}
-					<span class="text-on-surface">{productTitle}</span>.
-				</p>
-				<button
-					class="flex h-9 items-center gap-2 rounded bg-primary-container px-3 font-mono text-[11px] text-on-primary-container transition-all hover:opacity-90 active:scale-95"
-					onclick={onOpenLocationEditor}
-				>
-					<span class="material-symbols-outlined text-[16px]">add_location_alt</span>
-					{$_('window.defineLocation')}
-				</button>
+			<div class="col-start-2 row-start-1 border-b border-l border-outline-variant"></div>
+		{/if}
+		<div class="relative col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden" bind:this={mapAreaEl}>
+			{#if !observation}
+				<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+					<span class="material-symbols-outlined text-[32px] text-on-surface-variant"
+						>upload_file</span
+					>
+					<p class="max-w-xs text-body-sm text-on-surface-variant">
+						{$_('window.noObservationMap')}
+					</p>
+				</div>
+			{:else if !site}
+				<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+					<span class="material-symbols-outlined text-[32px] text-dbz-heavy">wrong_location</span>
+					<p class="max-w-xs text-body-sm text-on-surface-variant">
+						{$_('window.noSitePosition')}
+						<span class="text-on-surface">{productTitle}</span>.
+					</p>
+					<button
+						class="flex h-9 items-center gap-2 rounded bg-primary-container px-3 font-mono text-[11px] text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+						onclick={onOpenLocationEditor}
+					>
+						<span class="material-symbols-outlined text-[16px]">add_location_alt</span>
+						{$_('window.defineLocation')}
+					</button>
+				</div>
+			{:else if ground}
+				<PpiMap
+					bind:this={ppiMapRef}
+					scan={ground.scan}
+					{palette}
+					{site}
+					baseMap={payload.baseMap}
+					dataOpacity={payload.dataOpacity}
+					showRings={payload.showRings}
+					showRadials={payload.showRadials}
+					showSiteMarker={payload.showSiteMarker}
+					showCutGuide={payload.showCutGuide}
+					showLatLonGrid={payload.showLatLonGrid}
+					{overlayLineColor}
+					{overlayLineWidthPx}
+					{ringsStepKm}
+					{radialsStepDeg}
+					{gridStepLatDeg}
+					{gridStepLonDeg}
+					extraLayers={overlays}
+					{unitSystem}
+					drawEnabled={pickerMode === 'cross-section'}
+					presetLine={pickerMode === 'cross-section'
+						? ((activeChild?.payload as CrossSectionWindowPayload | undefined)?.line ?? null)
+						: null}
+					pointSelectEnabled={pickerMode === 'profile'}
+					azimuthSelectEnabled={pickerMode === 'rhi'}
+					azimuthDeg={pickerMode === 'rhi'
+						? (activeChild?.payload as RhiWindowPayload).azimuthDeg
+						: null}
+					statsSelectEnabled={pickerMode === 'stats'}
+					nsPositionM={payload.showCutPanels ? absNsPositionM : null}
+					ewPositionM={payload.showCutPanels ? absEwPositionM : null}
+					{onCutLine}
+					{onPointSelect}
+					{onAzimuthSelect}
+					{onStatsRegionSelect}
+					{onNsPositionChange}
+					{onEwPositionChange}
+					{onViewChange}
+					onreadout={(r) => (readout = r)}
+				/>
+			{/if}
+		</div>
+
+		{#if payload.showCutPanels && channel && channel.scans.length > 0 && cutLineNS}
+			<div class="col-start-2 row-start-2 min-h-0 min-w-0 border-l border-outline-variant">
+				<CrossSectionPanel
+					scans={channel.scans}
+					{palette}
+					line={cutLineNS}
+					maxHeightM={18000}
+					{unitSystem}
+					orientation="vertical"
+					axisLines={false}
+					thicknessPx={160}
+				/>
 			</div>
-		{:else if ground}
-			<PpiMap
-				bind:this={ppiMapRef}
-				scan={ground.scan}
-				{palette}
-				{site}
-				baseMap={payload.baseMap}
-				dataOpacity={payload.dataOpacity}
-				showRings={payload.showRings}
-				showRadials={payload.showRadials}
-				showSiteMarker={payload.showSiteMarker}
-				showCutGuide={payload.showCutGuide}
-				showLatLonGrid={payload.showLatLonGrid}
-				{overlayLineColor}
-				{overlayLineWidthPx}
-				{ringsStepKm}
-				{radialsStepDeg}
-				{gridStepLatDeg}
-				{gridStepLonDeg}
-				extraLayers={overlays}
-				{unitSystem}
-				drawEnabled={pickerMode === 'cross-section'}
-				presetLine={pickerMode === 'cross-section'
-					? ((activeChild?.payload as CrossSectionWindowPayload | undefined)?.line ?? null)
-					: null}
-				pointSelectEnabled={pickerMode === 'profile'}
-				azimuthSelectEnabled={pickerMode === 'rhi'}
-				azimuthDeg={pickerMode === 'rhi'
-					? (activeChild?.payload as RhiWindowPayload).azimuthDeg
-					: null}
-				statsSelectEnabled={pickerMode === 'stats'}
-				{onCutLine}
-				{onPointSelect}
-				{onAzimuthSelect}
-				{onStatsRegionSelect}
-				onreadout={(r) => (readout = r)}
-			/>
 		{/if}
 	</div>
 

@@ -84,6 +84,9 @@ export interface AxisOptions {
 	xTickCount?: number;
 	yTickCount?: number;
 	grid?: boolean;
+	/** Axis lines + tick labels + unit labels. Default true. Set false to show only the grid
+	 * (e.g. a compact docked panel with no room for tick text). */
+	axisLines?: boolean;
 }
 
 const GRID_COLOR = 'rgba(255,255,255,0.12)';
@@ -131,40 +134,42 @@ export function drawAxes(
 		}
 	}
 
-	ctx.strokeStyle = AXIS_COLOR;
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.moveTo(left, top);
-	ctx.lineTo(left, top + height);
-	ctx.lineTo(left + width, top + height);
-	ctx.stroke();
+	if (opts.axisLines !== false) {
+		ctx.strokeStyle = AXIS_COLOR;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(left, top);
+		ctx.lineTo(left, top + height);
+		ctx.lineTo(left + width, top + height);
+		ctx.stroke();
 
-	ctx.font = '11px system-ui, sans-serif';
-	ctx.fillStyle = TICK_LABEL_COLOR;
-	ctx.textAlign = 'right';
-	ctx.textBaseline = 'middle';
-	for (const v of yTicks) {
-		ctx.fillText(yFormat(v), left - 6, yScale(v));
-	}
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'top';
-	for (const v of xTicks) {
-		ctx.fillText(xFormat(v), xScale(v), top + height + 6);
-	}
-
-	ctx.font = '10px system-ui, sans-serif';
-	ctx.fillStyle = AXIS_LABEL_COLOR;
-	if (opts.xLabel) {
+		ctx.font = '11px system-ui, sans-serif';
+		ctx.fillStyle = TICK_LABEL_COLOR;
 		ctx.textAlign = 'right';
+		ctx.textBaseline = 'middle';
+		for (const v of yTicks) {
+			ctx.fillText(yFormat(v), left - 6, yScale(v));
+		}
+		ctx.textAlign = 'center';
 		ctx.textBaseline = 'top';
-		ctx.fillText(opts.xLabel, left + width, top + height + 18);
-	}
-	if (opts.yLabel) {
-		ctx.textAlign = 'left';
-		ctx.textBaseline = 'bottom';
-		// Offset right of `left`: CrossSectionPanel draws its "A" endpoint marker centered on the
-		// y-axis line right above the plot, and would otherwise sit on top of this label.
-		ctx.fillText(opts.yLabel, left + 10, top - 4);
+		for (const v of xTicks) {
+			ctx.fillText(xFormat(v), xScale(v), top + height + 6);
+		}
+
+		ctx.font = '10px system-ui, sans-serif';
+		ctx.fillStyle = AXIS_LABEL_COLOR;
+		if (opts.xLabel) {
+			ctx.textAlign = 'right';
+			ctx.textBaseline = 'top';
+			ctx.fillText(opts.xLabel, left + width, top + height + 18);
+		}
+		if (opts.yLabel) {
+			ctx.textAlign = 'left';
+			ctx.textBaseline = 'bottom';
+			// Offset right of `left`: CrossSectionPanel draws its "A" endpoint marker centered on the
+			// y-axis line right above the plot, and would otherwise sit on top of this label.
+			ctx.fillText(opts.yLabel, left + 10, top - 4);
+		}
 	}
 
 	ctx.restore();

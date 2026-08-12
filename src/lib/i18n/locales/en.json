@@ -207,6 +207,10 @@
 		"radialsAbbr": "RAD",
 		"latLonGridTitle": "Lat/lon grid",
 		"latLonGridAbbr": "GRID",
+		"cutPanelsTitle": "Docked N-S/E-W cuts (real data)",
+		"cutPanelsAbbr": "CUTS",
+		"nsPositionTitle": "E-W cut position (drag its guide line on the map, or type the N-S offset from the site)",
+		"ewPositionTitle": "N-S cut position (drag its guide line on the map, or type the E-W offset from the site)",
 		"radarLabel": "RADAR",
 		"vcpLabel": "VCP",
 		"readout": {
@@ -223,7 +227,9 @@
 			"altitude": "ALTITUDE",
 			"value": "VALUE",
 			"status": "STATUS",
-			"distanceAB": "DISTANCE (A→B)"
+			"distanceAB": "DISTANCE (A→B)",
+			"nsPosition": "N-S",
+			"ewPosition": "E-W"
 		},
 		"scaleTitle": "Color scale",
 		"scaleAbbr": "SCL",

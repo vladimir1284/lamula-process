@@ -207,6 +207,10 @@
 		"radialsAbbr": "RAD",
 		"latLonGridTitle": "Cuadrícula lat/lon",
 		"latLonGridAbbr": "CUAD",
+		"cutPanelsTitle": "Cortes N-S/E-O acoplados (dato real)",
+		"cutPanelsAbbr": "CORTES",
+		"nsPositionTitle": "Posición del corte E-O (arrastra su línea guía en el mapa, o escribe el desplazamiento N-S respecto al sitio)",
+		"ewPositionTitle": "Posición del corte N-S (arrastra su línea guía en el mapa, o escribe el desplazamiento E-O respecto al sitio)",
 		"radarLabel": "RADAR",
 		"vcpLabel": "VCP",
 		"readout": {
@@ -223,7 +227,9 @@
 			"altitude": "ALTURA",
 			"value": "VALOR",
 			"status": "ESTADO",
-			"distanceAB": "DISTANCIA (A→B)"
+			"distanceAB": "DISTANCIA (A→B)",
+			"nsPosition": "N-S",
+			"ewPosition": "E-O"
 		},
 		"scaleTitle": "Escala de colores",
 		"scaleAbbr": "ESC",
