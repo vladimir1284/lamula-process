@@ -9,6 +9,8 @@ export { default as ScaleLegend } from './ScaleLegend.svelte';
 export { default as ZoomControl } from './ZoomControl.svelte';
 export { default as Modal } from './Modal.svelte';
 export { default as SiteLocationEditor } from './SiteLocationEditor.svelte';
+export { default as WindowNotices } from './WindowNotices.svelte';
+export type { WindowNotice } from './WindowNotices.svelte';
 export { rasterToCanvas, rasterToDataURL } from './radarImage';
 export {
 	exportMapToCanvas,

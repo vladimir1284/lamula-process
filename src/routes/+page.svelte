@@ -795,6 +795,7 @@
 								{channels}
 								{book}
 								{unitSystem}
+								effectiveSiteAltM={effectiveSite?.altM ?? 0}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'cross-section'}
@@ -804,6 +805,7 @@
 								{channels}
 								{book}
 								{unitSystem}
+								effectiveSiteAltM={effectiveSite?.altM ?? 0}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'profile'}

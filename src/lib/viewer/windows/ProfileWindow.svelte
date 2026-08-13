@@ -2,7 +2,14 @@
 	import type { ChannelRef } from '$lib/pipeline';
 	import type { Observation } from '$lib/domain/types';
 	import { computeProfile } from '$lib/products';
-	import { ProfilePanel, ZoomControl, downloadCanvasAsPng, buildExportFilename } from '$lib/viewer';
+	import { effectiveBeamWidth } from '$lib/domain';
+	import {
+		ProfilePanel,
+		WindowNotices,
+		ZoomControl,
+		downloadCanvasAsPng,
+		buildExportFilename
+	} from '$lib/viewer';
 	import {
 		windowStore,
 		type RadarWindow,
@@ -29,12 +36,26 @@
 		sourceMap ? channels[(sourceMap.payload as MapWindowPayload).channelIndex]?.channel : undefined
 	);
 
+	// Profile always brackets by beam height -- warn whenever the source channel's parser didn't
+	// supply a real beam width.
+	const beamWidth = $derived(effectiveBeamWidth(sourceChannel));
+	const notices = $derived(
+		beamWidth.inferred
+			? [
+					{
+						id: 'beam-width-inferred',
+						message: $_('window.beamWidthInferredNotice', { values: { value: beamWidth.deg } })
+					}
+				]
+			: []
+	);
+
 	const profile = $derived.by(() => {
 		if (!sourceChannel || !payload.point) return null;
 		return computeProfile(sourceChannel.scans, {
 			xEastM: payload.point.xEastM,
 			yNorthM: payload.point.yNorthM,
-			beamWidthDeg: sourceChannel.beamWidthDeg ?? 1.0,
+			beamWidthDeg: beamWidth.deg,
 			topM: payload.maxHeightKm * 1000,
 			siteAltM: effectiveSiteAltM
 		});
@@ -79,6 +100,7 @@
 			</button>
 		{/if}
 		<ZoomControl {zoom} onZoom={(z) => (zoom = z)} />
+		<WindowNotices {notices} />
 		<button
 			type="button"
 			class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"

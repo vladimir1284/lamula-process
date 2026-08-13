@@ -3,6 +3,7 @@
 	import type { ChannelRef } from '$lib/pipeline';
 	import { buildAccumFrames, deriveAccumulateOptionsFromPayload } from '$lib/pipeline';
 	import type { TimeSpan } from '$lib/domain';
+	import { effectiveBeamWidth } from '$lib/domain';
 	import { computeAccumulate, type ProductResult } from '$lib/products';
 	import type { PaletteBook, OverlayLineColor } from '$lib/platform';
 	import { paletteForMoment } from '$lib/platform';
@@ -12,6 +13,7 @@
 	import {
 		PpiMap,
 		ScaleLegend,
+		WindowNotices,
 		exportMapToCanvas,
 		downloadCanvasAsPng,
 		buildExportFilename
@@ -63,8 +65,21 @@
 	const palette = $derived(paletteForMoment(book, paletteKey));
 	const productTitle = $derived($_(catalogLabel('ACCUMULATE')));
 
+	// Accumulate always brackets by beam height -- warn whenever the channel's parser didn't
+	// supply a real beam width.
+	const beamWidth = $derived(effectiveBeamWidth(channel));
+	const notices = $derived(
+		beamWidth.inferred
+			? [
+					{
+						id: 'beam-width-inferred',
+						message: $_('window.beamWidthInferredNotice', { values: { value: beamWidth.deg } })
+					}
+				]
+			: []
+	);
 	const accumOpts = $derived(
-		deriveAccumulateOptionsFromPayload(payload, channel?.beamWidthDeg ?? 1.0, effectiveSiteAltM)
+		deriveAccumulateOptionsFromPayload(payload, beamWidth.deg, effectiveSiteAltM)
 	);
 
 	const frames = $derived.by(() =>
@@ -277,6 +292,7 @@
 			{#if payload.showScale}
 				<ScaleLegend {palette} unit={result?.unit} />
 			{/if}
+			<WindowNotices {notices} />
 			<button
 				type="button"
 				class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"

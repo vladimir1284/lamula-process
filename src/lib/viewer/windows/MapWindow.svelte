@@ -4,20 +4,22 @@
 	import {
 		listElevationsDeg,
 		deriveGroundProduct,
-		deriveOptionsFromMapPayload
+		deriveOptionsFromMapPayload,
+		productUsesBeamWidth
 	} from '$lib/pipeline';
 	import type { Observation, Scan } from '$lib/domain/types';
 	import type { PaletteBook, OverlayLineColor } from '$lib/platform';
 	import { paletteForMoment } from '$lib/platform';
+	import { effectiveBeamWidth } from '$lib/domain';
 	import { formatDistanceM, formatReading, type UnitSystem } from '$lib/units';
 	import { standardOverlays } from '$lib/overlays';
-	import { eastWestLine, northSouthLine } from '$lib/products';
 	import { observeContainerSize } from '$lib/viewer/chartCanvas';
 	import { BASE_MAP_IDS, BASE_MAP_LABELS } from '$lib/viewer/baseMaps';
 	import {
 		PpiMap,
 		ScaleLegend,
 		CrossSectionPanel,
+		WindowNotices,
 		exportMapToCanvas,
 		downloadCanvasAsPng,
 		buildExportFilename
@@ -179,11 +181,29 @@
 	// Absolute site-relative position of each guide: viewport centre + the user's own offset.
 	const absNsPositionM = $derived(centerNorthM + payload.nsPositionKm * 1000);
 	const absEwPositionM = $derived(centerEastM + payload.ewPositionKm * 1000);
+	// NOT `eastWestLine`/`northSouthLine` -- those centre the wide axis on the SITE (east/north 0),
+	// which only matches the map when the view happens to be centred on the site too. The docked
+	// strip must span exactly what the map itself shows, so the wide axis is centred on the map's
+	// own pan position (`centerEastM`/`centerNorthM`), same as the along axis already is.
 	const cutLineEW = $derived(
-		channel && channel.scans.length > 0 ? eastWestLine(absNsPositionM, ewMaxRangeM) : null
+		channel && channel.scans.length > 0
+			? {
+					ax: centerEastM - ewMaxRangeM,
+					ay: absNsPositionM,
+					bx: centerEastM + ewMaxRangeM,
+					by: absNsPositionM
+				}
+			: null
 	);
 	const cutLineNS = $derived(
-		channel && channel.scans.length > 0 ? northSouthLine(absEwPositionM, nsMaxRangeM) : null
+		channel && channel.scans.length > 0
+			? {
+					ax: absEwPositionM,
+					ay: centerNorthM - nsMaxRangeM,
+					bx: absEwPositionM,
+					by: centerNorthM + nsMaxRangeM
+				}
+			: null
 	);
 	// The drag callback reports the dropped point's ABSOLUTE site-relative position (PpiMap has no
 	// notion of "offset from centre") -- subtract the viewport centre to get back the relative
@@ -196,8 +216,23 @@
 		payload.ewPositionKm = Math.round(((m - centerEastM) / 1000) * 10) / 10;
 	}
 
+	const beamWidth = $derived(effectiveBeamWidth(channel));
 	const deriveOpts = $derived(
-		deriveOptionsFromMapPayload(payload, channel?.beamWidthDeg ?? 1.0, effectiveSiteAltM)
+		deriveOptionsFromMapPayload(payload, beamWidth.deg, effectiveSiteAltM)
+	);
+	// Only CAPPI/TOPS/MAXS/COLUMN_MAX/VIL bracket by beam height -- warn about the inferred
+	// fallback only when the currently-shown product actually depends on it, and always for the
+	// docked E-W/N-S cut panels (their coverage wedge depends on it regardless of `payload.product`).
+	const notices = $derived(
+		beamWidth.inferred &&
+			(productUsesBeamWidth(payload.product as GroundProductKind) || payload.showCutPanels)
+			? [
+					{
+						id: 'beam-width-inferred',
+						message: $_('window.beamWidthInferredNotice', { values: { value: beamWidth.deg } })
+					}
+				]
+			: []
 	);
 
 	const ground = $derived.by(() => {
@@ -348,6 +383,9 @@
 				>
 			</span>
 		{/if}
+		<div class="ml-auto">
+			<WindowNotices {notices} />
+		</div>
 	</div>
 
 	<!-- Toolbar: channel/elevation + per-product params. -->
@@ -715,9 +753,9 @@
 		there's no room for tick text at this thickness. -->
 	<div
 		class="relative grid min-h-0 flex-1 overflow-hidden bg-black"
-		style="grid-template-columns: 1fr {payload.showCutPanels ? 160 : 0}px; grid-template-rows: {payload.showCutPanels
+		style="grid-template-columns: 1fr {payload.showCutPanels
 			? 160
-			: 0}px 1fr;"
+			: 0}px; grid-template-rows: {payload.showCutPanels ? 160 : 0}px 1fr;"
 	>
 		{#if payload.showCutPanels && channel && channel.scans.length > 0 && cutLineEW}
 			<div class="col-start-1 row-start-1 min-h-0 min-w-0 border-b border-outline-variant">
@@ -726,14 +764,20 @@
 					{palette}
 					line={cutLineEW}
 					maxHeightM={18000}
+					siteAltM={effectiveSiteAltM}
+					beamWidthDeg={beamWidth.deg}
 					{unitSystem}
 					axisLines={false}
 					thicknessPx={160}
+					smooth={true}
 				/>
 			</div>
 			<div class="col-start-2 row-start-1 border-b border-l border-outline-variant"></div>
 		{/if}
-		<div class="relative col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden" bind:this={mapAreaEl}>
+		<div
+			class="relative col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden"
+			bind:this={mapAreaEl}
+		>
 			{#if !observation}
 				<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
 					<span class="material-symbols-outlined text-[32px] text-on-surface-variant"
@@ -810,10 +854,13 @@
 					{palette}
 					line={cutLineNS}
 					maxHeightM={18000}
+					siteAltM={effectiveSiteAltM}
+					beamWidthDeg={beamWidth.deg}
 					{unitSystem}
 					orientation="vertical"
 					axisLines={false}
 					thicknessPx={160}
+					smooth={true}
 				/>
 			</div>
 		{/if}

@@ -28,6 +28,13 @@
 		line: CutLine;
 		/** Max height shown (m). Default 18 km. */
 		maxHeightM?: number;
+		/** Radar antenna altitude above the height datum (m), for the beam-curvature model.
+		 * Default 0. */
+		siteAltM?: number;
+		/** Antenna beam width (deg) -- half of it is the angular tolerance for the "radar can see
+		 * here" coverage wedge (see products/crossSection.ts's elevPadDeg). Default 1.0 (typical
+		 * WSR-88D). */
+		beamWidthDeg?: number;
 		/** Draw the A (start) / B (end) endpoint markers -- matches PpiMap's cut-line markers. */
 		markEndpoints?: boolean;
 		/** Unit system for the distance axis. Default metric (km). */
@@ -60,6 +67,8 @@
 		palette,
 		line,
 		maxHeightM = 18_000,
+		siteAltM = 0,
+		beamWidthDeg = 1.0,
 		markEndpoints = false,
 		unitSystem = 'metric',
 		orientation = 'horizontal',
@@ -87,7 +96,9 @@
 	// No room needed for tick text once axisLines is off -- shrink the padding to a thin margin
 	// instead of wasting it as dead space around the grid.
 	const PAD = $derived(
-		axisLines ? { left: 48, bottom: 28, top: 20, right: 8 } : { left: 4, bottom: 4, top: 4, right: 4 }
+		axisLines
+			? { left: 48, bottom: 28, top: 20, right: 8 }
+			: { left: 4, bottom: 4, top: 4, right: 4 }
 	);
 	// The distance axis fits whichever container dimension it runs along (width when horizontal,
 	// height when vertical); the height/altitude axis is a fixed thickness either way.
@@ -100,6 +111,10 @@
 	// Rebuilding the per-scan azimuth LUTs is not free -- memoize on `scans` identity instead of
 	// rebuilding it on every mousemove (the bug the original synchronous version had).
 	const scanMeta = $derived(buildScanMeta(scans));
+
+	// Half the real beam width -- the physically correct angular tolerance for "is this point
+	// still within the beam", replacing what used to be a fixed 0.75° guess (see crossSection.ts).
+	const elevPadDeg = $derived(beamWidthDeg / 2);
 
 	$effect(() => {
 		const el = container;
@@ -149,6 +164,8 @@
 		const p = palette;
 		const ln = line;
 		const maxH = maxHeightM;
+		const siteAlt = siteAltM;
+		const pad = elevPadDeg;
 		const along = alongPx;
 		const o = orientation;
 		const dpr = devicePixelRatioOrOne();
@@ -160,7 +177,9 @@
 				widthPx: Math.round(along * dpr),
 				heightPx: Math.round(thicknessPx * dpr),
 				maxHeightM: maxH,
-				line: $state.snapshot(ln)
+				line: $state.snapshot(ln),
+				siteAltM: siteAlt,
+				elevPadDeg: pad
 			})
 			.then((result) => {
 				if (token !== renderToken) return; // superseded
@@ -177,10 +196,7 @@
 	const yScale = $derived(
 		orientation === 'horizontal'
 			? linearScale([0, maxHeightM / 1000], [PAD.top + PLOT_H, PAD.top])
-			: linearScale(
-					[0, toDisplayDistanceM(lineLengthM, unitSystem)],
-					[PAD.top + PLOT_H, PAD.top]
-				)
+			: linearScale([0, toDisplayDistanceM(lineLengthM, unitSystem)], [PAD.top + PLOT_H, PAD.top])
 	);
 
 	function drawEndpoints(ctx: CanvasRenderingContext2D) {
@@ -207,6 +223,33 @@
 		}
 	}
 
+	// A compact docked panel (axisLines=false, e.g. MapWindow's E-W/N-S strips) has no printed
+	// scale at all -- with two independent strips sharing one visual space, there's no way to
+	// confirm by eye that they're actually on the same height scale. `maxHeightM`/`thicknessPx`
+	// already force the same pixel scale everywhere; this just makes it checkable. Skipped when
+	// `axisLines` is on since the full axis already prints these numbers.
+	function drawHeightTicks(ctx: CanvasRenderingContext2D) {
+		if (axisLines) return;
+		const maxKm = maxHeightM / 1000;
+		ctx.save();
+		ctx.font = '9px monospace';
+		ctx.fillStyle = 'rgba(185, 202, 203, 0.75)';
+		if (orientation === 'horizontal') {
+			ctx.textAlign = 'left';
+			ctx.textBaseline = 'top';
+			ctx.fillText(`${Math.round(maxKm)}`, PAD.left + 2, PAD.top + 1);
+			ctx.textBaseline = 'bottom';
+			ctx.fillText('0', PAD.left + 2, PAD.top + PLOT_H - 1);
+		} else {
+			ctx.textAlign = 'left';
+			ctx.textBaseline = 'top';
+			ctx.fillText('0', PAD.left + 2, PAD.top + 1);
+			ctx.textAlign = 'right';
+			ctx.fillText(`${Math.round(maxKm)}`, PAD.left + PLOT_W - 2, PAD.top + 1);
+		}
+		ctx.restore();
+	}
+
 	function handlePlotMove(cx: number, cy: number) {
 		if (!onreadout || lineLengthM === 0) return;
 		let t: number;
@@ -221,7 +264,7 @@
 		const distanceM = t * lineLengthM;
 		const x = line.ax + t * (line.bx - line.ax);
 		const y = line.ay + t * (line.by - line.ay);
-		const sample = sampleCrossSection(scanMeta, x, y, heightM);
+		const sample = sampleCrossSection(scanMeta, x, y, heightM, elevPadDeg, siteAltM);
 		onreadout({ distanceM, heightM, sample });
 	}
 
@@ -247,7 +290,10 @@
 			grid: showGrid,
 			axisLines
 		}}
-		extraOverlay={drawEndpoints}
+		extraOverlay={(ctx) => {
+			drawEndpoints(ctx);
+			drawHeightTicks(ctx);
+		}}
 		{smooth}
 		{zoom}
 		{onZoomChange}

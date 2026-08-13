@@ -12,3 +12,4 @@ export type {
 export { createCells, cellIndex, getCell, setCell, cellFlagCode, momentUnit } from './cells';
 export { mergeSweeps, type MergeSweepsResult } from './mergeSweeps';
 export { createTimeSpan, type TimeSpan, type TimeSpanResult } from './timespan';
+export { effectiveBeamWidth, DEFAULT_BEAM_WIDTH_DEG, type EffectiveBeamWidth } from './beamWidth';

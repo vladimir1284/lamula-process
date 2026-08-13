@@ -177,6 +177,8 @@
 	},
 	"window": {
 		"editScale": "Editar escala",
+		"notices": "Avisos",
+		"beamWidthInferredNotice": "Ancho de haz no disponible en el archivo de origen; se asume {value}° por defecto. La zona sin cobertura del haz y los productos derivados de altura usan este valor aproximado.",
 		"exportImage": "Exportar imagen",
 		"exportBoth": "Ambos paneles",
 		"exportProductOnly": "Solo producto",

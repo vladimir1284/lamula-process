@@ -1,10 +1,15 @@
 <script lang="ts">
 	import type { ChannelRef } from '$lib/pipeline';
-	import { deriveGroundProduct, deriveOptionsFromMapPayload } from '$lib/pipeline';
+	import {
+		deriveGroundProduct,
+		deriveOptionsFromMapPayload,
+		productUsesBeamWidth
+	} from '$lib/pipeline';
 	import type { Observation } from '$lib/domain/types';
+	import { effectiveBeamWidth } from '$lib/domain';
 	import { computeStatistics, formatReportCsv, formatReportTxt } from '$lib/analysis';
 	import { downloadTextFile } from '$lib/platform';
-	import { buildExportFilename } from '$lib/viewer';
+	import { buildExportFilename, WindowNotices } from '$lib/viewer';
 	import {
 		windowStore,
 		type RadarWindow,
@@ -32,15 +37,23 @@
 		sourceMapPayload ? channels[sourceMapPayload.channelIndex]?.channel : undefined
 	);
 
+	const beamWidth = $derived(effectiveBeamWidth(sourceChannel));
+	const notices = $derived(
+		beamWidth.inferred && sourceMapPayload && productUsesBeamWidth(sourceMapPayload.product)
+			? [
+					{
+						id: 'beam-width-inferred',
+						message: $_('window.beamWidthInferredNotice', { values: { value: beamWidth.deg } })
+					}
+				]
+			: []
+	);
+
 	// Recomputes the SAME ground product the source map window is currently showing, so the region
 	// statistics match what's on screen (see deriveOptionsFromMapPayload's doc comment).
 	const ground = $derived.by(() => {
 		if (!sourceChannel || !sourceMapPayload || sourceChannel.scans.length === 0) return null;
-		const opts = deriveOptionsFromMapPayload(
-			sourceMapPayload,
-			sourceChannel.beamWidthDeg ?? 1.0,
-			effectiveSiteAltM
-		);
+		const opts = deriveOptionsFromMapPayload(sourceMapPayload, beamWidth.deg, effectiveSiteAltM);
 		return deriveGroundProduct(sourceChannel, sourceMapPayload.product, opts);
 	});
 
@@ -138,6 +151,7 @@
 				bind:value={payload.threshold}
 			/>
 		</label>
+		<WindowNotices {notices} />
 		<button
 			type="button"
 			class="ml-auto flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2 font-mono text-[11px] text-on-surface-variant hover:border-primary-container hover:text-primary-container disabled:opacity-40"

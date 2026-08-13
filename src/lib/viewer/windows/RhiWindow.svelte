@@ -6,9 +6,10 @@
 	import type { PaletteBook } from '$lib/platform';
 	import { paletteForMoment } from '$lib/platform';
 	import { formatDistanceM, formatAltitudeM, formatReading, type UnitSystem } from '$lib/units';
-	import { momentUnit } from '$lib/domain';
+	import { momentUnit, effectiveBeamWidth } from '$lib/domain';
 	import {
 		RhiPanel,
+		WindowNotices,
 		ZoomControl,
 		exportMapToCanvas,
 		flattenOnBlack,
@@ -31,10 +32,12 @@
 		channels: ChannelRef[];
 		book: PaletteBook;
 		unitSystem: UnitSystem;
+		effectiveSiteAltM: number;
 		onEditScale: (paletteKey: string) => void;
 	}
 
-	let { win, observation, channels, book, unitSystem, onEditScale }: Props = $props();
+	let { win, observation, channels, book, unitSystem, effectiveSiteAltM, onEditScale }: Props =
+		$props();
 
 	const payload = $derived(win.payload as RhiWindowPayload);
 
@@ -53,6 +56,20 @@
 	});
 
 	const palette = $derived(paletteForMoment(book, sourceChannel?.moment ?? 'dBZ'));
+
+	// RHI's coverage wedge always depends on beam width (see RhiPanel's elevPadDeg) -- warn
+	// whenever the source channel's parser didn't supply a real value.
+	const beamWidth = $derived(effectiveBeamWidth(sourceChannel));
+	const notices = $derived(
+		beamWidth.inferred
+			? [
+					{
+						id: 'beam-width-inferred',
+						message: $_('window.beamWidthInferredNotice', { values: { value: beamWidth.deg } })
+					}
+				]
+			: []
+	);
 
 	let readout = $state<RhiReadout | null>(null);
 	let rhiPanelRef: ReturnType<typeof RhiPanel> | undefined = $state();
@@ -138,9 +155,12 @@
 			{$_('window.smoothAbbr')}
 		</label>
 		<ZoomControl {zoom} onZoom={(z) => (zoom = z)} />
+		<div class="ml-auto">
+			<WindowNotices {notices} />
+		</div>
 		<button
 			type="button"
-			class="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
+			class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
 			onclick={() => onEditScale(sourceChannel?.moment ?? 'dBZ')}
 			aria-label={$_('window.editScale')}
 			title={$_('window.editScale')}
@@ -200,6 +220,8 @@
 				scan={rhiScan}
 				{palette}
 				maxHeightM={payload.maxHeightKm * 1000}
+				siteAltM={effectiveSiteAltM}
+				beamWidthDeg={beamWidth.deg}
 				{unitSystem}
 				smooth={payload.smooth}
 				{zoom}

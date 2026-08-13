@@ -177,6 +177,8 @@
 	},
 	"window": {
 		"editScale": "Edit scale",
+		"notices": "Notices",
+		"beamWidthInferredNotice": "Beam width isn't available in the source file; defaulting to {value}°. The no-coverage wedge and height-derived products use this approximate value.",
 		"exportImage": "Export image",
 		"exportBoth": "Both panels",
 		"exportProductOnly": "Product only",

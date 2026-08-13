@@ -53,3 +53,20 @@ export function beamHeightRangeM(
 		max: beamHeightM(slantRangeM, elevDeg + half, siteAltM)
 	};
 }
+
+/**
+ * Inverse of `beamHeightM`: the elevation angle (degrees) whose 4/3-earth beam-height curve
+ * passes through a given (slantRangeM, heightM) point. Lets a display pixel expressed as
+ * (range, height) be mapped back to "which beam would be here" accounting for curvature, instead
+ * of the flat-earth `atan2(height, range)` (which ignores that a 0°-elevation beam still climbs
+ * away from the ground at long range — e.g. ~588 m of separation by 100 km).
+ */
+export function elevationForHeightM(slantRangeM: number, heightM: number, siteAltM = 0): number {
+	if (slantRangeM <= 0) return heightM >= 0 ? 90 : -90;
+	const rref = EFFECTIVE_EARTH_RADIUS_M;
+	const ralt = rref + siteAltM;
+	const hTerm = heightM + rref;
+	const sinElev =
+		(hTerm * hTerm - ralt * ralt - slantRangeM * slantRangeM) / (2 * ralt * slantRangeM);
+	return Math.asin(Math.max(-1, Math.min(1, sinElev))) / DEG;
+}

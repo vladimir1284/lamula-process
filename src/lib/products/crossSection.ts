@@ -2,6 +2,7 @@ import type { Scan, CellFlag } from '$lib/domain/types';
 import type { Palette } from '$lib/palette/types';
 import { colorForValue } from '$lib/palette/lookup';
 import { CELL_FLAG_OK, CELL_FLAG_BELOW_THRESHOLD, cellFlagFromCode } from '$lib/domain/cells';
+import { elevationForHeightM } from '$lib/geo/height';
 
 /**
  * Vertical cross-section along an arbitrary ground line — the P2 "cortes" family (EstWst / NthSth
@@ -18,11 +19,18 @@ import { CELL_FLAG_OK, CELL_FLAG_BELOW_THRESHOLD, cellFlagFromCode } from '$lib/
  *
  * Coordinate frame: site-relative ground metres, x = east, y = north. Azimuth is measured from
  * north, clockwise (matching the scan ray convention). Beam elevation for a (range, height) point
- * uses the flat inverse `elev = atan2(height, range)` — the same bounded-range simplification the
- * RHI panel documents.
+ * is found via the 4/3-earth inverse `elevationForHeightM` (geo/height.ts) rather than the flat
+ * `atan2(height, range)` — a flat inverse understates how far a low-elevation beam climbs away
+ * from the ground at long range (curvature), which drew every 0°-elevation beam hugging y=0
+ * regardless of range.
  */
 
 const DEG = Math.PI / 180;
+
+/** Fill for the "radar cannot see here" wedge below the lowest swept elevation at this range —
+ * distinct from fully-transparent (true no-data within the observable region). Matches
+ * render/rasterizeRHI.ts's NO_COVERAGE_RGBA so both cut styles read the same. */
+const NO_COVERAGE_RGBA: readonly [number, number, number, number] = [70, 78, 92, 130];
 
 export interface CutLine {
 	/** Endpoint A, site-relative metres (x east, y north). */
@@ -102,6 +110,13 @@ export interface CrossSample {
 	flag: CellFlag;
 }
 
+/** Elevation (deg) whose 4/3-earth beam-height curve passes through a ground point + height,
+ * given as horizontal ground distance rather than slant range (see geo/height.ts). */
+export function beamElevAtGroundHeight(rangeM: number, heightM: number, siteAltM = 0): number {
+	const slant = Math.hypot(rangeM, heightM);
+	return elevationForHeightM(slant, heightM, siteAltM);
+}
+
 /**
  * Sample the volume at a site-relative ground point (metres) and height (metres): pick the beam
  * elevation that passes through it, the ray nearest its azimuth, and the gate nearest its slant
@@ -112,11 +127,12 @@ export function sampleCrossSection(
 	xEastM: number,
 	yNorthM: number,
 	heightM: number,
-	elevPadDeg = 0.75
+	elevPadDeg = 0.75,
+	siteAltM = 0
 ): CrossSample | null {
 	const rangeM = Math.hypot(xEastM, yNorthM);
 	if (rangeM === 0 && heightM === 0) return null;
-	const elev = Math.atan2(heightM, rangeM) / DEG;
+	const elev = beamElevAtGroundHeight(rangeM, heightM, siteAltM);
 	const si = nearestScanByElev(metas, elev, elevPadDeg);
 	if (si < 0) return null;
 	const meta = metas[si];
@@ -139,6 +155,8 @@ export interface CrossSectionRasterOptions {
 	line: CutLine;
 	includeBelowThreshold?: boolean;
 	elevPadDeg?: number;
+	/** Radar antenna altitude above the height datum (m), for the curvature model. Default 0. */
+	siteAltM?: number;
 }
 
 export interface CrossSectionRasterResult {
@@ -158,11 +176,14 @@ export function rasterizeCrossSection(
 	const rgba = new Uint8ClampedArray(w * h * 4);
 	const metas = buildScanMeta(scans);
 	const pad = opts.elevPadDeg ?? 0.75;
+	const siteAltM = opts.siteAltM ?? 0;
 	const includeBelow = opts.includeBelowThreshold ?? false;
 	const dx = line.bx - line.ax;
 	const dy = line.by - line.ay;
 	const lineLengthM = Math.hypot(dx, dy);
 	const stepY = maxHeightM / h;
+	let loElevDeg = Infinity;
+	for (const m of metas) if (m.elevDeg < loElevDeg) loElevDeg = m.elevDeg;
 
 	for (let py = 0; py < h; py++) {
 		const height = maxHeightM - (py + 0.5) * stepY;
@@ -171,8 +192,22 @@ export function rasterizeCrossSection(
 			const t = (px + 0.5) / w;
 			const x = line.ax + t * dx;
 			const y = line.ay + t * dy;
-			const s = sampleCrossSection(metas, x, y, height, pad);
-			if (!s) continue;
+			const o = rowBase + px * 4;
+			const s = sampleCrossSection(metas, x, y, height, pad, siteAltM);
+			if (!s) {
+				// Below the lowest swept elevation's curved beam height at this range: the radar
+				// geometrically cannot see this point -- shade it distinctly instead of leaving it
+				// transparent (which reads as "no data" within an otherwise-observable area).
+				const rangeM = Math.hypot(x, y);
+				const elev = beamElevAtGroundHeight(rangeM, height, siteAltM);
+				if (elev < loElevDeg) {
+					rgba[o] = NO_COVERAGE_RGBA[0];
+					rgba[o + 1] = NO_COVERAGE_RGBA[1];
+					rgba[o + 2] = NO_COVERAGE_RGBA[2];
+					rgba[o + 3] = NO_COVERAGE_RGBA[3];
+				}
+				continue;
+			}
 			const flagCode =
 				s.flag === 'ok'
 					? CELL_FLAG_OK
@@ -182,7 +217,6 @@ export function rasterizeCrossSection(
 			if (flagCode !== CELL_FLAG_OK && !(includeBelow && flagCode === CELL_FLAG_BELOW_THRESHOLD))
 				continue;
 			const [r, g, b] = colorForValue(palette, s.value);
-			const o = rowBase + px * 4;
 			rgba[o] = r;
 			rgba[o + 1] = g;
 			rgba[o + 2] = b;

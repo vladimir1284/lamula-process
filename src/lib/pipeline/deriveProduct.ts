@@ -22,6 +22,21 @@ import { computeWind } from '$lib/products/wind';
 export type GroundProductKind =
 	'PPI' | 'CAPPI' | 'TOPS' | 'MAXS_HEIGHT' | 'COLUMN_MAX' | 'VIL' | 'RAIN' | 'WIND_SPEED';
 
+/** Products whose height math depends on the antenna's beam width -- PPI/RAIN/WIND_SPEED don't
+ * bracket by elevation and never consume it (see `deriveGroundProduct` below). Used to gate the
+ * "beam width was inferred" UI notice so it doesn't fire for products it can't affect. */
+const BEAM_WIDTH_DEPENDENT_KINDS: ReadonlySet<GroundProductKind> = new Set([
+	'CAPPI',
+	'TOPS',
+	'MAXS_HEIGHT',
+	'COLUMN_MAX',
+	'VIL'
+]);
+
+export function productUsesBeamWidth(kind: GroundProductKind): boolean {
+	return BEAM_WIDTH_DEPENDENT_KINDS.has(kind);
+}
+
 export interface DeriveOptions {
 	elevationDeg: number;
 	beamWidthDeg: number;

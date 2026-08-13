@@ -15,6 +15,12 @@
 		maxRangeM?: number;
 		/** Max height shown (m). Default 18 km. */
 		maxHeightM?: number;
+		/** Radar antenna altitude above the height datum (m), for the beam-curvature model.
+		 * Default 0. */
+		siteAltM?: number;
+		/** Antenna beam width (deg) -- half of it is the angular tolerance for the "radar can see
+		 * here" coverage wedge (see rasterizeRHI.ts's elevPadDeg). Default 1.0 (typical WSR-88D). */
+		beamWidthDeg?: number;
 		/** Unit system for the ground-range axis. Default metric (km). */
 		unitSystem?: UnitSystem;
 		/** Texture interpolation: false = nearest (blocky), true = linear (smoothed). */
@@ -31,6 +37,8 @@
 		palette,
 		maxRangeM,
 		maxHeightM = 18_000,
+		siteAltM = 0,
+		beamWidthDeg = 1.0,
 		unitSystem = 'metric',
 		smooth = false,
 		zoom = 1,
@@ -57,6 +65,10 @@
 		return maxRangeM ?? scan.rangeToFirstGateM + (scan.numGates - 1) * scan.gateLengthM;
 	}
 
+	// Half the real beam width -- the physically correct angular tolerance for "is this point
+	// still within the beam", replacing what used to be a fixed 0.75° guess (see rasterizeRHI.ts).
+	const elevPadDeg = $derived(beamWidthDeg / 2);
+
 	$effect(() => {
 		const el = container;
 		if (!el) return;
@@ -78,6 +90,8 @@
 		const p = palette;
 		const maxR = rangeM();
 		const maxH = maxHeightM;
+		const siteAlt = siteAltM;
+		const pad = elevPadDeg;
 		const w = PLOT_W;
 		const h = PLOT_H;
 		const dpr = devicePixelRatioOrOne();
@@ -89,7 +103,9 @@
 				widthPx: Math.round(w * dpr),
 				heightPx: Math.round(h * dpr),
 				maxRangeM: maxR,
-				maxHeightM: maxH
+				maxHeightM: maxH,
+				siteAltM: siteAlt,
+				elevPadDeg: pad
 			})
 			.then((result) => {
 				if (token !== renderToken) return; // superseded
@@ -107,7 +123,7 @@
 		const maxR = rangeM();
 		const groundM = (cx / PLOT_W) * maxR;
 		const heightM = (1 - cy / PLOT_H) * maxHeightM;
-		onreadout(rhiReadoutAt(groundM, heightM, scan));
+		onreadout(rhiReadoutAt(groundM, heightM, scan, undefined, elevPadDeg, siteAltM));
 	}
 
 	export function getCanvas(): HTMLCanvasElement | undefined {
