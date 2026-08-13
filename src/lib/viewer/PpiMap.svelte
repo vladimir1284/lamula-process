@@ -358,7 +358,8 @@
 			},
 			handleDragEvent: (evt) => {
 				if (!draggingGuideAxis || !map) return;
-				map.getTargetElement().style.cursor = draggingGuideAxis === 'ns' ? 'ns-resize' : 'ew-resize';
+				map.getTargetElement().style.cursor =
+					draggingGuideAxis === 'ns' ? 'ns-resize' : 'ew-resize';
 				const [mx, my] = evt.coordinate as [number, number];
 				const s3857 = siteXY();
 				const sc = scale();
@@ -385,7 +386,8 @@
 		const [mx, my] = coord;
 		const nsDist = nsPositionM == null ? null : Math.abs(my - (s3857[1] + nsPositionM * sc));
 		const ewDist = ewPositionM == null ? null : Math.abs(mx - (s3857[0] + ewPositionM * sc));
-		if (nsDist !== null && nsDist <= toleranceM && (ewDist === null || nsDist <= ewDist)) return 'ns';
+		if (nsDist !== null && nsDist <= toleranceM && (ewDist === null || nsDist <= ewDist))
+			return 'ns';
 		if (ewDist !== null && ewDist <= toleranceM) return 'ew';
 		return null;
 	}
