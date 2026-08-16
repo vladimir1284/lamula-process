@@ -18,6 +18,7 @@ export interface SiteLocation {
 export type SiteDataStore = Record<string, SiteLocation>;
 
 const STORAGE_KEY = 'lamula-process:site-data';
+const KNOWN_SITES_LOADED_KEY = 'lamula-process:known-sites-loaded';
 
 /** Stable lookup key for a site: prefer its code, fall back to name. */
 export function siteKey(site: Pick<RadarSite, 'code' | 'name'>): string {
@@ -92,5 +93,12 @@ export async function loadKnownSitesSeed(): Promise<SiteDataStore> {
 	const store = await loadSiteData();
 	const merged: SiteDataStore = { ...(knownSites as SiteDataStore), ...store };
 	await saveSiteData(merged);
+	localStorage.setItem(KNOWN_SITES_LOADED_KEY, 'true');
 	return merged;
+}
+
+/** Whether `loadKnownSitesSeed` has already run in this browser -- lets the UI tell "seed not
+ * loaded yet" apart from "seed loaded but this site isn't in it" and offer the right button. */
+export function isKnownSitesSeedLoaded(): boolean {
+	return localStorage.getItem(KNOWN_SITES_LOADED_KEY) === 'true';
 }

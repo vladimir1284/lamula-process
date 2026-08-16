@@ -37,7 +37,12 @@
 		overlayLineWidthPx: number;
 		ringsStepKm: number;
 		radialsStepDeg: number;
+		/** Whether the known-sites seed has been merged into this browser's site-data store --
+		 * lets the missing-site prompt offer "load known network" instead of just "set location"
+		 * when the seed hasn't run yet. */
+		knownSitesLoaded: boolean;
 		onOpenLocationEditor: () => void;
+		onLoadKnownSites: () => void;
 		onEditScale: (paletteKey: string) => void;
 	}
 
@@ -53,7 +58,9 @@
 		overlayLineWidthPx,
 		ringsStepKm,
 		radialsStepDeg,
+		knownSitesLoaded,
 		onOpenLocationEditor,
+		onLoadKnownSites,
 		onEditScale
 	}: Props = $props();
 
@@ -332,13 +339,29 @@
 					{$_('window.noSitePosition')}
 					<span class="text-on-surface">{productTitle}</span>.
 				</p>
-				<button
-					class="flex h-9 items-center gap-2 rounded bg-primary-container px-3 font-mono text-[11px] text-on-primary-container transition-all hover:opacity-90 active:scale-95"
-					onclick={onOpenLocationEditor}
-				>
-					<span class="material-symbols-outlined text-[16px]">add_location_alt</span>
-					{$_('window.defineLocation')}
-				</button>
+				<div class="flex gap-2">
+					{#if !knownSitesLoaded}
+						<button
+							class="flex h-9 items-center gap-2 rounded bg-primary-container px-3 font-mono text-[11px] text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+							onclick={onLoadKnownSites}
+						>
+							<span class="material-symbols-outlined text-[16px]">public</span>
+							{$_('settings.sites.loadKnown')}
+						</button>
+					{/if}
+					<button
+						class={[
+							'flex h-9 items-center gap-2 rounded px-3 font-mono text-[11px] transition-all active:scale-95',
+							knownSitesLoaded
+								? 'bg-primary-container text-on-primary-container hover:opacity-90'
+								: 'border border-outline-variant text-on-surface hover:border-primary-container'
+						]}
+						onclick={onOpenLocationEditor}
+					>
+						<span class="material-symbols-outlined text-[16px]">add_location_alt</span>
+						{$_('window.defineLocation')}
+					</button>
+				</div>
 			</div>
 		{:else if result}
 			<PpiMap

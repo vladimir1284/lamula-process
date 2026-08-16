@@ -17,7 +17,8 @@ export {
 	deleteSiteLocation,
 	exportSiteData,
 	importSiteData,
-	loadKnownSitesSeed
+	loadKnownSitesSeed,
+	isKnownSitesSeedLoaded
 } from './siteData';
 export type { PaletteBook } from './paletteStore';
 export {

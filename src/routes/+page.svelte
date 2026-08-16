@@ -26,6 +26,7 @@
 		exportSiteData,
 		importSiteData,
 		loadKnownSitesSeed,
+		isKnownSitesSeedLoaded,
 		type SiteDataStore,
 		type PaletteBook,
 		seedPaletteBook,
@@ -99,6 +100,9 @@
 	// so several resident observations needing a lookup concurrently don't race each other the way
 	// a single "latest wins" token would.
 	let siteOverrides = $state<Record<string, { lat: number; lon: number; altM: number }>>({});
+	// Tells "known-sites seed never loaded" apart from "seed loaded but this site isn't in it" --
+	// map/accumulate windows use it to decide whether to offer the load-network button.
+	let knownSitesLoaded = $state(false);
 	let scaleEditorKey = $state<string | null>(null);
 	const showScaleEditor = $derived(scaleEditorKey !== null);
 	let showSettings = $state(false);
@@ -351,15 +355,22 @@
 
 	async function loadKnownSites() {
 		await loadKnownSitesSeed();
+		knownSitesLoaded = true;
 		await refreshSiteList();
 		if (observation && !hasGeoref(observation)) {
 			const loc = await getSiteLocation(siteKey(observation.site));
 			if (loc) siteOverrides = { ...siteOverrides, [siteKey(observation.site)]: loc };
 		}
+		const accumObs = timeSpan?.observations[0];
+		if (accumObs && !hasGeoref(accumObs)) {
+			const loc = await getSiteLocation(siteKey(accumObs.site));
+			if (loc) accumSiteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+		}
 	}
 
 	onMount(async () => {
 		sidebarCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+		knownSitesLoaded = isKnownSitesSeedLoaded();
 		book = await loadPaletteBook();
 		settings = await loadSettings();
 		await refreshSiteList();
@@ -814,7 +825,9 @@
 								radialsStepDeg={settings.radialsStepDeg}
 								gridStepLatDeg={settings.gridStepLatDeg}
 								gridStepLonDeg={settings.gridStepLonDeg}
+								{knownSitesLoaded}
 								onOpenLocationEditor={() => openLocationEditor(mapObs)}
+								onLoadKnownSites={loadKnownSites}
 								onShowVad={(idx) =>
 									(vadSource = {
 										channels: mapChannels,
@@ -836,7 +849,9 @@
 								overlayLineWidthPx={settings.overlayLineWidthPx}
 								ringsStepKm={settings.ringsStepKm}
 								radialsStepDeg={settings.radialsStepDeg}
+								{knownSitesLoaded}
 								onOpenLocationEditor={openAccumLocationEditor}
+								onLoadKnownSites={loadKnownSites}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'rhi'}
