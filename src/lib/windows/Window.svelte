@@ -116,7 +116,7 @@
 {#if !win.minimized}
 	<div
 		class="glass-panel absolute flex flex-col overflow-hidden rounded-lg border transition-shadow {focused
-			? 'border-primary-container/50 shadow-[0_0_24px_rgba(91,157,255,0.08)]'
+			? 'border-primary-container/50 shadow-[0_0_24px_rgba(59,130,246,0.08)]'
 			: 'border-outline-variant'}"
 		style="left:{win.rect.x}px; top:{win.rect.y}px; width:{win.rect.width}px; height:{win.rect
 			.height}px; z-index:{win.z};"
