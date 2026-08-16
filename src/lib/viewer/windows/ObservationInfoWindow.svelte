@@ -12,7 +12,6 @@
 	import { _ } from '$lib/i18n';
 
 	interface Props {
-		win: RadarWindow;
 		observations: ObservationEntry[];
 		activeObservationId: string | null;
 		onSelect: (id: string) => void;

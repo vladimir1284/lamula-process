@@ -247,7 +247,6 @@
 	// Site position for the header toolbar (shows whichever observation is currently "active" in
 	// the manager) -- individual map windows resolve their own via `effectiveSiteFor` instead.
 	const effectiveSite = $derived(effectiveSiteFor(observation));
-	const site = $derived(effectiveSite ? { lon: effectiveSite.lon, lat: effectiveSite.lat } : null);
 
 	// ── Accumulate (TimeSpan): same site-resolution dance as `observation` above, but kept as a
 	// separate copy rather than shared -- a loaded TimeSpan can carry a different radar site than
@@ -909,7 +908,6 @@
 							/>
 						{:else if w.type === 'observation-info'}
 							<ObservationInfoWindow
-								win={w}
 								{observations}
 								{activeObservationId}
 								onSelect={(id) => send({ type: 'SELECT_OBSERVATION', id })}
