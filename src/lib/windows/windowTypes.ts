@@ -8,13 +8,7 @@ import type { RectangleRegion } from '$lib/analysis';
  * Observation; the remaining four are derived-chart windows, each sourced from exactly one map
  * window (see `ChartWindowPayloadBase.sourceMapWindowId`). */
 export type WindowType =
-	| 'map'
-	| 'accumulate'
-	| 'rhi'
-	| 'cross-section'
-	| 'profile'
-	| 'stats'
-	| 'observation-info';
+	'map' | 'accumulate' | 'rhi' | 'cross-section' | 'profile' | 'stats' | 'observation-info';
 
 export interface WindowRect {
 	x: number;

@@ -817,7 +817,11 @@
 								gridStepLonDeg={settings.gridStepLonDeg}
 								onOpenLocationEditor={() => openLocationEditor(mapObs)}
 								onShowVad={(idx) =>
-									(vadSource = { channels: mapChannels, channelIndex: idx, siteAltM: mapSite?.altM ?? 0 })}
+									(vadSource = {
+										channels: mapChannels,
+										channelIndex: idx,
+										siteAltM: mapSite?.altM ?? 0
+									})}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'accumulate'}
@@ -897,7 +901,12 @@
 							)}
 							{@const srcChannels = channelsFor(srcObs)}
 							{@const srcSite = effectiveSiteFor(srcObs)}
-							<StatsWindow win={w} observation={srcObs} channels={srcChannels} effectiveSiteAltM={srcSite?.altM ?? 0} />
+							<StatsWindow
+								win={w}
+								observation={srcObs}
+								channels={srcChannels}
+								effectiveSiteAltM={srcSite?.altM ?? 0}
+							/>
 						{:else if w.type === 'observation-info'}
 							<ObservationInfoWindow
 								win={w}
