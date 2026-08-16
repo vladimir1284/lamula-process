@@ -5,7 +5,13 @@ import type { OpenedFile, RecentFileEntry } from '$lib/platform';
 import { observationMachine } from './observationMachine';
 
 // Mock actor return types must match the real actors' output exactly for .provide().
-type OpenOut = (OpenedFile & { source: 'local' | 'aws'; s3Key?: string }) | null;
+type OpenOut = (OpenedFile & { source: 'local' | 'aws'; s3Key?: string })[];
+// parseFile now parses each picked file into its own independent entry (see observationMachine.ts).
+type ParseFileOut = {
+	entries: { observation: Observation; fileName: string }[];
+	recentFiles: RecentFileEntry[];
+};
+// parseVolumeFile/parseAccumulateFile still merge, unlike parseFile above.
 type ParseOut = { observation: Observation; recentFiles: RecentFileEntry[] };
 type ResolveOut = { fileName: string; bytes: Uint8Array; source: 'local' | 'aws'; s3Key?: string };
 
@@ -33,13 +39,11 @@ describe('observationMachine', () => {
 	it('open -> parse -> ready stores the observation', async () => {
 		const machine = observationMachine.provide({
 			actors: {
-				openFile: fromPromise(async (): Promise<OpenOut> => ({
-					fileName: 'a.vol',
-					bytes: new Uint8Array(),
-					source: 'local'
-				})),
-				parseFile: fromPromise(async (): Promise<ParseOut> => ({
-					observation: fakeObs,
+				openFile: fromPromise(async (): Promise<OpenOut> => [
+					{ fileName: 'a.vol', bytes: new Uint8Array(), source: 'local' }
+				]),
+				parseFile: fromPromise(async (): Promise<ParseFileOut> => ({
+					entries: [{ observation: fakeObs, fileName: 'a.vol' }],
 					recentFiles: [{ label: 'a.vol', source: 'local' }]
 				}))
 			}
@@ -54,9 +58,9 @@ describe('observationMachine', () => {
 	it('returns to idle when the picker is cancelled', async () => {
 		const machine = observationMachine.provide({
 			actors: {
-				openFile: fromPromise(async (): Promise<OpenOut> => null),
-				parseFile: fromPromise(async (): Promise<ParseOut> => ({
-					observation: fakeObs,
+				openFile: fromPromise(async (): Promise<OpenOut> => []),
+				parseFile: fromPromise(async (): Promise<ParseFileOut> => ({
+					entries: [{ observation: fakeObs, fileName: 'a.vol' }],
 					recentFiles: []
 				}))
 			}
@@ -74,12 +78,10 @@ describe('observationMachine', () => {
 	it('captures a parse error', async () => {
 		const machine = observationMachine.provide({
 			actors: {
-				openFile: fromPromise(async (): Promise<OpenOut> => ({
-					fileName: 'bad',
-					bytes: new Uint8Array(),
-					source: 'local'
-				})),
-				parseFile: fromPromise(async (): Promise<ParseOut> => {
+				openFile: fromPromise(async (): Promise<OpenOut> => [
+					{ fileName: 'bad', bytes: new Uint8Array(), source: 'local' }
+				]),
+				parseFile: fromPromise(async (): Promise<ParseFileOut> => {
 					throw new Error('No parser recognizes file');
 				})
 			}
@@ -98,8 +100,8 @@ describe('observationMachine', () => {
 					bytes: new Uint8Array(),
 					source: 'local'
 				})),
-				parseFile: fromPromise(async (): Promise<ParseOut> => ({
-					observation: fakeObs,
+				parseFile: fromPromise(async (): Promise<ParseFileOut> => ({
+					entries: [{ observation: fakeObs, fileName: 'a.vol' }],
 					recentFiles: [{ label: 'a.vol', source: 'local' }]
 				}))
 			}

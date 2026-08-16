@@ -1,6 +1,5 @@
 import { setup, assign, fromPromise } from 'xstate';
 import {
-	openObservationFile,
 	openObservationFiles,
 	addRecentFile,
 	reopenLocalFile,
@@ -42,7 +41,7 @@ interface Ctx {
 	observation: Observation | null;
 	error: string | null;
 	recentFiles: RecentFileEntry[];
-	picked: Picked | null;
+	picked: Picked[] | null;
 	pickedVolume: Picked[] | null;
 	/** Independent from `observation` -- a TimeSpan is a second, parallel data source (multiple
 	 * observations across time, for the accumulate product), not a variation of the single current
@@ -100,23 +99,36 @@ export const observationMachine = setup({
 			| { type: 'CLOSE_OBSERVATION'; id: string }
 	},
 	actors: {
-		openFile: fromPromise(async (): Promise<Picked | null> => {
-			const picked = await openObservationFile();
-			return picked ? { ...picked, source: 'local' } : null;
+		// Multi-select so "Abrir archivo" can load several complete observations at once (e.g.
+		// several .obs) -- each one is parsed independently by parseFile below and added as its own
+		// entry, unlike openFiles/parseVolumeFile which stitch same-volume sweep files together.
+		openFile: fromPromise(async (): Promise<Picked[]> => {
+			const files = await openObservationFiles();
+			return files.map((f) => ({ ...f, source: 'local' as const }));
 		}),
 		// Multi-file picker for opening a volume's sweep files at once (see parseVolumeFile).
 		openFiles: fromPromise(async (): Promise<Picked[]> => {
 			const files = await openObservationFiles();
 			return files.map((f) => ({ ...f, source: 'local' as const }));
 		}),
-		parseFile: fromPromise(async ({ input }: { input: Picked }) => {
-			const observation = await parseObservation(input);
-			const config = await addRecentFile({
-				label: input.fileName,
-				source: input.source,
-				s3Key: input.s3Key
-			});
-			return { observation, recentFiles: config.recentFiles };
+		// Parses each picked file as its own, independent Observation (unlike parseVolumeFile, which
+		// merges same-volume sweep files into one) and records each in the recent-files list.
+		parseFile: fromPromise(async ({ input }: { input: Picked[] }) => {
+			const observations = await Promise.all(input.map((picked) => parseObservation(picked)));
+			const entries = observations.map((observation, i) => ({
+				observation,
+				fileName: input[i].fileName
+			}));
+			let recentFiles: RecentFileEntry[] = [];
+			for (const picked of input) {
+				const config = await addRecentFile({
+					label: picked.fileName,
+					source: picked.source,
+					s3Key: picked.s3Key
+				});
+				recentFiles = config.recentFiles;
+			}
+			return { entries, recentFiles };
 		}),
 		// Parses each single-sweep file and stitches them into one multi-tilt Observation (see
 		// domain/mergeSweeps.ts) -- feeds both the AWS-volume-grouping and local-multi-file-open
@@ -151,7 +163,7 @@ export const observationMachine = setup({
 	actions: {
 		assignRemotePicked: assign({
 			error: null,
-			picked: ({ event }) => (event as { picked: Picked }).picked
+			picked: ({ event }) => [(event as { picked: Picked }).picked]
 		}),
 		assignVolumePicked: assign({
 			error: null,
@@ -227,8 +239,8 @@ export const observationMachine = setup({
 				src: 'openFile',
 				onDone: [
 					{
-						guard: ({ event }) => event.output !== null,
-						actions: assign({ picked: ({ event }) => event.output as Picked }),
+						guard: ({ event }) => event.output.length > 0,
+						actions: assign({ picked: ({ event }) => event.output }),
 						target: 'parsing'
 					},
 					{ target: 'idle' } // picker cancelled
@@ -282,7 +294,7 @@ export const observationMachine = setup({
 				input: ({ event }) => (event as { entry: RecentFileEntry }).entry,
 				onDone: {
 					target: 'parsing',
-					actions: assign({ picked: ({ event }) => event.output })
+					actions: assign({ picked: ({ event }) => [event.output] })
 				},
 				onError: {
 					target: 'error',
@@ -293,18 +305,24 @@ export const observationMachine = setup({
 		parsing: {
 			invoke: {
 				src: 'parseFile',
-				input: ({ context }) => context.picked as Picked,
+				input: ({ context }) => context.picked as Picked[],
 				onDone: {
 					target: 'ready',
 					actions: assign({
-						observation: ({ event }) => event.output.observation,
+						observation: ({ event }) =>
+							event.output.entries[event.output.entries.length - 1].observation,
 						recentFiles: ({ event }) => event.output.recentFiles,
 						observations: ({ context, event }) =>
-							upsertObservationEntry(context.observations, {
-								observation: event.output.observation,
-								fileName: context.picked?.fileName ?? event.output.observation.id
-							}),
-						activeObservationId: ({ event }) => event.output.observation.id
+							event.output.entries.reduce(
+								(list, entry) =>
+									upsertObservationEntry(list, {
+										observation: entry.observation,
+										fileName: entry.fileName
+									}),
+								context.observations
+							),
+						activeObservationId: ({ event }) =>
+							event.output.entries[event.output.entries.length - 1].observation.id
 					})
 				},
 				onError: {
