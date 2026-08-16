@@ -30,6 +30,14 @@ interface Picked {
 	s3Key?: string;
 }
 
+/** One resident, still-open observation. `fileName` isn't on the domain `Observation` -- carried
+ * alongside from the `Picked` that produced it, the same way `recentFiles` stores labels outside
+ * the domain model. */
+export interface ObservationEntry {
+	observation: Observation;
+	fileName: string;
+}
+
 interface Ctx {
 	observation: Observation | null;
 	error: string | null;
@@ -41,6 +49,23 @@ interface Ctx {
 	 * Observation. Loading one never touches the other. */
 	timeSpan: TimeSpan | null;
 	pickedAccum: Picked[] | null;
+	/** Every observation loaded and not yet closed (the observation-info window's manager list) --
+	 * `observation` above always mirrors whichever entry here is `activeObservationId`. */
+	observations: ObservationEntry[];
+	activeObservationId: string | null;
+}
+
+/** Replace-by-`observation.id` or append -- reloading the same file (same site+timestamp) updates
+ * its entry in place instead of duplicating it. */
+function upsertObservationEntry(
+	list: ObservationEntry[],
+	entry: ObservationEntry
+): ObservationEntry[] {
+	const idx = list.findIndex((e) => e.observation.id === entry.observation.id);
+	if (idx === -1) return [...list, entry];
+	const next = [...list];
+	next[idx] = entry;
+	return next;
 }
 
 /** Re-fetches (aws) or re-reads (local, via the remembered handle) a recent-files entry. */
@@ -71,6 +96,8 @@ export const observationMachine = setup({
 			| { type: 'LOAD_ACCUMULATE'; picked: Picked[] }
 			| { type: 'OPEN_RECENT'; entry: RecentFileEntry }
 			| { type: 'RECENT_FILES_LOADED'; recentFiles: RecentFileEntry[] }
+			| { type: 'SELECT_OBSERVATION'; id: string }
+			| { type: 'CLOSE_OBSERVATION'; id: string }
 	},
 	actors: {
 		openFile: fromPromise(async (): Promise<Picked | null> => {
@@ -136,6 +163,27 @@ export const observationMachine = setup({
 		}),
 		assignRecentFiles: assign({
 			recentFiles: ({ event }) => (event as { recentFiles: RecentFileEntry[] }).recentFiles
+		}),
+		selectObservation: assign({
+			activeObservationId: ({ event }) => (event as { id: string }).id,
+			observation: ({ context, event }) => {
+				const id = (event as { id: string }).id;
+				return (
+					context.observations.find((e) => e.observation.id === id)?.observation ??
+					context.observation
+				);
+			}
+		}),
+		closeObservation: assign(({ context, event }) => {
+			const id = (event as { id: string }).id;
+			const observations = context.observations.filter((e) => e.observation.id !== id);
+			if (context.activeObservationId !== id) return { observations };
+			const next = observations[observations.length - 1] ?? null;
+			return {
+				observations,
+				activeObservationId: next?.observation.id ?? null,
+				observation: next?.observation ?? null
+			};
 		})
 	}
 }).createMachine({
@@ -148,11 +196,19 @@ export const observationMachine = setup({
 		picked: null,
 		pickedVolume: null,
 		timeSpan: null,
-		pickedAccum: null
+		pickedAccum: null,
+		observations: [],
+		activeObservationId: null
 	},
 	// Internal (no target) so it applies from whichever state we're in without disturbing it --
-	// the page sends this once on mount, after `loadConfig()` resolves.
-	on: { RECENT_FILES_LOADED: { actions: 'assignRecentFiles' } },
+	// the page sends this once on mount, after `loadConfig()` resolves. SELECT_OBSERVATION /
+	// CLOSE_OBSERVATION are also global for the same reason -- the observation-info window's
+	// manager list must work no matter which settled state (idle/ready/error) we're in.
+	on: {
+		RECENT_FILES_LOADED: { actions: 'assignRecentFiles' },
+		SELECT_OBSERVATION: { actions: 'selectObservation' },
+		CLOSE_OBSERVATION: { actions: 'closeObservation' }
+	},
 	states: {
 		idle: {
 			on: {
@@ -242,7 +298,13 @@ export const observationMachine = setup({
 					target: 'ready',
 					actions: assign({
 						observation: ({ event }) => event.output.observation,
-						recentFiles: ({ event }) => event.output.recentFiles
+						recentFiles: ({ event }) => event.output.recentFiles,
+						observations: ({ context, event }) =>
+							upsertObservationEntry(context.observations, {
+								observation: event.output.observation,
+								fileName: context.picked?.fileName ?? event.output.observation.id
+							}),
+						activeObservationId: ({ event }) => event.output.observation.id
 					})
 				},
 				onError: {
@@ -262,7 +324,13 @@ export const observationMachine = setup({
 					target: 'ready',
 					actions: assign({
 						observation: ({ event }) => event.output.observation,
-						recentFiles: ({ event }) => event.output.recentFiles
+						recentFiles: ({ event }) => event.output.recentFiles,
+						observations: ({ context, event }) =>
+							upsertObservationEntry(context.observations, {
+								observation: event.output.observation,
+								fileName: context.pickedVolume?.[0]?.fileName ?? event.output.observation.id
+							}),
+						activeObservationId: ({ event }) => event.output.observation.id
 					})
 				},
 				onError: {

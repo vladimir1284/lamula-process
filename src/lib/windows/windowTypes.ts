@@ -7,7 +7,14 @@ import type { RectangleRegion } from '$lib/analysis';
  * map but sourced from a `TimeSpan` (multiple observations) instead of the page's single current
  * Observation; the remaining four are derived-chart windows, each sourced from exactly one map
  * window (see `ChartWindowPayloadBase.sourceMapWindowId`). */
-export type WindowType = 'map' | 'accumulate' | 'rhi' | 'cross-section' | 'profile' | 'stats';
+export type WindowType =
+	| 'map'
+	| 'accumulate'
+	| 'rhi'
+	| 'cross-section'
+	| 'profile'
+	| 'stats'
+	| 'observation-info';
 
 export interface WindowRect {
 	x: number;
@@ -19,6 +26,11 @@ export interface WindowRect {
 /** Everything a map window needs to render its own product/channel/elevation/overlays,
  * independent of any other map window open at the same time. */
 export interface MapWindowPayload {
+	/** Which resident observation (observationMachine's `observations` list) this window shows --
+	 * set once at creation from whichever was active then, never reassigned. Lets several map
+	 * windows each stay pinned to a different observation instead of all following the single
+	 * "active" one (see `+page.svelte`'s per-window `observationById`/`channelsFor` resolution). */
+	observationId: string;
 	product: GroundProductKind;
 	channelIndex: number;
 	elevationDeg: number;
@@ -101,13 +113,19 @@ export interface StatsWindowPayload extends ChartWindowPayloadBase {
 	threshold: number;
 }
 
+/** No per-window state -- the observation-info window reads the resident observation list and
+ * active id live from `observationMachine`'s context (passed down as props), same as `StatsWindow`
+ * reads its source map window live from `windowStore` instead of snapshotting it into payload. */
+export type ObservationInfoWindowPayload = Record<string, never>;
+
 export type WindowPayload =
 	| MapWindowPayload
 	| AccumulateWindowPayload
 	| RhiWindowPayload
 	| CrossSectionWindowPayload
 	| ProfileWindowPayload
-	| StatsWindowPayload;
+	| StatsWindowPayload
+	| ObservationInfoWindowPayload;
 
 export interface RadarWindow {
 	id: string;
@@ -139,5 +157,6 @@ export const WINDOW_TYPE_ICON: Record<WindowType, string> = {
 	rhi: 'radar',
 	'cross-section': 'timeline',
 	profile: 'monitoring',
-	stats: 'query_stats'
+	stats: 'query_stats',
+	'observation-info': 'info'
 };

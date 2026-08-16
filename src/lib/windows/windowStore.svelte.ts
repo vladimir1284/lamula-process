@@ -76,6 +76,17 @@ class WindowManagerStore {
 		return w;
 	}
 
+	/** Opens a window of `type` only if none exists yet; returns the existing one otherwise without
+	 * focusing it -- used for auto-opening the observation-info window on load, where stealing
+	 * focus from whatever the user is doing on every subsequent load would be intrusive. */
+	ensureOpen(
+		type: WindowType,
+		opts: { title: string; payload: WindowPayload; rect?: Partial<WindowRect> }
+	): RadarWindow {
+		const existing = this.windows.find((w) => w.type === type);
+		return existing ?? this.open(type, opts);
+	}
+
 	armCrossSection(sourceMapWindowId: string) {
 		this.armedCrossSection = sourceMapWindowId;
 	}

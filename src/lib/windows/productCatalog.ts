@@ -109,6 +109,7 @@ export function paletteKeyForGroundProduct(p: GroundProductKind, moment: MomentT
 
 export function defaultMapPayload(
 	product: GroundProductKind,
+	observationId: string,
 	appDefaults: {
 		baseMap: BaseMapId;
 		showRings: boolean;
@@ -121,6 +122,7 @@ export function defaultMapPayload(
 	}
 ): MapWindowPayload {
 	return {
+		observationId,
 		product,
 		channelIndex: 0,
 		elevationDeg: 0.5,

@@ -2,9 +2,14 @@
 	import { onMount } from 'svelte';
 	import { useMachine } from '@xstate/svelte';
 	import { observationMachine } from '$lib/pipeline/observationMachine';
-	import { observationChannels, hasGeoref, applySpeckleFilter } from '$lib/pipeline';
+	import {
+		observationChannels,
+		hasGeoref,
+		applySpeckleFilter,
+		type ChannelRef
+	} from '$lib/pipeline';
 	import type { Palette, ProductPaletteKey } from '$lib/palette/types';
-	import type { MomentType } from '$lib/domain/types';
+	import type { MomentType, Observation } from '$lib/domain/types';
 	import { formatAltitudeM } from '$lib/units';
 	import { locale, setLocale, SUPPORTED_LOCALES, _, type Locale } from '$lib/i18n';
 	import { VadModal, ScaleEditor, Modal, SiteLocationEditor } from '$lib/viewer';
@@ -45,7 +50,9 @@
 		exportLayout,
 		importLayout,
 		type CanvasSize,
-		type RadarWindow
+		type RadarWindow,
+		type MapWindowPayload,
+		type ChartWindowPayloadBase
 	} from '$lib/windows';
 	import {
 		PRODUCT_GROUPS,
@@ -62,7 +69,8 @@
 		RhiWindow,
 		CrossSectionWindow,
 		ProfileWindow,
-		StatsWindow
+		StatsWindow,
+		ObservationInfoWindow
 	} from '$lib/viewer/windows';
 
 	// Every moment the app can decode, for the settings assignment UI (domain/types.ts MomentType).
@@ -86,7 +94,11 @@
 	// Per-variable palette group, persisted + configurable (platform/paletteStore.ts). Seeded
 	// synchronously so the first paint has colors; the stored/edited book loads in onMount.
 	let book = $state<PaletteBook>(seedPaletteBook());
-	let siteOverride = $state<{ lat: number; lon: number; altM: number } | null>(null);
+	// Per-site-code cache of previously-saved locations, for formats that don't self-describe site
+	// position (NEXRAD L2, .obs) -- see `effectiveSiteFor`. Keyed by site code (not by observation)
+	// so several resident observations needing a lookup concurrently don't race each other the way
+	// a single "latest wins" token would.
+	let siteOverrides = $state<Record<string, { lat: number; lon: number; altM: number }>>({});
 	let scaleEditorKey = $state<string | null>(null);
 	const showScaleEditor = $derived(scaleEditorKey !== null);
 	let showSettings = $state(false);
@@ -118,7 +130,12 @@
 		if (isGroundKind(id)) return !observation;
 		return !observation || !focusedMap;
 	}
-	let vadChannelIndex = $state<number | null>(null);
+	// Captured at arm-time from whichever MapWindow triggered VAD (see the `map` render branch's
+	// `onShowVad`) instead of read from a page-level global -- so VAD reflects that specific
+	// window's pinned observation, not whichever one happens to be "active" right now.
+	let vadSource = $state<{ channels: ChannelRef[]; channelIndex: number; siteAltM: number } | null>(
+		null
+	);
 
 	// App-wide settings (platform/settingsStore.ts): unit system + default base map/overlays,
 	// persisted in localStorage. Seeded synchronously with the defaults so the first paint is
@@ -164,6 +181,10 @@
 	// Independent from `observation` -- a second, parallel data source (multiple observations
 	// across time, for the accumulate product). Loading one never touches the other.
 	const timeSpan = $derived($snapshot.context.timeSpan);
+	// Every observation loaded and not yet closed, for the observation-info window's manager list --
+	// `observation` above always mirrors whichever entry here is `activeObservationId`.
+	const observations = $derived($snapshot.context.observations);
+	const activeObservationId = $derived($snapshot.context.activeObservationId);
 	const loading = $derived(
 		$snapshot.value === 'opening' ||
 			$snapshot.value === 'openingVolume' ||
@@ -179,40 +200,53 @@
 		send({ type: 'OPEN_RECENT', entry });
 	}
 
-	const rawChannels = $derived(observation ? observationChannels(observation) : []);
-	// Clones + filters scans rather than mutating `observation` -- toggling the speckle setting
-	// back to 0 always recovers the untouched data (see pipeline/applySpeckleFilter.ts).
-	const channels = $derived(
-		settings.speckleDistanceM > 0
-			? applySpeckleFilter(rawChannels, book, settings.speckleDistanceM)
-			: rawChannels
-	);
 	const georef = $derived(observation ? hasGeoref(observation) : false);
 
-	// Formats that don't self-describe site position (NEXRAD L2, .obs) may have a
-	// previously-saved location for this site code -- load it once per new observation.
-	let siteLookupToken = 0;
+	// Every observation loaded, not just the active one, may need its own site-position lookup
+	// (formats that don't self-describe it -- NEXRAD L2, .obs). Cached by site code and read
+	// per-window (see the `map`/chart render branches below) instead of once globally, so several
+	// map windows pinned to different observations each resolve their own site correctly.
+	function observationById(id: string | null): Observation | null {
+		return observations.find((e) => e.observation.id === id)?.observation ?? null;
+	}
+	function channelsFor(obs: Observation | null): ChannelRef[] {
+		const raw = obs ? observationChannels(obs) : [];
+		return settings.speckleDistanceM > 0
+			? applySpeckleFilter(raw, book, settings.speckleDistanceM)
+			: raw;
+	}
+	function effectiveSiteFor(obs: Observation | null) {
+		if (!obs) return null;
+		if (obs.site.lat !== undefined && obs.site.lon !== undefined) {
+			return { lat: obs.site.lat, lon: obs.site.lon, altM: obs.site.altM };
+		}
+		const key = siteKey(obs.site);
+		if (!(key in siteOverrides)) {
+			getSiteLocation(key).then((loc) => {
+				if (loc) siteOverrides = { ...siteOverrides, [key]: loc };
+			});
+		}
+		return siteOverrides[key] ?? null;
+	}
+
+	// Auto-opens the observation-info window on every newly loaded observation (never re-focuses an
+	// already-open one -- see `windowStore.ensureOpen`, stealing focus on every load would be
+	// intrusive). Tracks the last id we reacted to so switching the active observation back to one
+	// already seen doesn't re-trigger the open.
+	let lastAutoOpenedObservationId = $state<string | null>(null);
 	$effect(() => {
-		const obs = observation;
-		siteOverride = null;
-		if (!obs || hasGeoref(obs)) return;
-		const token = ++siteLookupToken;
-		getSiteLocation(siteKey(obs.site)).then((loc) => {
-			if (token !== siteLookupToken || !loc) return; // superseded by a newer file
-			siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+		const id = activeObservationId;
+		if (!id || id === lastAutoOpenedObservationId) return;
+		lastAutoOpenedObservationId = id;
+		windowStore.ensureOpen('observation-info', {
+			title: $_('window.observationInfoTitle'),
+			payload: {}
 		});
 	});
 
-	// Site position as carried by the parser, falling back to a user-entered/saved override
-	// for formats that don't self-describe it (NEXRAD L2, .obs). Global (not per-window): every
-	// map window looks at the same one loaded observation.
-	const effectiveSite = $derived.by(() => {
-		if (!observation) return null;
-		if (observation.site.lat !== undefined && observation.site.lon !== undefined) {
-			return { lat: observation.site.lat, lon: observation.site.lon, altM: observation.site.altM };
-		}
-		return siteOverride;
-	});
+	// Site position for the header toolbar (shows whichever observation is currently "active" in
+	// the manager) -- individual map windows resolve their own via `effectiveSiteFor` instead.
+	const effectiveSite = $derived(effectiveSiteFor(observation));
 	const site = $derived(effectiveSite ? { lon: effectiveSite.lon, lat: effectiveSite.lat } : null);
 
 	// ── Accumulate (TimeSpan): same site-resolution dance as `observation` above, but kept as a
@@ -252,22 +286,23 @@
 		showSettings = true;
 	}
 
-	const vadChannel = $derived(
-		vadChannelIndex !== null ? channels[vadChannelIndex]?.channel : undefined
-	);
+	const vadChannel = $derived(vadSource?.channels[vadSource.channelIndex]?.channel);
 	const vadProfile = $derived.by(() => {
 		if (!vadChannel || vadChannel.scans.length === 0) return null;
-		return computeVadProfile(vadChannel, {}, effectiveSite?.altM ?? 0);
+		return computeVadProfile(vadChannel, {}, vadSource?.siteAltM ?? 0);
 	});
 
 	function fmt(n: number | null | undefined, digits = 1): string {
 		return n === null || n === undefined ? '—' : n.toFixed(digits);
 	}
 
-	// Opens Configuración straight to the "editar ubicación" form for the current file's site
-	// (single settings entry point -- no separate location-editor modal).
-	function openLocationEditor() {
-		editingSiteKey = observation ? siteKey(observation.site) : null;
+	// Opens Configuración straight to the "editar ubicación" form for the given observation's site
+	// (single settings entry point -- no separate location-editor modal). Takes an explicit
+	// observation (each MapWindow passes its own pinned one; the header toolbar passes the
+	// page-level "active" one) rather than closing over a global -- `onclick={openLocationEditor}`
+	// would otherwise pass the click's MouseEvent as `obs`.
+	function openLocationEditor(obs: Observation | null) {
+		editingSiteKey = obs ? siteKey(obs.site) : null;
 		settingsTab = 'sitios';
 		showSettings = true;
 	}
@@ -278,7 +313,7 @@
 		const key = editingSiteKey;
 		editingSiteKey = null;
 		if (!key) return;
-		if (observation && siteKey(observation.site) === key) siteOverride = loc;
+		siteOverrides = { ...siteOverrides, [key]: loc };
 		if (timeSpan?.observations[0] && siteKey(timeSpan.observations[0].site) === key) {
 			accumSiteOverride = loc;
 		}
@@ -311,7 +346,7 @@
 		await refreshSiteList();
 		if (observation && !hasGeoref(observation)) {
 			const loc = await getSiteLocation(siteKey(observation.site));
-			if (loc) siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+			if (loc) siteOverrides = { ...siteOverrides, [siteKey(observation.site)]: loc };
 		}
 	}
 
@@ -320,7 +355,7 @@
 		await refreshSiteList();
 		if (observation && !hasGeoref(observation)) {
 			const loc = await getSiteLocation(siteKey(observation.site));
-			if (loc) siteOverride = { lat: loc.lat, lon: loc.lon, altM: loc.altM };
+			if (loc) siteOverrides = { ...siteOverrides, [siteKey(observation.site)]: loc };
 		}
 	}
 
@@ -375,6 +410,14 @@
 		return w && w.type === 'map' ? w : null;
 	});
 
+	// UTC, matching the rest of the app's fixed-UTC display convention (see MapWindow's own
+	// formatUtcTime) -- stamped into a window's title at creation so the taskbar/cascade view
+	// identifies which observation it came from without opening it.
+	function formatUtcTimeShort(ts: string): string {
+		const d = new Date(ts);
+		return isNaN(d.getTime()) ? ts : d.toISOString().slice(11, 19) + 'Z';
+	}
+
 	function launchCatalogItem(id: CatalogProductKind) {
 		if (id === 'ACCUMULATE') {
 			if (!timeSpan) return;
@@ -394,9 +437,10 @@
 			return;
 		}
 		if (isGroundKind(id)) {
+			if (!observation || !activeObservationId) return;
 			windowStore.open('map', {
-				title: $_(catalogLabel(id)),
-				payload: defaultMapPayload(id, {
+				title: `${$_(catalogLabel(id))} · ${observation.site.name} · ${formatUtcTimeShort(observation.timestamp)}`,
+				payload: defaultMapPayload(id, activeObservationId, {
 					baseMap: settings.baseMap,
 					showRings: settings.showRings,
 					showRadials: settings.showRadials,
@@ -604,7 +648,7 @@
 						<span class="text-outline-variant">·</span>
 						<button
 							class="flex items-center gap-1 text-primary-container transition-opacity hover:opacity-80"
-							onclick={openLocationEditor}
+							onclick={() => openLocationEditor(observation)}
 						>
 							<span class="material-symbols-outlined text-[16px]">edit_location</span>
 							{$_('common.editLocation')}
@@ -753,14 +797,17 @@
 				<WindowManager bind:canvasSize>
 					{#snippet content(w)}
 						{#if w.type === 'map'}
+							{@const mapObs = observationById((w.payload as MapWindowPayload).observationId)}
+							{@const mapChannels = channelsFor(mapObs)}
+							{@const mapSite = effectiveSiteFor(mapObs)}
 							<MapWindow
 								win={w}
-								{observation}
-								{channels}
+								observation={mapObs}
+								channels={mapChannels}
 								{book}
 								{unitSystem}
-								{site}
-								effectiveSiteAltM={effectiveSite?.altM ?? 0}
+								site={mapSite ? { lon: mapSite.lon, lat: mapSite.lat } : null}
+								effectiveSiteAltM={mapSite?.altM ?? 0}
 								imageSmoothing={settings.imageSmoothing}
 								overlayLineColor={settings.overlayLineColor}
 								overlayLineWidthPx={settings.overlayLineWidthPx}
@@ -768,8 +815,9 @@
 								radialsStepDeg={settings.radialsStepDeg}
 								gridStepLatDeg={settings.gridStepLatDeg}
 								gridStepLonDeg={settings.gridStepLonDeg}
-								onOpenLocationEditor={openLocationEditor}
-								onShowVad={(idx) => (vadChannelIndex = idx)}
+								onOpenLocationEditor={() => openLocationEditor(mapObs)}
+								onShowVad={(idx) =>
+									(vadSource = { channels: mapChannels, channelIndex: idx, siteAltM: mapSite?.altM ?? 0 })}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'accumulate'}
@@ -789,39 +837,74 @@
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'rhi'}
+							{@const srcMap = windowStore.find(
+								(w.payload as ChartWindowPayloadBase).sourceMapWindowId
+							)}
+							{@const srcObs = observationById(
+								(srcMap?.payload as MapWindowPayload | undefined)?.observationId ?? null
+							)}
+							{@const srcChannels = channelsFor(srcObs)}
+							{@const srcSite = effectiveSiteFor(srcObs)}
 							<RhiWindow
 								win={w}
-								{observation}
-								{channels}
+								observation={srcObs}
+								channels={srcChannels}
 								{book}
 								{unitSystem}
-								effectiveSiteAltM={effectiveSite?.altM ?? 0}
+								effectiveSiteAltM={srcSite?.altM ?? 0}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'cross-section'}
+							{@const srcMap = windowStore.find(
+								(w.payload as ChartWindowPayloadBase).sourceMapWindowId
+							)}
+							{@const srcObs = observationById(
+								(srcMap?.payload as MapWindowPayload | undefined)?.observationId ?? null
+							)}
+							{@const srcChannels = channelsFor(srcObs)}
+							{@const srcSite = effectiveSiteFor(srcObs)}
 							<CrossSectionWindow
 								win={w}
-								{observation}
-								{channels}
+								observation={srcObs}
+								channels={srcChannels}
 								{book}
 								{unitSystem}
-								effectiveSiteAltM={effectiveSite?.altM ?? 0}
+								effectiveSiteAltM={srcSite?.altM ?? 0}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'profile'}
+							{@const srcMap = windowStore.find(
+								(w.payload as ChartWindowPayloadBase).sourceMapWindowId
+							)}
+							{@const srcObs = observationById(
+								(srcMap?.payload as MapWindowPayload | undefined)?.observationId ?? null
+							)}
+							{@const srcChannels = channelsFor(srcObs)}
+							{@const srcSite = effectiveSiteFor(srcObs)}
 							<ProfileWindow
 								win={w}
-								{observation}
-								{channels}
-								effectiveSiteAltM={effectiveSite?.altM ?? 0}
+								observation={srcObs}
+								channels={srcChannels}
+								effectiveSiteAltM={srcSite?.altM ?? 0}
 								onEditScale={(key) => (scaleEditorKey = key)}
 							/>
 						{:else if w.type === 'stats'}
-							<StatsWindow
+							{@const srcMap = windowStore.find(
+								(w.payload as ChartWindowPayloadBase).sourceMapWindowId
+							)}
+							{@const srcObs = observationById(
+								(srcMap?.payload as MapWindowPayload | undefined)?.observationId ?? null
+							)}
+							{@const srcChannels = channelsFor(srcObs)}
+							{@const srcSite = effectiveSiteFor(srcObs)}
+							<StatsWindow win={w} observation={srcObs} channels={srcChannels} effectiveSiteAltM={srcSite?.altM ?? 0} />
+						{:else if w.type === 'observation-info'}
+							<ObservationInfoWindow
 								win={w}
-								{observation}
-								{channels}
-								effectiveSiteAltM={effectiveSite?.altM ?? 0}
+								{observations}
+								{activeObservationId}
+								onSelect={(id) => send({ type: 'SELECT_OBSERVATION', id })}
+								onClose={(id) => send({ type: 'CLOSE_OBSERVATION', id })}
 							/>
 						{/if}
 					{/snippet}
@@ -940,7 +1023,7 @@
 							</button>
 						</div>
 						<SiteLocationEditor
-							initial={siteList[editingSiteKey] ?? siteOverride ?? undefined}
+							initial={siteList[editingSiteKey] ?? siteOverrides[editingSiteKey] ?? undefined}
 							onsave={saveSiteLocation}
 							oncancel={cancelSiteEdit}
 						/>
@@ -1372,9 +1455,5 @@
 		</div>
 	</Modal>
 
-	<VadModal
-		open={vadChannelIndex !== null}
-		profile={vadProfile}
-		onclose={() => (vadChannelIndex = null)}
-	/>
+	<VadModal open={vadSource !== null} profile={vadProfile} onclose={() => (vadSource = null)} />
 </div>

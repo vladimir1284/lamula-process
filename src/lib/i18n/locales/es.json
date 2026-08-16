@@ -244,7 +244,31 @@
 		"statsTitle": "Estadísticas de región",
 		"emptyStats": "Traza un rectángulo en el mapa de origen para ver estadísticas.",
 		"exportCsv": "Exportar CSV",
-		"exportTxt": "Exportar TXT"
+		"exportTxt": "Exportar TXT",
+		"observationInfoTitle": "Información de la observación"
+	},
+	"observationInfo": {
+		"listTitle": "Observaciones cargadas",
+		"active": "Activa",
+		"select": "Elegir",
+		"close": "Cerrar",
+		"empty": "No hay observaciones cargadas.",
+		"date": "Fecha",
+		"time": "Hora",
+		"file": "Archivo",
+		"site": "Sitio",
+		"coordinates": "Coordenadas",
+		"design": "VCP",
+		"movements": "Exploraciones",
+		"movementsNo": "No.",
+		"movementsType": "Tipo",
+		"movementsChannel": "Canal",
+		"movementsAngle": "Ángulo",
+		"movementsRays": "Rayos",
+		"movementsGates": "Celdas",
+		"products": "Productos",
+		"openWindows": "Ventanas abiertas",
+		"noOpenWindows": "Sin ventanas abiertas para esta observación."
 	},
 	"analysisReport": {
 		"region": "Región",

@@ -244,7 +244,31 @@
 		"statsTitle": "Region statistics",
 		"emptyStats": "Draw a rectangle on the source map to see statistics.",
 		"exportCsv": "Export CSV",
-		"exportTxt": "Export TXT"
+		"exportTxt": "Export TXT",
+		"observationInfoTitle": "Observation info"
+	},
+	"observationInfo": {
+		"listTitle": "Loaded observations",
+		"active": "Active",
+		"select": "Select",
+		"close": "Close",
+		"empty": "No observations loaded.",
+		"date": "Date",
+		"time": "Time",
+		"file": "File",
+		"site": "Site",
+		"coordinates": "Coordinates",
+		"design": "VCP",
+		"movements": "Scans",
+		"movementsNo": "No.",
+		"movementsType": "Type",
+		"movementsChannel": "Channel",
+		"movementsAngle": "Angle",
+		"movementsRays": "Rays",
+		"movementsGates": "Gates",
+		"products": "Products",
+		"openWindows": "Open windows",
+		"noOpenWindows": "No open windows for this observation."
 	},
 	"analysisReport": {
 		"region": "Region",
