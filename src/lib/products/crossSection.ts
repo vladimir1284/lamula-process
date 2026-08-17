@@ -281,30 +281,48 @@ function rasterizeCrossSectionMax(
 	const metas = buildScanMeta(scans);
 	if (metas.length === 0) throw new Error('rasterizeCrossSectionMax: no scans');
 
-	// Each ray's azimuth sin/cos, precomputed once per scan -- shared across every (height row,
-	// range bin) pair below since azimuth doesn't depend on either. Scans whose ray count doesn't
-	// match the reference are skipped (same assumption `computeCappi` makes for CAPPI).
+	// Each ray's azimuth projected onto (along, perp) directly -- `alongCoef`/`perpCoef` are sin/cos
+	// pre-assigned to whichever axis `alongIsX` says is "along" for THIS line, so the hot loop below
+	// never re-branches on it per ray. Precomputed once per scan, shared across every (height row,
+	// range bin) pair since azimuth doesn't depend on either. Scans whose ray count doesn't match
+	// the reference are skipped (same assumption `computeCappi` makes for CAPPI).
 	const refNumRays = metas[0].scan.numRays;
 	const rayGeom = metas.map(({ scan, azCentersDeg }) => {
 		if (scan.numRays !== refNumRays) return null;
-		const sin = new Float64Array(scan.numRays);
-		const cos = new Float64Array(scan.numRays);
+		const alongCoef = new Float64Array(scan.numRays);
+		const perpCoef = new Float64Array(scan.numRays);
 		for (let i = 0; i < scan.numRays; i++) {
 			const azRad = azCentersDeg[i] * DEG;
-			sin[i] = Math.sin(azRad);
-			cos[i] = Math.cos(azRad);
+			const s = Math.sin(azRad);
+			const c = Math.cos(azRad);
+			alongCoef[i] = alongIsX ? s : c;
+			perpCoef[i] = alongIsX ? c : s;
 		}
-		return { sin, cos };
+		return { alongCoef, perpCoef };
 	});
 
-	// Ground-range bins to probe, at the source's own gate resolution, bounded to the region that
-	// could possibly land in the output window -- a small docked panel doesn't pay for the radar's
-	// full sweep.
+	// Ground-range bins to probe, at the source's own gate resolution, bounded to [minR, maxR] --
+	// the nearest/farthest distance the along x perp rectangle can put a point from the site. Range
+	// bins outside that band can be skipped outright: no point in the window is ever that close or
+	// that far, so every ray at such a bin would fail the along/perp check anyway. This matters most
+	// for a panned view, where the window can sit well away from the site (see the coverage-wedge
+	// fix above for why that's a real, common case) -- without the lower bound, the loop would still
+	// probe every bin from r=0 out to the window, almost all wasted.
 	const refGateLengthM = metas[0].scan.gateLengthM;
+	function edgeDistM(min: number, max: number): number {
+		if (0 < min) return min;
+		if (0 > max) return -max;
+		return 0;
+	}
+	const minRangeBoundM = Math.hypot(
+		edgeDistM(alongMin, alongMax),
+		edgeDistM(perp.perpMinM, perp.perpMaxM)
+	);
 	const alongBoundM = Math.max(Math.abs(alongMin), Math.abs(alongMax));
 	const perpBoundM = Math.max(Math.abs(perp.perpMinM), Math.abs(perp.perpMaxM));
 	const maxRangeBoundM = Math.hypot(alongBoundM, perpBoundM);
-	const numRangeBins = Math.max(1, Math.ceil(maxRangeBoundM / refGateLengthM));
+	const minRangeBinRi = Math.max(0, Math.floor(minRangeBoundM / refGateLengthM));
+	const numRangeBins = Math.max(minRangeBinRi + 1, Math.ceil(maxRangeBoundM / refGateLengthM));
 
 	let loElevDeg = Infinity;
 	for (const m of metas) if (m.elevDeg < loElevDeg) loElevDeg = m.elevDeg;
@@ -314,7 +332,7 @@ function rasterizeCrossSectionMax(
 
 	for (let py = 0; py < h; py++) {
 		const height = maxHeightM - (py + 0.5) * stepY;
-		for (let ri = 0; ri <= numRangeBins; ri++) {
+		for (let ri = minRangeBinRi; ri <= numRangeBins; ri++) {
 			const r = ri * refGateLengthM;
 			const elev = beamElevAtGroundHeight(r, height, siteAltM);
 			const si = nearestScanByElev(metas, elev, pad);
@@ -326,12 +344,10 @@ function rasterizeCrossSectionMax(
 			const gate = Math.round((slant - scan.rangeToFirstGateM) / scan.gateLengthM);
 			if (gate < 0 || gate >= scan.numGates) continue;
 			for (let ray = 0; ray < scan.numRays; ray++) {
-				const x = r * geom.sin[ray];
-				const y = r * geom.cos[ray];
-				const along = alongIsX ? x : y;
-				const perpCoord = alongIsX ? y : x;
-				if (perpCoord < perp.perpMinM || perpCoord > perp.perpMaxM) continue;
+				const along = r * geom.alongCoef[ray];
 				if (along < alongMin || along >= alongMax) continue;
+				const perpCoord = r * geom.perpCoef[ray];
+				if (perpCoord < perp.perpMinM || perpCoord > perp.perpMaxM) continue;
 				const idx = ray * scan.numGates + gate;
 				const flagCode = scan.cells.flags[idx];
 				if (flagCode !== CELL_FLAG_OK && !(includeBelow && flagCode === CELL_FLAG_BELOW_THRESHOLD))
