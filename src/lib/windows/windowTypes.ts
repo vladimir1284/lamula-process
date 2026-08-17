@@ -55,6 +55,11 @@ export interface MapWindowPayload {
 	/** East-west position (km, +east/-west of the site) of the docked N-S cut. Draggable on the
 	 * map (a vertical guide line) or via the toolbar's "E-W" input. Default 0 (through the site). */
 	ewPositionKm: number;
+	/** Render the docked E-W/N-S cuts as a legacy-style MAX projection (collapses the full
+	 * perpendicular window by max value) instead of the true vertical-plane slice at
+	 * `nsPositionKm`/`ewPositionKm`. Since the result no longer depends on that offset, the two
+	 * position guide lines on the map are hidden while this is on. Default false. */
+	cutMaxProjection: boolean;
 }
 
 /** The accumulate window has one fixed algorithm (no product switch, no CAPPI/TOPS/VIL fields) --

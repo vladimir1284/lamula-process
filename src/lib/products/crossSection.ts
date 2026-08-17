@@ -30,7 +30,7 @@ const DEG = Math.PI / 180;
 /** Fill for the "radar cannot see here" wedge below the lowest swept elevation at this range —
  * distinct from fully-transparent (true no-data within the observable region). Matches
  * render/rasterizeRHI.ts's NO_COVERAGE_RGBA so both cut styles read the same. */
-const NO_COVERAGE_RGBA: readonly [number, number, number, number] = [70, 78, 92, 130];
+export const NO_COVERAGE_RGBA: readonly [number, number, number, number] = [70, 78, 92, 130];
 
 export interface CutLine {
 	/** Endpoint A, site-relative metres (x east, y north). */
@@ -157,6 +157,12 @@ export interface CrossSectionRasterOptions {
 	elevPadDeg?: number;
 	/** Radar antenna altitude above the height datum (m), for the curvature model. Default 0. */
 	siteAltM?: number;
+	/** When set, render as a legacy-style MAX projection instead of the true vertical-plane slice:
+	 * collapses the ENTIRE perpendicular window (site-relative metres, on the axis `line` does NOT
+	 * vary along) by max value, independent of `line`'s own offset on that axis. `line` must be
+	 * axis-aligned (`eastWestLine`/`northSouthLine` -- ax===bx or ay===by); its along-axis endpoints
+	 * are still used for the kept axis's extent. See `rasterizeCrossSectionMax`. */
+	maxProjection?: { perpMinM: number; perpMaxM: number };
 }
 
 export interface CrossSectionRasterResult {
@@ -172,6 +178,7 @@ export function rasterizeCrossSection(
 	palette: Palette,
 	opts: CrossSectionRasterOptions
 ): CrossSectionRasterResult {
+	if (opts.maxProjection) return rasterizeCrossSectionMax(scans, palette, opts, opts.maxProjection);
 	const { widthPx: w, heightPx: h, maxHeightM, line } = opts;
 	const rgba = new Uint8ClampedArray(w * h * 4);
 	const metas = buildScanMeta(scans);
@@ -224,4 +231,161 @@ export function rasterizeCrossSection(
 		}
 	}
 	return { rgba, widthPx: w, heightPx: h, lineLengthM };
+}
+
+/**
+ * Legacy-style MAX projection cross-section (the `EstWst`/`NthSth` behaviour the module doc's
+ * "decision 4" deviation note describes): for every (distance-along-line, height) output cell,
+ * the MAX value found anywhere in the perpendicular window `perp`, instead of `sampleCrossSection`'s
+ * single point on `line` itself. `line` must be axis-aligned (`eastWestLine`/`northSouthLine`): its
+ * varying axis is the one kept, the other is collapsed across the full `perp` window, so unlike the
+ * per-pixel raster the result no longer depends on `line`'s offset on the collapsed axis. No
+ * linear-space conversion (raw MAX) -- that only applied to the general `Cut`'s averaging, per the
+ * same deviation note.
+ *
+ * Same backward/inverse-sampling shape as `sampleCrossSection` (one query per output height row,
+ * not a forward splat of source gates) so it's at least as dense as the per-pixel path -- a forward
+ * splat only paints the exact ground points source gates happen to land on, leaving visible gaps
+ * between rays/gates wherever the display resolution exceeds the source's. The one addition: at
+ * each height row, the elevation/gate lookup (`beamElevAtGroundHeight` + `nearestScanByElev`, same
+ * as `sampleCrossSection`) depends only on ground *range*, not azimuth -- so it's resolved once per
+ * (height row, range bin) and then reused across every ray at that range, instead of repeating a
+ * full per-pixel search for every perpendicular offset.
+ *
+ * Paints the same "radar cannot see here" wedge as the per-pixel path, with the same one-check-
+ * per-output-cell simplicity: since there's no single `line` offset once the perpendicular axis is
+ * collapsed, the wedge test uses the closest point the `perp` window actually reaches to the radar
+ * (see `perpClosest` below) as a one-sided coverage bound, instead of sweeping every ray like the
+ * data loop above does, and goes through the same padded `nearestScanByElev` test that loop uses
+ * (not a raw `elev < loElevDeg` comparison) so it can't shade a cell the data loop could still find
+ * real data for. Real data at that cell always wins over the wedge shading regardless.
+ */
+function rasterizeCrossSectionMax(
+	scans: Scan[],
+	palette: Palette,
+	opts: CrossSectionRasterOptions,
+	perp: { perpMinM: number; perpMaxM: number }
+): CrossSectionRasterResult {
+	const { widthPx: w, heightPx: h, maxHeightM, line } = opts;
+	const siteAltM = opts.siteAltM ?? 0;
+	const pad = opts.elevPadDeg ?? 0.75;
+	const includeBelow = opts.includeBelowThreshold ?? false;
+	const alongIsX = line.ay === line.by;
+	if (!alongIsX && line.ax !== line.bx) {
+		throw new Error('rasterizeCrossSectionMax: line must be axis-aligned (E-W or N-S)');
+	}
+	const alongMin = alongIsX ? line.ax : line.ay;
+	const alongMax = alongIsX ? line.bx : line.by;
+	const alongSpan = alongMax - alongMin;
+	const stepY = maxHeightM / h;
+	const metas = buildScanMeta(scans);
+	if (metas.length === 0) throw new Error('rasterizeCrossSectionMax: no scans');
+
+	// Each ray's azimuth sin/cos, precomputed once per scan -- shared across every (height row,
+	// range bin) pair below since azimuth doesn't depend on either. Scans whose ray count doesn't
+	// match the reference are skipped (same assumption `computeCappi` makes for CAPPI).
+	const refNumRays = metas[0].scan.numRays;
+	const rayGeom = metas.map(({ scan, azCentersDeg }) => {
+		if (scan.numRays !== refNumRays) return null;
+		const sin = new Float64Array(scan.numRays);
+		const cos = new Float64Array(scan.numRays);
+		for (let i = 0; i < scan.numRays; i++) {
+			const azRad = azCentersDeg[i] * DEG;
+			sin[i] = Math.sin(azRad);
+			cos[i] = Math.cos(azRad);
+		}
+		return { sin, cos };
+	});
+
+	// Ground-range bins to probe, at the source's own gate resolution, bounded to the region that
+	// could possibly land in the output window -- a small docked panel doesn't pay for the radar's
+	// full sweep.
+	const refGateLengthM = metas[0].scan.gateLengthM;
+	const alongBoundM = Math.max(Math.abs(alongMin), Math.abs(alongMax));
+	const perpBoundM = Math.max(Math.abs(perp.perpMinM), Math.abs(perp.perpMaxM));
+	const maxRangeBoundM = Math.hypot(alongBoundM, perpBoundM);
+	const numRangeBins = Math.max(1, Math.ceil(maxRangeBoundM / refGateLengthM));
+
+	let loElevDeg = Infinity;
+	for (const m of metas) if (m.elevDeg < loElevDeg) loElevDeg = m.elevDeg;
+
+	const maxVal = new Float32Array(w * h);
+	const written = new Uint8Array(w * h);
+
+	for (let py = 0; py < h; py++) {
+		const height = maxHeightM - (py + 0.5) * stepY;
+		for (let ri = 0; ri <= numRangeBins; ri++) {
+			const r = ri * refGateLengthM;
+			const elev = beamElevAtGroundHeight(r, height, siteAltM);
+			const si = nearestScanByElev(metas, elev, pad);
+			if (si < 0) continue;
+			const geom = rayGeom[si];
+			if (!geom) continue;
+			const { scan } = metas[si];
+			const slant = Math.hypot(r, height);
+			const gate = Math.round((slant - scan.rangeToFirstGateM) / scan.gateLengthM);
+			if (gate < 0 || gate >= scan.numGates) continue;
+			for (let ray = 0; ray < scan.numRays; ray++) {
+				const x = r * geom.sin[ray];
+				const y = r * geom.cos[ray];
+				const along = alongIsX ? x : y;
+				const perpCoord = alongIsX ? y : x;
+				if (perpCoord < perp.perpMinM || perpCoord > perp.perpMaxM) continue;
+				if (along < alongMin || along >= alongMax) continue;
+				const idx = ray * scan.numGates + gate;
+				const flagCode = scan.cells.flags[idx];
+				if (flagCode !== CELL_FLAG_OK && !(includeBelow && flagCode === CELL_FLAG_BELOW_THRESHOLD))
+					continue;
+				const px = Math.floor(((along - alongMin) / alongSpan) * w);
+				if (px < 0 || px >= w) continue;
+				const oi = py * w + px;
+				const v = scan.cells.values[idx];
+				if (!written[oi] || v > maxVal[oi]) {
+					maxVal[oi] = v;
+					written[oi] = 1;
+				}
+			}
+		}
+	}
+
+	// Closest achievable point to the radar within the ACTUAL perpendicular window -- 0 unless the
+	// window (viewport-centred, so it shifts when the map is panned) doesn't even bracket the site,
+	// in which case it's whichever edge is nearest. This is the true best case for coverage (shortest
+	// range = steepest required elevation = likeliest to clear the lowest tilt): if even this best
+	// case is below the lowest tilt, so is every other point in the window, so the wedge can never
+	// disagree with the data loop above (which searches the whole window and would already have
+	// written real data for anything this check would wrongly shade).
+	const perpClosest = Math.min(perp.perpMaxM, Math.max(perp.perpMinM, 0));
+
+	const rgba = new Uint8ClampedArray(w * h * 4);
+	for (let py = 0; py < h; py++) {
+		const height = maxHeightM - (py + 0.5) * stepY;
+		for (let px = 0; px < w; px++) {
+			const i = py * w + px;
+			const o = i * 4;
+			if (written[i]) {
+				const [r, g, b] = colorForValue(palette, maxVal[i]);
+				rgba[o] = r;
+				rgba[o + 1] = g;
+				rgba[o + 2] = b;
+				rgba[o + 3] = 255;
+				continue;
+			}
+			const along = alongMin + (px + 0.5) * (alongSpan / w);
+			const elev = beamElevAtGroundHeight(Math.hypot(along, perpClosest), height, siteAltM);
+			// Must go through the same padded `nearestScanByElev` test the data loop uses (and
+			// `sampleCrossSection` uses for the per-pixel path) rather than comparing `elev` to
+			// `loElevDeg` directly: a raw `elev < loElevDeg` shades a band up to `pad` degrees wide
+			// that `nearestScanByElev` still tolerates as a match, so real data from the data loop
+			// could legitimately land there -- shading it regardless would then paint the wedge right
+			// over real returns.
+			if (nearestScanByElev(metas, elev, pad) < 0 && elev < loElevDeg) {
+				rgba[o] = NO_COVERAGE_RGBA[0];
+				rgba[o + 1] = NO_COVERAGE_RGBA[1];
+				rgba[o + 2] = NO_COVERAGE_RGBA[2];
+				rgba[o + 3] = NO_COVERAGE_RGBA[3];
+			}
+		}
+	}
+	return { rgba, widthPx: w, heightPx: h, lineLengthM: alongSpan };
 }

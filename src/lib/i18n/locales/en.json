@@ -211,6 +211,8 @@
 		"latLonGridAbbr": "GRID",
 		"cutPanelsTitle": "Docked N-S/E-W cuts (real data)",
 		"cutPanelsAbbr": "CUTS",
+		"cutMaxProjectionTitle": "Project maxima on the N-S/E-W cuts (collapses the entire perpendicular width by max, instead of showing the exact value over the movable cut line; hides the map's guide lines)",
+		"cutMaxProjectionAbbr": "MAX",
 		"nsPositionTitle": "E-W cut position (drag its guide line on the map, or type the N-S offset from the site)",
 		"ewPositionTitle": "N-S cut position (drag its guide line on the map, or type the E-W offset from the site)",
 		"radarLabel": "RADAR",

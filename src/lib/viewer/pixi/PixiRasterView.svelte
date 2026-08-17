@@ -42,6 +42,10 @@
 		onZoomChange?: (zoom: number) => void;
 		onplotmove?: (cx: number, cy: number) => void;
 		onplotleave?: () => void;
+		/** Wheel-zoom and drag-pan. Default true. Set false for a view whose framing must stay
+		 * strictly tied to something else (e.g. the docked cut panels, whose span follows the map's
+		 * own pan/zoom) -- an independent gesture here would desync it from that. */
+		interactive?: boolean;
 	}
 
 	let {
@@ -58,7 +62,8 @@
 		zoom = 1,
 		onZoomChange,
 		onplotmove,
-		onplotleave
+		onplotleave,
+		interactive = true
 	}: Props = $props();
 
 	// Same devicePixelRatio guard as chartCanvas.ts's setupHiDPICanvas -- kept local rather than
@@ -360,11 +365,11 @@
 	<canvas bind:this={pixiCanvas} class="absolute inset-0"></canvas>
 	<canvas
 		bind:this={overlayCanvas}
-		class="absolute inset-0 {dragging ? 'cursor-grabbing' : 'cursor-grab'}"
-		onpointerdown={handlePointerDown}
-		onpointermove={handlePointerMove}
-		onpointerup={handlePointerUp}
-		onpointerleave={handlePointerLeave}
-		onwheel={handleWheel}
+		class="absolute inset-0 {interactive ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : ''}"
+		onpointerdown={interactive ? handlePointerDown : undefined}
+		onpointermove={interactive ? handlePointerMove : undefined}
+		onpointerup={interactive ? handlePointerUp : undefined}
+		onpointerleave={interactive ? handlePointerLeave : undefined}
+		onwheel={interactive ? handleWheel : undefined}
 	></canvas>
 </div>

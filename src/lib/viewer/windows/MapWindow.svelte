@@ -249,6 +249,20 @@
 				}
 			: null
 	);
+	// MAX-projection mode collapses the ENTIRE perpendicular window instead of sampling at a single
+	// offset, so it needs that window's bounds instead of a position. Reuses the same viewport-sized
+	// half-ranges the guide lines use, on the OTHER axis: the E-W panel collapses across what's
+	// visible north-south, the N-S panel across what's visible east-west.
+	const ewMaxProjection = $derived(
+		payload.cutMaxProjection
+			? { perpMinM: centerNorthM - nsMaxRangeM, perpMaxM: centerNorthM + nsMaxRangeM }
+			: undefined
+	);
+	const nsMaxProjection = $derived(
+		payload.cutMaxProjection
+			? { perpMinM: centerEastM - ewMaxRangeM, perpMaxM: centerEastM + ewMaxRangeM }
+			: undefined
+	);
 	// The drag callback reports the dropped point's absolute site-relative position directly --
 	// that's exactly what the payload stores. Rounded to 0.1 km so the toolbar input doesn't jitter
 	// to long decimals mid-drag.
@@ -419,6 +433,8 @@
 							axisLines={false}
 							thicknessPx={160}
 							smooth={true}
+							maxProjection={ewMaxProjection}
+							interactive={false}
 						/>
 					</div>
 					<div class="col-start-2 row-start-1 border-b border-l border-outline-variant"></div>
@@ -500,8 +516,12 @@
 								? (activeChild?.payload as RhiWindowPayload).azimuthDeg
 								: null}
 							statsSelectEnabled={pickerMode === 'stats'}
-							nsPositionM={payload.showCutPanels ? absNsPositionM : null}
-							ewPositionM={payload.showCutPanels ? absEwPositionM : null}
+							nsPositionM={payload.showCutPanels && !payload.cutMaxProjection
+								? absNsPositionM
+								: null}
+							ewPositionM={payload.showCutPanels && !payload.cutMaxProjection
+								? absEwPositionM
+								: null}
 							{onCutLine}
 							{onPointSelect}
 							{onAzimuthSelect}
@@ -547,6 +567,8 @@
 							axisLines={false}
 							thicknessPx={160}
 							smooth={true}
+							maxProjection={nsMaxProjection}
+							interactive={false}
 						/>
 					</div>
 				{/if}
@@ -672,8 +694,7 @@
 	<label
 		class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 	>
-		<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.channel')}</span
-		>
+		<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.channel')}</span>
 		<select
 			class="min-w-0 flex-1 border-none bg-transparent p-0 font-mono text-[11px] text-on-surface focus:ring-0"
 			bind:value={payload.channelIndex}
@@ -830,11 +851,7 @@
 	<label
 		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
 	>
-		<input
-			type="checkbox"
-			bind:checked={payload.showLatLonGrid}
-			class="accent-primary-container"
-		/>
+		<input type="checkbox" bind:checked={payload.showLatLonGrid} class="accent-primary-container" />
 		{$_('window.latLonGridTitle')}
 	</label>
 	<label
@@ -847,11 +864,7 @@
 		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
 		title={$_('window.siteMarkerTitle')}
 	>
-		<input
-			type="checkbox"
-			bind:checked={payload.showSiteMarker}
-			class="accent-primary-container"
-		/>
+		<input type="checkbox" bind:checked={payload.showSiteMarker} class="accent-primary-container" />
 		{$_('window.siteMarkerAbbr')}
 	</label>
 	<label
@@ -865,48 +878,57 @@
 		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
 		title={$_('window.cutPanelsTitle')}
 	>
-		<input
-			type="checkbox"
-			bind:checked={payload.showCutPanels}
-			class="accent-primary-container"
-		/>
+		<input type="checkbox" bind:checked={payload.showCutPanels} class="accent-primary-container" />
 		{$_('window.cutPanelsAbbr')}
 	</label>
 	{#if payload.showCutPanels}
 		<label
-			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			title={$_('window.nsPositionTitle')}
+			class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
+			title={$_('window.cutMaxProjectionTitle')}
 		>
-			<span class="font-mono text-[9px] text-on-surface-variant"
-				>{$_('window.readout.nsPosition')}</span
-			>
 			<input
-				type="number"
-				step="0.1"
-				min={-maxRangeKm}
-				max={maxRangeKm}
-				class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-				bind:value={payload.nsPositionKm}
+				type="checkbox"
+				bind:checked={payload.cutMaxProjection}
+				class="accent-primary-container"
 			/>
-			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+			{$_('window.cutMaxProjectionAbbr')}
 		</label>
-		<label
-			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			title={$_('window.ewPositionTitle')}
-		>
-			<span class="font-mono text-[9px] text-on-surface-variant"
-				>{$_('window.readout.ewPosition')}</span
+		{#if !payload.cutMaxProjection}
+			<label
+				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+				title={$_('window.nsPositionTitle')}
 			>
-			<input
-				type="number"
-				step="0.1"
-				min={-maxRangeKm}
-				max={maxRangeKm}
-				class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-				bind:value={payload.ewPositionKm}
-			/>
-			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
-		</label>
+				<span class="font-mono text-[9px] text-on-surface-variant"
+					>{$_('window.readout.nsPosition')}</span
+				>
+				<input
+					type="number"
+					step="0.1"
+					min={-maxRangeKm}
+					max={maxRangeKm}
+					class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+					bind:value={payload.nsPositionKm}
+				/>
+				<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+			</label>
+			<label
+				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+				title={$_('window.ewPositionTitle')}
+			>
+				<span class="font-mono text-[9px] text-on-surface-variant"
+					>{$_('window.readout.ewPosition')}</span
+				>
+				<input
+					type="number"
+					step="0.1"
+					min={-maxRangeKm}
+					max={maxRangeKm}
+					class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+					bind:value={payload.ewPositionKm}
+				/>
+				<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+			</label>
+		{/if}
 	{/if}
 {/snippet}
 

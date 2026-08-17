@@ -145,7 +145,8 @@ export function defaultMapPayload(
 		showLatLonGrid: false,
 		showCutPanels: false,
 		nsPositionKm: 0,
-		ewPositionKm: 0
+		ewPositionKm: 0,
+		cutMaxProjection: false
 	};
 }
 

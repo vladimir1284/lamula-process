@@ -211,6 +211,8 @@
 		"latLonGridAbbr": "CUAD",
 		"cutPanelsTitle": "Cortes N-S/E-O acoplados (dato real)",
 		"cutPanelsAbbr": "CORTES",
+		"cutMaxProjectionTitle": "Proyectar máximos en los cortes N-S/E-O (colapsa todo el ancho perpendicular por máximo, en vez de mostrar el valor exacto sobre la línea de corte móvil; oculta las líneas guía del mapa)",
+		"cutMaxProjectionAbbr": "MÁX",
 		"nsPositionTitle": "Posición del corte E-O (arrastra su línea guía en el mapa, o escribe el desplazamiento N-S respecto al sitio)",
 		"ewPositionTitle": "Posición del corte N-S (arrastra su línea guía en el mapa, o escribe el desplazamiento E-O respecto al sitio)",
 		"radarLabel": "RADAR",

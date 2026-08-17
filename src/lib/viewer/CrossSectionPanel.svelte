@@ -37,6 +37,10 @@
 		beamWidthDeg?: number;
 		/** Draw the A (start) / B (end) endpoint markers -- matches PpiMap's cut-line markers. */
 		markEndpoints?: boolean;
+		/** When set, render as a legacy-style MAX projection (collapses the full perpendicular
+		 * window by max value, independent of `line`'s own offset on that axis) instead of the true
+		 * vertical-plane slice. `line` must be axis-aligned. See products/crossSection.ts. */
+		maxProjection?: { perpMinM: number; perpMaxM: number };
 		/** Unit system for the distance axis. Default metric (km). */
 		unitSystem?: UnitSystem;
 		/** 'horizontal' (default): distance along the x-axis, height along the y-axis, fit to the
@@ -59,6 +63,8 @@
 		 * updates this via `onZoomChange`; external controls (ZoomControl) can also drive it. */
 		zoom?: number;
 		onZoomChange?: (zoom: number) => void;
+		/** Wheel-zoom and drag-pan on the plot. Default true. See PixiRasterView's `interactive`. */
+		interactive?: boolean;
 		onreadout?: (r: CrossSectionReadout | null) => void;
 	}
 
@@ -70,6 +76,7 @@
 		siteAltM = 0,
 		beamWidthDeg = 1.0,
 		markEndpoints = false,
+		maxProjection,
 		unitSystem = 'metric',
 		orientation = 'horizontal',
 		axisLines = true,
@@ -78,6 +85,7 @@
 		smooth = false,
 		zoom = 1,
 		onZoomChange,
+		interactive = true,
 		onreadout
 	}: Props = $props();
 
@@ -168,6 +176,7 @@
 		const pad = elevPadDeg;
 		const along = alongPx;
 		const o = orientation;
+		const mp = maxProjection;
 		const dpr = devicePixelRatioOrOne();
 		const token = ++renderToken;
 		// Worker postMessage can't structured-clone a Svelte $state proxy -- snapshot to plain
@@ -179,7 +188,8 @@
 				maxHeightM: maxH,
 				line: $state.snapshot(ln),
 				siteAltM: siteAlt,
-				elevPadDeg: pad
+				elevPadDeg: pad,
+				maxProjection: mp ? $state.snapshot(mp) : undefined
 			})
 			.then((result) => {
 				if (token !== renderToken) return; // superseded
@@ -309,6 +319,7 @@
 		{smooth}
 		{zoom}
 		{onZoomChange}
+		{interactive}
 		onplotmove={handlePlotMove}
 		onplotleave={() => onreadout?.(null)}
 	/>
