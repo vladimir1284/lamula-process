@@ -9,12 +9,16 @@
 
 	interface Props {
 		content: Snippet<[RadarWindow]>;
+		/** Per-window replacement for the title bar's default `win.title` text -- see
+		 * `Window.svelte`'s `titleContent` prop. Falls back to `win.title` for window types that
+		 * don't provide one (e.g. anything other than 'map'). */
+		titleContent?: Snippet<[RadarWindow]>;
 		/** Current canvas size, so callers outside this component (e.g. the "Ventana" menu's
 		 * Cascada/Mosaico actions) can pass it to `windowStore.cascade`/`tile`. */
 		canvasSize?: CanvasSize;
 	}
 
-	let { content, canvasSize = $bindable({ width: 0, height: 0 }) }: Props = $props();
+	let { content, titleContent, canvasSize = $bindable({ width: 0, height: 0 }) }: Props = $props();
 
 	let canvasEl: HTMLDivElement | undefined = $state();
 
@@ -57,7 +61,14 @@
 <div class="flex min-h-0 flex-1 flex-col">
 	<div bind:this={canvasEl} class="relative min-h-0 flex-1 overflow-hidden">
 		{#each windowStore.windows as w (w.id)}
-			<Window window={w} bounds={canvasSize}>
+			{#snippet windowTitleContent()}
+				{@render titleContent?.(w)}
+			{/snippet}
+			<Window
+				window={w}
+				bounds={canvasSize}
+				titleContent={titleContent ? windowTitleContent : undefined}
+			>
 				{@render content(w)}
 			</Window>
 		{/each}

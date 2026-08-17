@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, type Snippet } from 'svelte';
 	import type { ChannelRef, GroundProductKind } from '$lib/pipeline';
 	import {
 		listElevationsDeg,
@@ -22,7 +22,8 @@
 		WindowNotices,
 		exportMapToCanvas,
 		downloadCanvasAsPng,
-		buildExportFilename
+		buildExportFilename,
+		drawScaleLegendOverlay
 	} from '$lib/viewer';
 	import type { Readout } from '$lib/viewer/readout';
 	import {
@@ -66,6 +67,11 @@
 		 * lets the missing-site prompt offer "load known network" instead of just "set location"
 		 * when the seed hasn't run yet. */
 		knownSitesLoaded: boolean;
+		/** Compressed (icons-only)/extended (icons+labels) state of the right-side tool rail --
+		 * shared across every open map window (see +page.svelte's `toolRailCollapsed`), same
+		 * pattern as the left sidebar's collapse toggle. */
+		toolRailCollapsed: boolean;
+		onToggleToolRail: () => void;
 		onOpenLocationEditor: () => void;
 		onLoadKnownSites: () => void;
 		onShowVad: (channelIndex: number) => void;
@@ -88,13 +94,51 @@
 		gridStepLatDeg,
 		gridStepLonDeg,
 		knownSitesLoaded,
+		toolRailCollapsed,
+		onToggleToolRail,
 		onOpenLocationEditor,
 		onLoadKnownSites,
 		onShowVad,
 		onEditScale
 	}: Props = $props();
 
-	let showLinesMenu = $state(false);
+	// Which rail group's popover is open while the rail is collapsed (icons-only) -- a click
+	// outside the rail closes it, same as WindowNotices' own dropdown below. The popover renders
+	// as a single shared host positioned `absolute` off `wrapperEl` (this component's own root,
+	// not the rail) instead of nested inside the rail's own box -- the rail needs
+	// `overflow-y-auto` to scroll a tall control list, and setting overflow on one axis forces the
+	// other axis to clip too (CSS spec), so a popover meant to hang off the rail's LEFT edge was
+	// silently clipped there. `wrapperEl` also can't be `position:fixed`'s viewport-relative
+	// escape hatch either: Window.svelte's own outer chrome is `.glass-panel`
+	// (`backdrop-filter: blur(...)`) + `overflow-hidden`, and a `backdrop-filter` ancestor becomes
+	// the containing block for `position:fixed` descendants too, re-clipping them right back.
+	let openRailGroup = $state<string | null>(null);
+	let popoverAnchor = $state<{ top: number; right: number } | null>(null);
+	let railEl: HTMLDivElement | undefined = $state();
+	let wrapperEl: HTMLDivElement | undefined = $state();
+	let popoverEl: HTMLDivElement | undefined = $state();
+	function toggleRailGroup(id: string, e: MouseEvent) {
+		if (openRailGroup === id) {
+			openRailGroup = null;
+			return;
+		}
+		const btnRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const wrapRect = wrapperEl?.getBoundingClientRect();
+		if (!wrapRect) return;
+		popoverAnchor = { top: btnRect.top - wrapRect.top, right: wrapRect.right - btnRect.left + 4 };
+		openRailGroup = id;
+	}
+	function handleRailWindowClick(e: MouseEvent) {
+		const target = e.target as Node;
+		if (railEl?.contains(target) || popoverEl?.contains(target)) return;
+		openRailGroup = null;
+	}
+	// A popover left open while collapsed would otherwise render as a stray floating panel once
+	// the rail expands (the group body already shows inline then) -- close it on every toggle.
+	$effect(() => {
+		toolRailCollapsed;
+		openRailGroup = null;
+	});
 
 	const payload = $derived(win.payload as MapWindowPayload);
 	const overlays = standardOverlays();
@@ -109,19 +153,12 @@
 	);
 	const palette = $derived(paletteForMoment(book, paletteKey));
 	const productTitle = $derived($_(catalogLabel(payload.product)));
-
-	// Header info block (hora/fecha/radar/VCP) -- observation.timestamp is the scan's own time
-	// (UTC, matching the rest of the app's fixed-UTC display convention), not a live wall clock.
-	const timeLabel = $derived(observation ? formatUtcTime(observation.timestamp) : '--:--:--');
-	const dateLabel = $derived(observation ? formatUtcDate(observation.timestamp) : '');
-	function formatUtcTime(ts: string): string {
-		const d = new Date(ts);
-		return isNaN(d.getTime()) ? ts : d.toISOString().slice(11, 19);
-	}
-	function formatUtcDate(ts: string): string {
-		const d = new Date(ts);
-		return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
-	}
+	const productParamsVisible = $derived(
+		payload.product === 'CAPPI' ||
+			payload.product === 'TOPS' ||
+			payload.product === 'VIL' ||
+			payload.product === 'RAIN'
+	);
 
 	// Self-healing default: a payload object created before `nsPositionKm`/`ewPositionKm` existed
 	// (a stale in-memory window surviving a hot-reload, or a layout JSON exported from an older
@@ -346,590 +383,617 @@
 			usesElevation ? `el${payload.elevationDeg}` : undefined
 		]);
 		const map = ppiMapRef?.getMap();
-		if (map) downloadCanvasAsPng(await exportMapToCanvas(map), filename);
+		if (!map) return;
+		const canvas = await exportMapToCanvas(map);
+		if (payload.showScale) drawScaleLegendOverlay(canvas, palette, ground?.unit);
+		downloadCanvasAsPng(canvas, filename);
 	}
 </script>
 
-<div class="flex h-full flex-col">
-	<!-- Header info: hora/fecha, radar, producto, paleta, VCP (in that order, per spec). -->
-	<div
-		class="flex flex-wrap items-center gap-3 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
-	>
-		<div class="flex flex-col leading-none">
-			<span class="font-mono text-[20px] font-bold text-on-surface">{timeLabel}</span>
-			<span class="font-mono text-[10px] text-on-surface-variant">{dateLabel}</span>
+<svelte:window onclick={handleRailWindowClick} />
+
+<div class="relative flex h-full flex-col" bind:this={wrapperEl}>
+	<div class="flex min-h-0 flex-1 flex-row">
+		<div class="flex min-h-0 flex-1 flex-col">
+			<!-- 2x2 grid: the E-W cut (row 1) shares its column width with the map (row 2, col 1), and
+				the N-S cut (col 2) shares its height with the map (col 1) -- a corner filler occupies
+				row 1/col 2 so the grid tracks stay simple 2x2 rather than an L-shape. This is what
+				makes the three views (map + 2 cuts) line up pixel-for-pixel as orthogonal projections
+				of one volume, not just three separately-sized panels. Both cuts are grid-only (no axis
+				labels/ticks) -- there's no room for tick text at this thickness. -->
+			<div
+				class="relative grid min-h-0 flex-1 overflow-hidden bg-black"
+				style="grid-template-columns: 1fr {payload.showCutPanels
+					? 160
+					: 0}px; grid-template-rows: {payload.showCutPanels ? 160 : 0}px 1fr;"
+			>
+				{#if payload.showCutPanels && channel && channel.scans.length > 0 && cutLineEW}
+					<div class="col-start-1 row-start-1 min-h-0 min-w-0 border-b border-outline-variant">
+						<CrossSectionPanel
+							scans={channel.scans}
+							{palette}
+							line={cutLineEW}
+							maxHeightM={18000}
+							siteAltM={effectiveSiteAltM}
+							beamWidthDeg={beamWidth.deg}
+							{unitSystem}
+							axisLines={false}
+							thicknessPx={160}
+							smooth={true}
+						/>
+					</div>
+					<div class="col-start-2 row-start-1 border-b border-l border-outline-variant"></div>
+				{/if}
+				<div
+					class="relative col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden"
+					bind:this={mapAreaEl}
+				>
+					{#if !observation}
+						<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+							<span class="material-symbols-outlined text-[32px] text-on-surface-variant"
+								>upload_file</span
+							>
+							<p class="max-w-xs text-body-sm text-on-surface-variant">
+								{$_('window.noObservationMap')}
+							</p>
+						</div>
+					{:else if !site}
+						<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+							<span class="material-symbols-outlined text-[32px] text-dbz-heavy"
+								>wrong_location</span
+							>
+							<p class="max-w-xs text-body-sm text-on-surface-variant">
+								{$_('window.noSitePosition')}
+								<span class="text-on-surface">{productTitle}</span>.
+							</p>
+							<div class="flex gap-2">
+								{#if !knownSitesLoaded}
+									<button
+										class="flex h-9 items-center gap-2 rounded bg-primary-container px-3 font-mono text-[11px] text-on-primary-container transition-all hover:opacity-90 active:scale-95"
+										onclick={onLoadKnownSites}
+									>
+										<span class="material-symbols-outlined text-[16px]">public</span>
+										{$_('settings.sites.loadKnown')}
+									</button>
+								{/if}
+								<button
+									class={[
+										'flex h-9 items-center gap-2 rounded px-3 font-mono text-[11px] transition-all active:scale-95',
+										knownSitesLoaded
+											? 'bg-primary-container text-on-primary-container hover:opacity-90'
+											: 'border border-outline-variant text-on-surface hover:border-primary-container'
+									]}
+									onclick={onOpenLocationEditor}
+								>
+									<span class="material-symbols-outlined text-[16px]">add_location_alt</span>
+									{$_('window.defineLocation')}
+								</button>
+							</div>
+						</div>
+					{:else if ground}
+						<PpiMap
+							bind:this={ppiMapRef}
+							scan={ground.scan}
+							{palette}
+							{site}
+							baseMap={payload.baseMap}
+							dataOpacity={payload.dataOpacity}
+							showRings={payload.showRings}
+							showRadials={payload.showRadials}
+							showSiteMarker={payload.showSiteMarker}
+							showCutGuide={payload.showCutGuide}
+							showLatLonGrid={payload.showLatLonGrid}
+							{overlayLineColor}
+							{overlayLineWidthPx}
+							{ringsStepKm}
+							{radialsStepDeg}
+							{gridStepLatDeg}
+							{gridStepLonDeg}
+							extraLayers={overlays}
+							{unitSystem}
+							drawEnabled={pickerMode === 'cross-section'}
+							presetLine={pickerMode === 'cross-section'
+								? ((activeChild?.payload as CrossSectionWindowPayload | undefined)?.line ?? null)
+								: null}
+							pointSelectEnabled={pickerMode === 'profile'}
+							azimuthSelectEnabled={pickerMode === 'rhi'}
+							azimuthDeg={pickerMode === 'rhi'
+								? (activeChild?.payload as RhiWindowPayload).azimuthDeg
+								: null}
+							statsSelectEnabled={pickerMode === 'stats'}
+							nsPositionM={payload.showCutPanels ? absNsPositionM : null}
+							ewPositionM={payload.showCutPanels ? absEwPositionM : null}
+							{onCutLine}
+							{onPointSelect}
+							{onAzimuthSelect}
+							{onStatsRegionSelect}
+							{onNsPositionChange}
+							{onEwPositionChange}
+							{onViewChange}
+							onreadout={(r) => (readout = r)}
+						/>
+						<!-- Legend/palette chip: bottom-right overlay on the map itself, not the toolbar --
+							toggled by the rail's dedicated legend icon (`railToggle` above), hidden by
+							default. -->
+						{#if payload.showScale}
+							<div
+								class="absolute right-2 bottom-2 z-10 flex items-center gap-2 rounded border border-outline-variant bg-surface-container-high/90 px-2 py-1 backdrop-blur-sm"
+							>
+								<ScaleLegend {palette} unit={ground?.unit} />
+								<button
+									type="button"
+									class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-on-surface-variant hover:text-primary-container"
+									onclick={() => onEditScale(paletteKey)}
+									aria-label={$_('window.editScale')}
+									title={$_('window.editScale')}
+								>
+									<span class="material-symbols-outlined text-[12px]">edit</span>
+								</button>
+							</div>
+						{/if}
+					{/if}
+				</div>
+
+				{#if payload.showCutPanels && channel && channel.scans.length > 0 && cutLineNS}
+					<div class="col-start-2 row-start-2 min-h-0 min-w-0 border-l border-outline-variant">
+						<CrossSectionPanel
+							scans={channel.scans}
+							{palette}
+							line={cutLineNS}
+							maxHeightM={18000}
+							siteAltM={effectiveSiteAltM}
+							beamWidthDeg={beamWidth.deg}
+							{unitSystem}
+							orientation="vertical"
+							axisLines={false}
+							thicknessPx={160}
+							smooth={true}
+						/>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Readout bar. -->
+			<div
+				class="grid grid-cols-3 gap-px border-t border-outline-variant bg-surface-container-low font-mono sm:grid-cols-6"
+			>
+				{#if readout}
+					<div class="bg-surface-container-low p-2">
+						<p class="text-label-caps text-on-surface-variant">{$_('window.readout.lat')}</p>
+						<p class="text-[11px] text-on-surface">{fmt(readout.lat, 4)}°</p>
+					</div>
+					<div class="bg-surface-container-low p-2">
+						<p class="text-label-caps text-on-surface-variant">{$_('window.readout.lon')}</p>
+						<p class="text-[11px] text-on-surface">{fmt(readout.lon, 4)}°</p>
+					</div>
+					<div class="bg-surface-container-low p-2">
+						<p class="text-label-caps text-on-surface-variant">{$_('window.readout.azimuth')}</p>
+						<p class="text-[11px] text-primary-container">{fmt(readout.azimuthDeg)}°</p>
+					</div>
+					<div class="bg-surface-container-low p-2">
+						<p class="text-label-caps text-on-surface-variant">{$_('window.readout.range')}</p>
+						<p class="text-[11px] text-on-surface">{formatDistanceM(readout.rangeM, unitSystem)}</p>
+					</div>
+					<div class="bg-surface-container-low p-2">
+						<p class="text-label-caps text-on-surface-variant">{$_('window.readout.value')}</p>
+						<p class="text-[11px] text-dbz-heavy">
+							{readout.value === null
+								? '—'
+								: formatReading(readout.value, ground?.unit ?? '', unitSystem)}
+						</p>
+					</div>
+					<div class="bg-surface-container-low p-2">
+						<p class="text-label-caps text-on-surface-variant">{$_('window.readout.status')}</p>
+						<p class="text-[11px] text-on-surface">
+							{readout.flag && readout.flag !== 'ok' ? readout.flag : 'ok'}
+						</p>
+					</div>
+				{:else}
+					<div class="col-span-3 bg-surface-container-low p-2 sm:col-span-6">
+						<p class="text-[11px] text-on-surface-variant">
+							{$_('window.hoverHintMap')}
+						</p>
+					</div>
+				{/if}
+			</div>
 		</div>
-		{#if observation}
-			<span class="flex items-center gap-1 font-mono text-[11px]">
-				<span class="text-on-surface-variant">{$_('window.radarLabel')}</span>
-				<span class="text-primary-container">{observation.site.name}</span>
-			</span>
-		{/if}
-		<span class="font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
-			>{productTitle}</span
+
+		<!-- Tool rail: channel/elevation/product params/overlays/base map/export -- every control
+			that used to live in three stacked horizontal toolbars above the map. Collapsed = icons
+			only, each group's controls in a flyout popover; expanded = icons+labels with the
+			controls shown inline. Toggle is shared across all open map windows (see
+			+page.svelte's toolRailCollapsed/onToggleToolRail). -->
+		<div
+			bind:this={railEl}
+			class={`flex shrink-0 flex-col gap-0.5 overflow-y-auto border-l border-outline-variant bg-surface-container-high py-2 transition-[width] ${
+				toolRailCollapsed ? 'w-rail-collapsed-width items-center px-1' : 'w-rail-width px-2'
+			}`}
 		>
-		<span class="flex items-center gap-1 font-mono text-[11px]" title={palette.name}>
-			<span class="material-symbols-outlined text-[14px] text-primary-container">palette</span>
-			<span class="text-on-surface">{palette.name}</span>
 			<button
 				type="button"
-				class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-on-surface-variant hover:text-primary-container"
-				onclick={() => onEditScale(paletteKey)}
-				aria-label={$_('window.editScale')}
-				title={$_('window.editScale')}
+				class="mb-1 flex h-7 w-7 shrink-0 items-center justify-center self-end rounded text-on-surface-variant hover:bg-surface-variant/30 hover:text-primary-container"
+				onclick={onToggleToolRail}
+				aria-label={toolRailCollapsed ? $_('sidebar.expandPanel') : $_('sidebar.collapsePanel')}
+				title={toolRailCollapsed ? $_('sidebar.expandPanel') : $_('sidebar.collapsePanel')}
 			>
-				<span class="material-symbols-outlined text-[12px]">edit</span>
-			</button>
-		</span>
-		{#if observation?.design}
-			<span class="flex items-center gap-1 font-mono text-[10px]">
-				<span class="text-on-surface-variant">{$_('window.vcpLabel')}</span>
-				<span
-					class="rounded border border-primary-container/30 bg-surface-container-lowest px-1.5 py-0.5 text-primary-container"
-					>{observation.design}</span
+				<span class="material-symbols-outlined text-[16px]"
+					>{toolRailCollapsed ? 'chevron_left' : 'chevron_right'}</span
 				>
-			</span>
-		{/if}
-		<div class="ml-auto">
-			<WindowNotices {notices} />
+			</button>
+
+			{@render railGroup('channel', 'sensors', $_('window.readout.channel'), channelBody)}
+			{#if productParamsVisible}
+				{@render railGroup('params', 'calculate', $_('window.productParamsTitle'), paramsBody)}
+			{/if}
+			{#if payload.product === 'WIND_SPEED'}
+				{@render railButton('air', 'VAD', () => onShowVad(payload.channelIndex))}
+			{/if}
+			{#if site}
+				{@render railGroup('overlays', 'layers', $_('window.linesMenu'), overlaysBody)}
+				{@render railGroup('basemap', 'map', $_('window.baseMapTitle'), basemapBody)}
+				{@render railToggle(
+					'palette',
+					$_('window.legendToggle'),
+					payload.showScale,
+					() => (payload.showScale = !payload.showScale)
+				)}
+				{@render railButton('download', $_('window.exportImage'), exportCurrentImage)}
+			{/if}
+
+			<div class={toolRailCollapsed ? '' : 'w-full'}>
+				<WindowNotices {notices} />
+			</div>
 		</div>
 	</div>
 
-	<!-- Toolbar: channel/elevation + per-product params. -->
-	<div
-		class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
+	<!-- Shared popover host for the collapsed rail's flyouts -- a single instance (not one per
+		group, only one is ever open) positioned off `wrapperEl` rather than nested inside the
+		rail's own `overflow-y-auto`/`railGroup` markup; see the comment on `openRailGroup` above
+		for why. -->
+	{#if toolRailCollapsed && openRailGroup && popoverAnchor}
+		<div
+			bind:this={popoverEl}
+			class="absolute z-50 min-w-52 space-y-1 rounded border border-outline-variant bg-surface-container-high p-2 shadow-lg"
+			style="top:{popoverAnchor.top}px; right:{popoverAnchor.right}px"
+		>
+			{#if openRailGroup === 'channel'}
+				{@render channelBody()}
+			{:else if openRailGroup === 'params'}
+				{@render paramsBody()}
+			{:else if openRailGroup === 'overlays'}
+				{@render overlaysBody()}
+			{:else if openRailGroup === 'basemap'}
+				{@render basemapBody()}
+			{/if}
+		</div>
+	{/if}
+</div>
+
+{#snippet channelBody()}
+	<label
+		class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 	>
+		<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.channel')}</span
+		>
+		<select
+			class="min-w-0 flex-1 border-none bg-transparent p-0 font-mono text-[11px] text-on-surface focus:ring-0"
+			bind:value={payload.channelIndex}
+		>
+			{#each channels as ref (ref.index)}
+				<option value={ref.index}>{ref.channel.moment} ({ref.channel.scans.length})</option>
+			{/each}
+		</select>
+	</label>
+	{#if usesElevation}
 		<label
 			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
 			<span class="font-mono text-[9px] text-on-surface-variant"
-				>{$_('window.readout.channel')}</span
+				>{$_('window.readout.elevation')}</span
 			>
 			<select
-				class="border-none bg-transparent p-0 font-mono text-[11px] text-on-surface focus:ring-0"
-				bind:value={payload.channelIndex}
+				class="min-w-0 flex-1 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.elevationDeg}
 			>
-				{#each channels as ref (ref.index)}
-					<option value={ref.index}>{ref.channel.moment} ({ref.channel.scans.length})</option>
+				{#each elevations as e (e)}
+					<option value={e}>{e.toFixed(1)}°</option>
 				{/each}
 			</select>
 		</label>
+	{/if}
+{/snippet}
 
-		{#if usesElevation}
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant"
-					>{$_('window.readout.elevation')}</span
-				>
-				<select
-					class="border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.elevationDeg}
-				>
-					{#each elevations as e (e)}
-						<option value={e}>{e.toFixed(1)}°</option>
-					{/each}
-				</select>
-			</label>
-		{/if}
-
-		{#if payload.product === 'CAPPI'}
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.base')}</span
-				>
-				<input
-					type="number"
-					step="0.5"
-					class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.cappiBottomKm}
-				/>
-				<span class="font-mono text-[9px] text-on-surface-variant">km</span>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.top')}</span>
-				<input
-					type="number"
-					step="0.5"
-					class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.cappiTopKm}
-				/>
-				<span class="font-mono text-[9px] text-on-surface-variant">km</span>
-			</label>
-		{/if}
-
-		{#if payload.product === 'TOPS'}
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant"
-					>{$_('window.readout.threshold')}</span
-				>
-				<input
-					type="number"
-					step="1"
-					class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.topsMinDbz}
-				/>
-				<span class="font-mono text-[9px] text-on-surface-variant">dBZ</span>
-			</label>
-		{/if}
-
-		{#if payload.product === 'VIL'}
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.base')}</span
-				>
-				<input
-					type="number"
-					step="0.5"
-					class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.vilBottomKm}
-				/>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.top')}</span>
-				<input
-					type="number"
-					step="0.5"
-					class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.vilTopKm}
-				/>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">C1</span>
-				<input
-					type="number"
-					step="0.0001"
-					class="w-16 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.vilC1}
-				/>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">C2</span>
-				<input
-					type="number"
-					step="0.0001"
-					class="w-16 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.vilC2}
-				/>
-			</label>
-		{/if}
-
-		{#if payload.product === 'RAIN'}
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">Z-R A</span>
-				<input
-					type="number"
-					step="10"
-					class="w-12 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.zrA}
-				/>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-			>
-				<span class="font-mono text-[9px] text-on-surface-variant">Z-R B</span>
-				<input
-					type="number"
-					step="0.1"
-					class="w-12 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-					bind:value={payload.zrB}
-				/>
-			</label>
-		{/if}
-
-		{#if payload.product === 'WIND_SPEED'}
-			<button
-				type="button"
-				class="flex h-7 items-center gap-1 rounded border border-primary-container/60 px-2 font-mono text-[11px] text-primary-container hover:bg-primary-container hover:text-on-primary-container"
-				onclick={() => onShowVad(payload.channelIndex)}
-			>
-				<span class="material-symbols-outlined text-[14px]">air</span> VAD
-			</button>
-		{/if}
-	</div>
-
-	{#if site}
-		<!-- Overlays: rings, lat/lon grid, radials, scale, site marker, cut guide, cut panels. -->
-		<div
-			class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
+{#snippet paramsBody()}
+	{#if payload.product === 'CAPPI'}
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
-			<div class="relative">
-				<button
-					type="button"
-					class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2 font-mono text-[10px] text-on-surface-variant hover:border-primary-container hover:text-primary-container"
-					onclick={() => (showLinesMenu = !showLinesMenu)}
-					aria-haspopup="true"
-					aria-expanded={showLinesMenu}
-				>
-					<span class="material-symbols-outlined text-[14px]">layers</span>
-					{$_('window.linesMenu')}
-					<span class="material-symbols-outlined text-[14px]">arrow_drop_down</span>
-				</button>
-				{#if showLinesMenu}
-					<ul
-						role="menu"
-						class="absolute top-full left-0 z-50 mt-1 min-w-40 rounded border border-outline-variant bg-surface-container-high py-1 shadow-lg"
-					>
-						<li>
-							<label
-								class="flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] text-on-surface hover:bg-surface-variant/20"
-							>
-								<input
-									type="checkbox"
-									bind:checked={payload.showRings}
-									class="accent-primary-container"
-								/>
-								{$_('window.ringsTitle')}
-							</label>
-						</li>
-						<li>
-							<label
-								class="flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] text-on-surface hover:bg-surface-variant/20"
-							>
-								<input
-									type="checkbox"
-									bind:checked={payload.showLatLonGrid}
-									class="accent-primary-container"
-								/>
-								{$_('window.latLonGridTitle')}
-							</label>
-						</li>
-						<li>
-							<label
-								class="flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] text-on-surface hover:bg-surface-variant/20"
-							>
-								<input
-									type="checkbox"
-									bind:checked={payload.showRadials}
-									class="accent-primary-container"
-								/>
-								{$_('window.radialsTitle')}
-							</label>
-						</li>
-					</ul>
-				{/if}
-			</div>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.scaleTitle')}
-			>
-				<input type="checkbox" bind:checked={payload.showScale} class="accent-primary-container" />
-				{$_('window.scaleAbbr')}
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.siteMarkerTitle')}
-			>
-				<input
-					type="checkbox"
-					bind:checked={payload.showSiteMarker}
-					class="accent-primary-container"
-				/>
-				{$_('window.siteMarkerAbbr')}
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.cutGuideTitle')}
-			>
-				<input
-					type="checkbox"
-					bind:checked={payload.showCutGuide}
-					class="accent-primary-container"
-				/>
-				{$_('window.cutGuideAbbr')}
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.cutPanelsTitle')}
-			>
-				<input
-					type="checkbox"
-					bind:checked={payload.showCutPanels}
-					class="accent-primary-container"
-				/>
-				{$_('window.cutPanelsAbbr')}
-			</label>
-			{#if payload.showCutPanels}
-				<label
-					class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-					title={$_('window.nsPositionTitle')}
-				>
-					<span class="font-mono text-[9px] text-on-surface-variant"
-						>{$_('window.readout.nsPosition')}</span
-					>
-					<input
-						type="number"
-						step="0.1"
-						min={-maxRangeKm}
-						max={maxRangeKm}
-						class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-						bind:value={payload.nsPositionKm}
-					/>
-					<span class="font-mono text-[9px] text-on-surface-variant">km</span>
-				</label>
-				<label
-					class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
-					title={$_('window.ewPositionTitle')}
-				>
-					<span class="font-mono text-[9px] text-on-surface-variant"
-						>{$_('window.readout.ewPosition')}</span
-					>
-					<input
-						type="number"
-						step="0.1"
-						min={-maxRangeKm}
-						max={maxRangeKm}
-						class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
-						bind:value={payload.ewPositionKm}
-					/>
-					<span class="font-mono text-[9px] text-on-surface-variant">km</span>
-				</label>
-			{/if}
-
-			<div class="ml-auto flex items-center gap-2">
-				{#if payload.showScale}
-					<ScaleLegend {palette} unit={ground?.unit} />
-				{/if}
-				<button
-					type="button"
-					class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:text-primary-container"
-					onclick={exportCurrentImage}
-					aria-label={$_('window.exportImage')}
-					title={$_('window.exportImage')}
-				>
-					<span class="material-symbols-outlined text-[14px]">download</span>
-				</button>
-			</div>
-		</div>
-
-		<!-- Mapa underlay. -->
-		<div
-			class="flex flex-wrap items-center gap-2 border-b border-outline-variant bg-surface-container-high px-2 py-1.5"
+			<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.base')}</span>
+			<input
+				type="number"
+				step="0.5"
+				class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.cappiBottomKm}
+			/>
+			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+		</label>
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.baseMapTitle')}
-			>
-				<span class="material-symbols-outlined text-[14px] text-primary-container">map</span>
-				<select
-					bind:value={payload.baseMap}
-					class="rounded border border-outline-variant bg-surface-container-lowest px-1 text-on-surface focus:border-primary-container focus:outline-none"
-				>
-					<option value="off">{$_(BASE_MAP_LABELS.off)}</option>
-					{#each BASE_MAP_IDS as id (id)}
-						<option value={id}>{$_(BASE_MAP_LABELS[id])}</option>
-					{/each}
-				</select>
-			</label>
-			<label
-				class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
-				title={$_('window.opacityTitle')}
-			>
-				<span class="material-symbols-outlined text-[14px] text-primary-container">opacity</span>
-				<input
-					type="range"
-					min="0"
-					max="1"
-					step="0.05"
-					bind:value={payload.dataOpacity}
-					class="h-1 w-14 accent-primary-container"
-				/>
-			</label>
-		</div>
+			<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.top')}</span>
+			<input
+				type="number"
+				step="0.5"
+				class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.cappiTopKm}
+			/>
+			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+		</label>
 	{/if}
 
-	<!-- 2x2 grid: the E-W cut (row 1) shares its column width with the map (row 2, col 1), and the
-		N-S cut (col 2) shares its height with the map (col 1) -- a corner filler occupies row
-		1/col 2 so the grid tracks stay simple 2x2 rather than an L-shape. This is what makes the
-		three views (map + 2 cuts) line up pixel-for-pixel as orthogonal projections of one volume,
-		not just three separately-sized panels. Both cuts are grid-only (no axis labels/ticks) --
-		there's no room for tick text at this thickness. -->
-	<div
-		class="relative grid min-h-0 flex-1 overflow-hidden bg-black"
-		style="grid-template-columns: 1fr {payload.showCutPanels
-			? 160
-			: 0}px; grid-template-rows: {payload.showCutPanels ? 160 : 0}px 1fr;"
-	>
-		{#if payload.showCutPanels && channel && channel.scans.length > 0 && cutLineEW}
-			<div class="col-start-1 row-start-1 min-h-0 min-w-0 border-b border-outline-variant">
-				<CrossSectionPanel
-					scans={channel.scans}
-					{palette}
-					line={cutLineEW}
-					maxHeightM={18000}
-					siteAltM={effectiveSiteAltM}
-					beamWidthDeg={beamWidth.deg}
-					{unitSystem}
-					axisLines={false}
-					thicknessPx={160}
-					smooth={true}
-				/>
-			</div>
-			<div class="col-start-2 row-start-1 border-b border-l border-outline-variant"></div>
-		{/if}
-		<div
-			class="relative col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden"
-			bind:this={mapAreaEl}
+	{#if payload.product === 'TOPS'}
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
 		>
-			{#if !observation}
-				<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-					<span class="material-symbols-outlined text-[32px] text-on-surface-variant"
-						>upload_file</span
-					>
-					<p class="max-w-xs text-body-sm text-on-surface-variant">
-						{$_('window.noObservationMap')}
-					</p>
-				</div>
-			{:else if !site}
-				<div class="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-					<span class="material-symbols-outlined text-[32px] text-dbz-heavy">wrong_location</span>
-					<p class="max-w-xs text-body-sm text-on-surface-variant">
-						{$_('window.noSitePosition')}
-						<span class="text-on-surface">{productTitle}</span>.
-					</p>
-					<div class="flex gap-2">
-						{#if !knownSitesLoaded}
-							<button
-								class="flex h-9 items-center gap-2 rounded bg-primary-container px-3 font-mono text-[11px] text-on-primary-container transition-all hover:opacity-90 active:scale-95"
-								onclick={onLoadKnownSites}
-							>
-								<span class="material-symbols-outlined text-[16px]">public</span>
-								{$_('settings.sites.loadKnown')}
-							</button>
-						{/if}
-						<button
-							class={[
-								'flex h-9 items-center gap-2 rounded px-3 font-mono text-[11px] transition-all active:scale-95',
-								knownSitesLoaded
-									? 'bg-primary-container text-on-primary-container hover:opacity-90'
-									: 'border border-outline-variant text-on-surface hover:border-primary-container'
-							]}
-							onclick={onOpenLocationEditor}
-						>
-							<span class="material-symbols-outlined text-[16px]">add_location_alt</span>
-							{$_('window.defineLocation')}
-						</button>
-					</div>
-				</div>
-			{:else if ground}
-				<PpiMap
-					bind:this={ppiMapRef}
-					scan={ground.scan}
-					{palette}
-					{site}
-					baseMap={payload.baseMap}
-					dataOpacity={payload.dataOpacity}
-					showRings={payload.showRings}
-					showRadials={payload.showRadials}
-					showSiteMarker={payload.showSiteMarker}
-					showCutGuide={payload.showCutGuide}
-					showLatLonGrid={payload.showLatLonGrid}
-					{overlayLineColor}
-					{overlayLineWidthPx}
-					{ringsStepKm}
-					{radialsStepDeg}
-					{gridStepLatDeg}
-					{gridStepLonDeg}
-					extraLayers={overlays}
-					{unitSystem}
-					drawEnabled={pickerMode === 'cross-section'}
-					presetLine={pickerMode === 'cross-section'
-						? ((activeChild?.payload as CrossSectionWindowPayload | undefined)?.line ?? null)
-						: null}
-					pointSelectEnabled={pickerMode === 'profile'}
-					azimuthSelectEnabled={pickerMode === 'rhi'}
-					azimuthDeg={pickerMode === 'rhi'
-						? (activeChild?.payload as RhiWindowPayload).azimuthDeg
-						: null}
-					statsSelectEnabled={pickerMode === 'stats'}
-					nsPositionM={payload.showCutPanels ? absNsPositionM : null}
-					ewPositionM={payload.showCutPanels ? absEwPositionM : null}
-					{onCutLine}
-					{onPointSelect}
-					{onAzimuthSelect}
-					{onStatsRegionSelect}
-					{onNsPositionChange}
-					{onEwPositionChange}
-					{onViewChange}
-					onreadout={(r) => (readout = r)}
-				/>
-			{/if}
-		</div>
+			<span class="font-mono text-[9px] text-on-surface-variant"
+				>{$_('window.readout.threshold')}</span
+			>
+			<input
+				type="number"
+				step="1"
+				class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.topsMinDbz}
+			/>
+			<span class="font-mono text-[9px] text-on-surface-variant">dBZ</span>
+		</label>
+	{/if}
 
-		{#if payload.showCutPanels && channel && channel.scans.length > 0 && cutLineNS}
-			<div class="col-start-2 row-start-2 min-h-0 min-w-0 border-l border-outline-variant">
-				<CrossSectionPanel
-					scans={channel.scans}
-					{palette}
-					line={cutLineNS}
-					maxHeightM={18000}
-					siteAltM={effectiveSiteAltM}
-					beamWidthDeg={beamWidth.deg}
-					{unitSystem}
-					orientation="vertical"
-					axisLines={false}
-					thicknessPx={160}
-					smooth={true}
-				/>
-			</div>
-		{/if}
-	</div>
+	{#if payload.product === 'VIL'}
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.base')}</span>
+			<input
+				type="number"
+				step="0.5"
+				class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.vilBottomKm}
+			/>
+		</label>
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant">{$_('window.readout.top')}</span>
+			<input
+				type="number"
+				step="0.5"
+				class="w-10 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.vilTopKm}
+			/>
+		</label>
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant">C1</span>
+			<input
+				type="number"
+				step="0.0001"
+				class="w-16 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.vilC1}
+			/>
+		</label>
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant">C2</span>
+			<input
+				type="number"
+				step="0.0001"
+				class="w-16 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.vilC2}
+			/>
+		</label>
+	{/if}
 
-	<!-- Readout bar. -->
-	<div
-		class="grid grid-cols-3 gap-px border-t border-outline-variant bg-surface-container-low font-mono sm:grid-cols-6"
+	{#if payload.product === 'RAIN'}
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant">Z-R A</span>
+			<input
+				type="number"
+				step="10"
+				class="w-12 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.zrA}
+			/>
+		</label>
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant">Z-R B</span>
+			<input
+				type="number"
+				step="0.1"
+				class="w-12 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.zrB}
+			/>
+		</label>
+	{/if}
+{/snippet}
+
+{#snippet overlaysBody()}
+	<label
+		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
 	>
-		{#if readout}
-			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.lat')}</p>
-				<p class="text-[11px] text-on-surface">{fmt(readout.lat, 4)}°</p>
-			</div>
-			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.lon')}</p>
-				<p class="text-[11px] text-on-surface">{fmt(readout.lon, 4)}°</p>
-			</div>
-			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.azimuth')}</p>
-				<p class="text-[11px] text-primary-container">{fmt(readout.azimuthDeg)}°</p>
-			</div>
-			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.range')}</p>
-				<p class="text-[11px] text-on-surface">{formatDistanceM(readout.rangeM, unitSystem)}</p>
-			</div>
-			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.value')}</p>
-				<p class="text-[11px] text-dbz-heavy">
-					{readout.value === null
-						? '—'
-						: formatReading(readout.value, ground?.unit ?? '', unitSystem)}
-				</p>
-			</div>
-			<div class="bg-surface-container-low p-2">
-				<p class="text-label-caps text-on-surface-variant">{$_('window.readout.status')}</p>
-				<p class="text-[11px] text-on-surface">
-					{readout.flag && readout.flag !== 'ok' ? readout.flag : 'ok'}
-				</p>
-			</div>
-		{:else}
-			<div class="col-span-3 bg-surface-container-low p-2 sm:col-span-6">
-				<p class="text-[11px] text-on-surface-variant">
-					{$_('window.hoverHintMap')}
-				</p>
+		<input type="checkbox" bind:checked={payload.showRings} class="accent-primary-container" />
+		{$_('window.ringsTitle')}
+	</label>
+	<label
+		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
+	>
+		<input
+			type="checkbox"
+			bind:checked={payload.showLatLonGrid}
+			class="accent-primary-container"
+		/>
+		{$_('window.latLonGridTitle')}
+	</label>
+	<label
+		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
+	>
+		<input type="checkbox" bind:checked={payload.showRadials} class="accent-primary-container" />
+		{$_('window.radialsTitle')}
+	</label>
+	<label
+		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
+		title={$_('window.siteMarkerTitle')}
+	>
+		<input
+			type="checkbox"
+			bind:checked={payload.showSiteMarker}
+			class="accent-primary-container"
+		/>
+		{$_('window.siteMarkerAbbr')}
+	</label>
+	<label
+		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
+		title={$_('window.cutGuideTitle')}
+	>
+		<input type="checkbox" bind:checked={payload.showCutGuide} class="accent-primary-container" />
+		{$_('window.cutGuideAbbr')}
+	</label>
+	<label
+		class="flex items-center gap-2 py-1 font-mono text-[11px] text-on-surface hover:text-primary-container"
+		title={$_('window.cutPanelsTitle')}
+	>
+		<input
+			type="checkbox"
+			bind:checked={payload.showCutPanels}
+			class="accent-primary-container"
+		/>
+		{$_('window.cutPanelsAbbr')}
+	</label>
+	{#if payload.showCutPanels}
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+			title={$_('window.nsPositionTitle')}
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant"
+				>{$_('window.readout.nsPosition')}</span
+			>
+			<input
+				type="number"
+				step="0.1"
+				min={-maxRangeKm}
+				max={maxRangeKm}
+				class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.nsPositionKm}
+			/>
+			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+		</label>
+		<label
+			class="flex h-7 items-center gap-1 rounded border border-outline-variant bg-surface-container-lowest px-2"
+			title={$_('window.ewPositionTitle')}
+		>
+			<span class="font-mono text-[9px] text-on-surface-variant"
+				>{$_('window.readout.ewPosition')}</span
+			>
+			<input
+				type="number"
+				step="0.1"
+				min={-maxRangeKm}
+				max={maxRangeKm}
+				class="w-14 border-none bg-transparent p-0 font-mono text-[11px] text-primary-container focus:ring-0"
+				bind:value={payload.ewPositionKm}
+			/>
+			<span class="font-mono text-[9px] text-on-surface-variant">km</span>
+		</label>
+	{/if}
+{/snippet}
+
+{#snippet basemapBody()}
+	<label
+		class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+		title={$_('window.baseMapTitle')}
+	>
+		<span class="material-symbols-outlined text-[14px] text-primary-container">map</span>
+		<select
+			bind:value={payload.baseMap}
+			class="min-w-0 flex-1 rounded border border-outline-variant bg-surface-container-lowest px-1 text-on-surface focus:border-primary-container focus:outline-none"
+		>
+			<option value="off">{$_(BASE_MAP_LABELS.off)}</option>
+			{#each BASE_MAP_IDS as id (id)}
+				<option value={id}>{$_(BASE_MAP_LABELS[id])}</option>
+			{/each}
+		</select>
+	</label>
+	<label
+		class="flex h-7 items-center gap-1 font-mono text-[10px] text-on-surface-variant"
+		title={$_('window.opacityTitle')}
+	>
+		<span class="material-symbols-outlined text-[14px] text-primary-container">opacity</span>
+		<input
+			type="range"
+			min="0"
+			max="1"
+			step="0.05"
+			bind:value={payload.dataOpacity}
+			class="h-1 flex-1 accent-primary-container"
+		/>
+	</label>
+{/snippet}
+
+{#snippet railGroup(id: string, icon: string, label: string, body: Snippet)}
+	<div class="relative w-full">
+		<button
+			type="button"
+			class={`flex h-8 w-full items-center gap-2 rounded px-2 font-mono text-[11px] transition-colors hover:bg-surface-variant/30 hover:text-primary-container ${
+				toolRailCollapsed ? 'justify-center' : ''
+			} ${openRailGroup === id ? 'bg-surface-variant/30 text-primary-container' : 'text-on-surface-variant'}`}
+			onclick={(e) => toolRailCollapsed && toggleRailGroup(id, e)}
+			aria-haspopup={toolRailCollapsed}
+			aria-expanded={toolRailCollapsed ? openRailGroup === id : true}
+			title={label}
+		>
+			<span class="material-symbols-outlined shrink-0 text-[16px]">{icon}</span>
+			{#if !toolRailCollapsed}<span class="truncate">{label}</span>{/if}
+		</button>
+		{#if !toolRailCollapsed}
+			<div class="mt-0.5 mb-1 space-y-1 pl-1">
+				{@render body()}
 			</div>
 		{/if}
 	</div>
-</div>
+{/snippet}
+
+{#snippet railButton(icon: string, label: string, action: () => void)}
+	<button
+		type="button"
+		class={`flex h-8 w-full items-center gap-2 rounded px-2 font-mono text-[11px] text-on-surface-variant transition-colors hover:bg-surface-variant/30 hover:text-primary-container ${
+			toolRailCollapsed ? 'justify-center' : ''
+		}`}
+		onclick={action}
+		aria-label={label}
+		title={label}
+	>
+		<span class="material-symbols-outlined shrink-0 text-[16px]">{icon}</span>
+		{#if !toolRailCollapsed}<span class="truncate">{label}</span>{/if}
+	</button>
+{/snippet}
+
+{#snippet railToggle(icon: string, label: string, checked: boolean, onToggle: () => void)}
+	<button
+		type="button"
+		role="checkbox"
+		aria-checked={checked}
+		class={`flex h-8 w-full items-center gap-2 rounded px-2 font-mono text-[11px] transition-colors hover:bg-surface-variant/30 ${
+			toolRailCollapsed ? 'justify-center' : ''
+		} ${checked ? 'bg-primary-container/20 text-primary-container' : 'text-on-surface-variant'}`}
+		onclick={onToggle}
+		aria-label={label}
+		title={label}
+	>
+		<span class="material-symbols-outlined shrink-0 text-[16px]">{icon}</span>
+		{#if !toolRailCollapsed}<span class="truncate">{label}</span>{/if}
+	</button>
+{/snippet}

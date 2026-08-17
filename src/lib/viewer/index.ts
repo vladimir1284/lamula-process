@@ -17,7 +17,8 @@ export {
 	flattenOnBlack,
 	downloadCanvasAsPng,
 	buildExportFilename,
-	composeSideBySide
+	composeSideBySide,
+	drawScaleLegendOverlay
 } from './exportImage';
 export { ringFeatures, makeRingStyle, defaultRingsM } from './rings';
 export { readoutAt } from './readout';

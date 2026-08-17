@@ -13,10 +13,13 @@
 	interface Props {
 		window: RadarWindow;
 		bounds: CanvasSize;
+		/** Replaces the default `win.title` text in the title bar (e.g. MapWindow's merged
+		 * time/radar/product/VCP row) -- falls back to `win.title` when not provided. */
+		titleContent?: Snippet;
 		children: Snippet;
 	}
 
-	let { window: win, bounds, children }: Props = $props();
+	let { window: win, bounds, titleContent, children }: Props = $props();
 
 	const focused = $derived(windowStore.focusedId === win.id);
 
@@ -135,9 +138,13 @@
 				<span class="material-symbols-outlined shrink-0 text-[14px] text-primary-container"
 					>drag_indicator</span
 				>
-				<span class="flex-1 truncate font-mono text-[11px] text-on-surface-variant uppercase">
-					{win.title}
-				</span>
+				{#if titleContent}
+					{@render titleContent()}
+				{:else}
+					<span class="flex-1 truncate font-mono text-[11px] text-on-surface-variant uppercase">
+						{win.title}
+					</span>
+				{/if}
 			</div>
 			<button
 				type="button"

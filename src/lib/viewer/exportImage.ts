@@ -1,4 +1,5 @@
 import type Map from 'ol/Map';
+import type { Palette } from '$lib/palette/types';
 
 /**
  * Composite an OpenLayers map's layer canvases into one flat canvas, respecting each layer's
@@ -122,6 +123,78 @@ export function composeSideBySide(
 	ctx.drawImage(left, 0, (out.height - left.height) / 2);
 	ctx.drawImage(right, left.width + gapPx, (out.height - right.height) / 2);
 	return out;
+}
+
+/**
+ * Paint the same color-ramp legend the on-screen bottom-right chip shows (see ScaleLegend.svelte)
+ * directly onto the exported canvas -- the chip itself is a plain HTML overlay, not an OL layer,
+ * so `exportMapToCanvas` (which only composites `.ol-layer` canvases) never picks it up on its
+ * own. Reads the live `--color-*` custom properties instead of hardcoding hex so the drawn chip
+ * matches whichever theme (light/dark) is active, same as the on-screen one.
+ */
+export function drawScaleLegendOverlay(
+	canvas: HTMLCanvasElement,
+	palette: Palette,
+	unit: string | undefined
+): void {
+	const ctx = canvas.getContext('2d');
+	if (!ctx) return;
+	const root = getComputedStyle(document.documentElement);
+	const prop = (name: string, fallback: string) => root.getPropertyValue(name).trim() || fallback;
+	const bg = prop('--color-surface-container-high', '#272a2e');
+	const border = prop('--color-outline-variant', '#3b494b');
+	const text = prop('--color-on-surface', '#e1e2e7');
+	const textVariant = prop('--color-on-surface-variant', '#b9cacb');
+
+	const stops = palette.stops;
+	const pad = 8;
+	const nameW = 70;
+	const barW = 200;
+	const barH = 10;
+	const boxW = pad * 3 + nameW + barW;
+	const boxH = pad * 2 + barH + 14;
+	const margin = 8;
+	const x = canvas.width - boxW - margin;
+	const y = canvas.height - boxH - margin;
+
+	ctx.save();
+	ctx.globalAlpha = 0.9;
+	ctx.fillStyle = bg;
+	ctx.fillRect(x, y, boxW, boxH);
+	ctx.globalAlpha = 1;
+	ctx.strokeStyle = border;
+	ctx.lineWidth = 1;
+	ctx.strokeRect(x + 0.5, y + 0.5, boxW - 1, boxH - 1);
+
+	ctx.font = '9px "JetBrains Mono", monospace';
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = textVariant;
+	ctx.fillText(palette.name.toUpperCase(), x + pad, y + pad);
+	if (unit) ctx.fillText(unit, x + pad, y + pad + 11);
+
+	const barX = x + pad + nameW + pad;
+	const barY = y + pad;
+	const segW = barW / stops.length;
+	stops.forEach((stop, i) => {
+		ctx.fillStyle = `rgb(${stop.color[0]}, ${stop.color[1]}, ${stop.color[2]})`;
+		ctx.fillRect(barX + i * segW, barY, segW, barH);
+	});
+	ctx.strokeStyle = border;
+	ctx.strokeRect(barX + 0.5, barY + 0.5, barW - 1, barH - 1);
+
+	// Same thinning as ScaleLegend.svelte: first/last stop plus every ~6th, so labels don't collide
+	// at typical stop counts.
+	ctx.fillStyle = text;
+	ctx.textAlign = 'center';
+	const labelY = barY + barH + 3;
+	const step = Math.max(1, Math.ceil(stops.length / 6));
+	stops.forEach((stop, i) => {
+		if (i === 0 || i === stops.length - 1 || i % step === 0) {
+			ctx.fillText(String(stop.value), barX + i * segW + segW / 2, labelY);
+		}
+	});
+	ctx.restore();
 }
 
 function sanitize(part: string): string {

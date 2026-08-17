@@ -116,6 +116,15 @@
 		sidebarCollapsed = !sidebarCollapsed;
 		localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
 	}
+	// Compressed/expanded per-window tool rail (channel/elevation/product params/overlays/base
+	// map/export), same collapse pattern as the left sidebar above -- one shared toggle so all
+	// open map windows' rails stay in sync rather than each carrying its own state.
+	const TOOL_RAIL_COLLAPSED_KEY = 'lamula-process:tool-rail-collapsed';
+	let toolRailCollapsed = $state(true);
+	function toggleToolRail() {
+		toolRailCollapsed = !toolRailCollapsed;
+		localStorage.setItem(TOOL_RAIL_COLLAPSED_KEY, String(toolRailCollapsed));
+	}
 	function itemTitle(item: { id: CatalogProductKind; label: string }): string | undefined {
 		const hint =
 			item.id === 'ACCUMULATE'
@@ -370,6 +379,7 @@
 
 	onMount(async () => {
 		sidebarCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+		toolRailCollapsed = localStorage.getItem(TOOL_RAIL_COLLAPSED_KEY) !== 'false';
 		knownSitesLoaded = isKnownSitesSeedLoaded();
 		book = await loadPaletteBook();
 		settings = await loadSettings();
@@ -420,12 +430,23 @@
 		return w && w.type === 'map' ? w : null;
 	});
 
-	// UTC, matching the rest of the app's fixed-UTC display convention (see MapWindow's own
-	// formatUtcTime) -- stamped into a window's title at creation so the taskbar/cascade view
-	// identifies which observation it came from without opening it.
+	// UTC, matching the rest of the app's fixed-UTC display convention -- stamped into a window's
+	// title at creation so the taskbar/cascade view identifies which observation it came from
+	// without opening it.
 	function formatUtcTimeShort(ts: string): string {
 		const d = new Date(ts);
 		return isNaN(d.getTime()) ? ts : d.toISOString().slice(11, 19) + 'Z';
+	}
+
+	// Same UTC convention, split hora/fecha -- feeds the map window's merged title-bar row
+	// (see the `titleContent` snippet passed to `WindowManager` below).
+	function formatUtcTimeHms(ts: string): string {
+		const d = new Date(ts);
+		return isNaN(d.getTime()) ? ts : d.toISOString().slice(11, 19);
+	}
+	function formatUtcDateYmd(ts: string): string {
+		const d = new Date(ts);
+		return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
 	}
 
 	function launchCatalogItem(id: CatalogProductKind) {
@@ -805,6 +826,42 @@
 					</div>
 				{/if}
 				<WindowManager bind:canvasSize>
+					{#snippet titleContent(w)}
+						{#if w.type === 'map'}
+							{@const mapObs = observationById((w.payload as MapWindowPayload).observationId)}
+							<div class="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+								<div class="flex shrink-0 flex-col leading-none">
+									<span class="font-mono text-[13px] font-bold text-on-surface">
+										{mapObs ? formatUtcTimeHms(mapObs.timestamp) : '--:--:--'}
+									</span>
+									<span class="font-mono text-[9px] text-on-surface-variant">
+										{mapObs ? formatUtcDateYmd(mapObs.timestamp) : ''}
+									</span>
+								</div>
+								{#if mapObs}
+									<span class="flex shrink-0 items-center gap-1 font-mono text-[11px]">
+										<span class="text-on-surface-variant">{$_('window.radarLabel')}</span>
+										<span class="text-primary-container">{mapObs.site.name}</span>
+									</span>
+								{/if}
+								<span
+									class="shrink-0 truncate font-mono text-[10px] tracking-widest text-on-surface-variant uppercase"
+								>
+									{$_(catalogLabel((w.payload as MapWindowPayload).product))}
+								</span>
+								{#if mapObs?.design}
+									<span class="flex shrink-0 items-center gap-1 font-mono text-[10px]">
+										<span class="text-on-surface-variant">{$_('window.vcpLabel')}</span>
+										<span
+											class="rounded border border-primary-container/30 bg-surface-container-lowest px-1.5 py-0.5 text-primary-container"
+										>
+											{mapObs.design}
+										</span>
+									</span>
+								{/if}
+							</div>
+						{/if}
+					{/snippet}
 					{#snippet content(w)}
 						{#if w.type === 'map'}
 							{@const mapObs = observationById((w.payload as MapWindowPayload).observationId)}
@@ -826,6 +883,8 @@
 								gridStepLatDeg={settings.gridStepLatDeg}
 								gridStepLonDeg={settings.gridStepLonDeg}
 								{knownSitesLoaded}
+								{toolRailCollapsed}
+								onToggleToolRail={toggleToolRail}
 								onOpenLocationEditor={() => openLocationEditor(mapObs)}
 								onLoadKnownSites={loadKnownSites}
 								onShowVad={(idx) =>

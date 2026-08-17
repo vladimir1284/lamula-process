@@ -215,6 +215,8 @@
 		"ewPositionTitle": "N-S cut position (drag its guide line on the map, or type the E-W offset from the site)",
 		"radarLabel": "RADAR",
 		"vcpLabel": "VCP",
+		"legendToggle": "Palette",
+		"productParamsTitle": "Product parameters",
 		"readout": {
 			"channel": "CHANNEL",
 			"elevation": "ELEV",

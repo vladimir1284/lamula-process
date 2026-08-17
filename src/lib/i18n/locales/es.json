@@ -215,6 +215,8 @@
 		"ewPositionTitle": "Posición del corte N-S (arrastra su línea guía en el mapa, o escribe el desplazamiento E-O respecto al sitio)",
 		"radarLabel": "RADAR",
 		"vcpLabel": "VCP",
+		"legendToggle": "Leyenda",
+		"productParamsTitle": "Parámetros del producto",
 		"readout": {
 			"channel": "CANAL",
 			"elevation": "ELEV",

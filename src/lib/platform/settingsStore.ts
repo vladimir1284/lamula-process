@@ -65,7 +65,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	gridStepLonDeg: 1,
 	zrA: 300,
 	zrB: 1.4,
-	showScale: true,
+	showScale: false,
 	showSiteMarker: true,
 	showCutGuide: true,
 	imageSmoothing: false,
