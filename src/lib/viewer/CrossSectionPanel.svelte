@@ -136,7 +136,11 @@
 	});
 
 	const renderer = new CrossSectionRenderer();
-	onDestroy(() => renderer.terminate());
+	let renderTimer: ReturnType<typeof setTimeout> | undefined;
+	onDestroy(() => {
+		renderer.terminate();
+		clearTimeout(renderTimer);
+	});
 	let renderToken = 0;
 	let raster: CrossSectionRasterResult | null = $state(null);
 	let lineLengthM = $state(0);
@@ -164,6 +168,15 @@
 		return { rgba: out, widthPx: h, heightPx: w, lineLengthM: r.lineLengthM };
 	}
 
+	// A docked panel's `line`/`maxProjection` are `$derived` from the map's own pan/zoom (see
+	// MapWindow.svelte) and can change on every animation frame of a drag or wheel gesture --
+	// dispatching a full rasterize to the worker on every one of those ticks would both queue up
+	// faster than the worker (previously measured up to ~2.3s worst case) can drain and burn CPU on
+	// requests whose result is thrown away the instant a newer one supersedes it. Debouncing the
+	// dispatch itself (not just discarding stale results after the fact) fixes both: only the
+	// settled state after a pause actually reaches the worker.
+	const RENDER_DEBOUNCE_MS = 150;
+
 	// Rasterize off the main thread whenever scans/palette/geometry changes. A monotonic token
 	// discards a stale response if a newer render was requested before this one resolved (there's
 	// no built-in worker cancellation) -- same pattern as PpiMap.svelte's PpiRenderer usage.
@@ -178,24 +191,27 @@
 		const o = orientation;
 		const mp = maxProjection;
 		const dpr = devicePixelRatioOrOne();
-		const token = ++renderToken;
-		// Worker postMessage can't structured-clone a Svelte $state proxy -- snapshot to plain
-		// objects before crossing the worker boundary.
-		renderer
-			.render($state.snapshot(s), $state.snapshot(p), {
-				widthPx: Math.round(along * dpr),
-				heightPx: Math.round(thicknessPx * dpr),
-				maxHeightM: maxH,
-				line: $state.snapshot(ln),
-				siteAltM: siteAlt,
-				elevPadDeg: pad,
-				maxProjection: mp ? $state.snapshot(mp) : undefined
-			})
-			.then((result) => {
-				if (token !== renderToken) return; // superseded
-				raster = o === 'vertical' ? rotate90(result) : result;
-				lineLengthM = result.lineLengthM;
-			});
+		clearTimeout(renderTimer);
+		renderTimer = setTimeout(() => {
+			const token = ++renderToken;
+			// Worker postMessage can't structured-clone a Svelte $state proxy -- snapshot to plain
+			// objects before crossing the worker boundary.
+			renderer
+				.render($state.snapshot(s), $state.snapshot(p), {
+					widthPx: Math.round(along * dpr),
+					heightPx: Math.round(thicknessPx * dpr),
+					maxHeightM: maxH,
+					line: $state.snapshot(ln),
+					siteAltM: siteAlt,
+					elevPadDeg: pad,
+					maxProjection: mp ? $state.snapshot(mp) : undefined
+				})
+				.then((result) => {
+					if (token !== renderToken) return; // superseded
+					raster = o === 'vertical' ? rotate90(result) : result;
+					lineLengthM = result.lineLengthM;
+				});
+		}, RENDER_DEBOUNCE_MS);
 	});
 
 	const xScale = $derived(
