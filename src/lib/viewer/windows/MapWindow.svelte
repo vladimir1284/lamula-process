@@ -136,7 +136,7 @@
 	// A popover left open while collapsed would otherwise render as a stray floating panel once
 	// the rail expands (the group body already shows inline then) -- close it on every toggle.
 	$effect(() => {
-		toolRailCollapsed;
+		void toolRailCollapsed;
 		openRailGroup = null;
 	});
 
