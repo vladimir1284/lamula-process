@@ -181,14 +181,14 @@
 		channel && channel.scans.length > 0 ? maxScanRangeM(channel.scans) / 1000 : 400
 	);
 
-	// The two docked cuts are orthogonal projections of the same volume the map itself is showing --
-	// both their SPAN and their CENTRE must track the map's own viewport, or panning/zooming the
-	// map and the cuts would disagree about what ground is on screen. `payload.nsPositionKm`/
-	// `ewPositionKm` are NOT absolute site-relative coordinates -- they're the user's drag/input
-	// offset FROM the viewport's current centre, so panning carries the cut along (its absolute
-	// position shifts with the centre) while the offset itself stays put until the user changes it
-	// again. `centerEastM`/`centerNorthM`/`groundMPerPx` come from PpiMap's `onViewChange`, fired on
-	// 'moveend' (and once synchronously after its render effect's own `.fit()`).
+	// The two docked cuts are orthogonal projections of the same volume the map itself is showing.
+	// `payload.nsPositionKm`/`ewPositionKm` are ABSOLUTE site-relative coordinates (bounded by
+	// +-maxRangeKm, the scan's own range) -- ground-fixed, so panning/zooming the map must NOT move
+	// them: they have to stay put against the lat/lon grid and the radar data, same as any other
+	// ground feature (rings, radials). Only the line's SPAN (how far each strip extends) tracks the
+	// viewport, so the strip always fills whatever width/height of ground is currently visible --
+	// its centre position along the perpendicular axis never does. `centerEastM`/`centerNorthM`/
+	// `groundMPerPx` come from PpiMap's `onViewChange`, used here only to size that span.
 	let mapAreaEl: HTMLDivElement | undefined = $state();
 	let mapPxW = $state(0);
 	let mapPxH = $state(0);
@@ -222,13 +222,13 @@
 				? maxScanRangeM(channel.scans)
 				: 400_000
 	);
-	// Absolute site-relative position of each guide: viewport centre + the user's own offset.
-	const absNsPositionM = $derived(centerNorthM + payload.nsPositionKm * 1000);
-	const absEwPositionM = $derived(centerEastM + payload.ewPositionKm * 1000);
-	// NOT `eastWestLine`/`northSouthLine` -- those centre the wide axis on the SITE (east/north 0),
-	// which only matches the map when the view happens to be centred on the site too. The docked
-	// strip must span exactly what the map itself shows, so the wide axis is centred on the map's
-	// own pan position (`centerEastM`/`centerNorthM`), same as the along axis already is.
+	// Ground-fixed position of each guide -- never derived from the viewport centre.
+	const absNsPositionM = $derived(payload.nsPositionKm * 1000);
+	const absEwPositionM = $derived(payload.ewPositionKm * 1000);
+	// NOT `eastWestLine`/`northSouthLine` -- those centre the wide axis on the SITE (east/north 0)
+	// and use the scan's own max range, which doesn't shrink/grow the strip as you zoom. The docked
+	// strip's wide axis instead spans exactly what the map currently shows (`centerEastM`/
+	// `centerNorthM` +- half the viewport in ground metres), so it never runs out mid-screen.
 	const cutLineEW = $derived(
 		channel && channel.scans.length > 0
 			? {
@@ -249,15 +249,14 @@
 				}
 			: null
 	);
-	// The drag callback reports the dropped point's ABSOLUTE site-relative position (PpiMap has no
-	// notion of "offset from centre") -- subtract the viewport centre to get back the relative
-	// offset this payload actually stores. Rounded to 0.1 km so the toolbar input doesn't jitter to
-	// long decimals mid-drag.
+	// The drag callback reports the dropped point's absolute site-relative position directly --
+	// that's exactly what the payload stores. Rounded to 0.1 km so the toolbar input doesn't jitter
+	// to long decimals mid-drag.
 	function onNsPositionChange(m: number) {
-		payload.nsPositionKm = Math.round(((m - centerNorthM) / 1000) * 10) / 10;
+		payload.nsPositionKm = Math.round((m / 1000) * 10) / 10;
 	}
 	function onEwPositionChange(m: number) {
-		payload.ewPositionKm = Math.round(((m - centerEastM) / 1000) * 10) / 10;
+		payload.ewPositionKm = Math.round((m / 1000) * 10) / 10;
 	}
 
 	const beamWidth = $derived(effectiveBeamWidth(channel));

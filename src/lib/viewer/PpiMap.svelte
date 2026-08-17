@@ -194,7 +194,7 @@
 	const CUT_END_COLOR = '#ef4444';
 
 	const drawStyle = new Style({
-		stroke: new Stroke({ color: '#00f0ff', width: 2 })
+		stroke: new Stroke({ color: '#00f0ff', width: 3 })
 	});
 
 	const pointStyle = new Style({
@@ -213,7 +213,7 @@
 	// Docked N-S/E-W cut position guides -- dashed so they read as "draggable reference", distinct
 	// from the solid free-line cut (drawStyle) and RHI radial (azimuthLineStyle).
 	const guideLineStyle = new Style({
-		stroke: new Stroke({ color: '#94a3b8', width: 1, lineDash: [6, 4] })
+		stroke: new Stroke({ color: '#94a3b8', width: 2, lineDash: [6, 4] })
 	});
 	// Hit-test tolerance for grabbing a guide line, in screen pixels.
 	const GUIDE_HIT_PX = 8;
@@ -331,8 +331,14 @@
 			const lut = buildAzimuthLUT(scan);
 			onreadout(readoutAt(ev.coordinate as [number, number], siteXY(), scale(), scan, lut));
 		});
-		// 'moveend' fires once a pan/zoom gesture settles (not per drag frame), so this is cheap --
-		// no debounce needed. Also covers the render effect's own `.fit()` re-centering below.
+		// 'moveend' alone only fires once a pan/zoom gesture settles -- mid-drag or mid-zoom-
+		// animation frames left the last-reported view stale, so anything anchored to it (the
+		// docked N-S/E-W guide lines in MapWindow, which re-centre on `centerEastM`/`centerNorthM`)
+		// visibly lagged behind the live-panning radar image and only snapped into place on release.
+		// `change:center`/`change:resolution` fire on every intermediate step of a drag or an
+		// animated zoom, so the guides now track continuously instead of jumping at the end.
+		map.getView().on('change:center', reportView);
+		map.getView().on('change:resolution', reportView);
 		map.on('moveend', reportView);
 
 		// Cursor feedback for the N-S/E-W guide lines: resize-style cursor when hovering one, so a
