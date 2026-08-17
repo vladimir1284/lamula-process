@@ -199,6 +199,16 @@
 			: linearScale([0, toDisplayDistanceM(lineLengthM, unitSystem)], [PAD.top + PLOT_H, PAD.top])
 	);
 
+	// Tick density keyed to the axis's *role* (distance vs height), not to which screen axis it
+	// happens to land on -- otherwise the vertical (N-S) panel swaps the 90px/50px targets and its
+	// grid spacing no longer matches the horizontal (E-W) panel's.
+	const distanceTickCount = $derived(
+		Math.max(2, Math.round((orientation === 'horizontal' ? PLOT_W : PLOT_H) / 90))
+	);
+	const heightTickCount = $derived(
+		Math.max(2, Math.round((orientation === 'horizontal' ? PLOT_H : PLOT_W) / 50))
+	);
+
 	function drawEndpoints(ctx: CanvasRenderingContext2D) {
 		if (!markEndpoints) return;
 		const drawEndpoint = (x: number, y: number, label: string, color: string) => {
@@ -287,6 +297,8 @@
 			yFormat: (v) => `${Math.round(v)}`,
 			xLabel: orientation === 'horizontal' ? distanceUnitLabel(unitSystem) : 'km',
 			yLabel: orientation === 'horizontal' ? 'km' : distanceUnitLabel(unitSystem),
+			xTickCount: orientation === 'horizontal' ? distanceTickCount : heightTickCount,
+			yTickCount: orientation === 'horizontal' ? heightTickCount : distanceTickCount,
 			grid: showGrid,
 			axisLines
 		}}
