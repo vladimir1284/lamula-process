@@ -171,7 +171,7 @@ bloquea cualquier POST desde `lamula-process`: es cross-origin y lleva una cabec
 Verificado contra producción (2026-10-11), no inferido:
 
 ```
-curl -D- -o/dev/null -H 'Origin: https://lamula-process.pages.dev' \
+curl -D- -o/dev/null -H 'Origin: https://process.ladetec.com' \
   https://webviewer.ladetec.com/api/health
 → HTTP/2 200, sin ninguna cabecera access-control-*
 
@@ -194,6 +194,10 @@ Crear `server/middleware/cors.ts`, mismo patrón que `server/middleware/admin.ts
   cookie de sesión y abrirlo a otros orígenes sería un agujero.
 - Allowlist explícita por env (`NUXT_CORS_ORIGINS`, lista separada por comas), **nunca `*`** —
   hay una cabecera de identidad en juego.
+- **Origen confirmado por el usuario: `https://process.ladetec.com`, y solo ese.** Nada de
+  `*.pages.dev`: los preview deployments por rama quedan FUERA a propósito, así que desde un
+  preview el envío de feedback no sale (queda encolado, no se pierde). Para probar el camino
+  completo hay que hacerlo desde producción o añadir el origen a mano por un rato.
 - Debe incluir el origen de Tauri. En Tauri v2 el origen de la webview es `tauri://localhost`
   (macOS/iOS) o `http://tauri.localhost` (Windows/Android); en Linux/WebKitGTK puede llegar
   `null`. _Asunción a verificar cuando el build de escritorio exista: hoy no hay toolchain Rust
@@ -453,7 +457,8 @@ justo lo que este plan hace. No hay Playwright en este repo; no se añade.
 
 ## Acciones manuales fuera del código (del usuario)
 
-1. **Env en el Swarm**: `NUXT_CORS_ORIGINS` con los orígenes de Process.
+1. **Env en el Swarm**: `NUXT_CORS_ORIGINS=https://process.ladetec.com` (solo producción, decidido
+   por el usuario; los previews de Pages quedan fuera).
 2. Desplegar el webviewer antes de que lo de acá sirva de algo.
 
 (Turnstile ya no hace falta: ver D51. No hay hostname que dar de alta ni site key que pasar.)
