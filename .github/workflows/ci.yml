@@ -83,6 +83,10 @@ jobs:
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
+          # El default de la action es wrangler 3.90.0, de hace casi un año.
+          # Lo usa porque el `pnpm install` del repo falla en el postinstall
+          # (ImageMagick no está en este job). Pinear uno actual.
+          wranglerVersion: '4.149.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # main → producción; PR → preview deployment con URL propia
