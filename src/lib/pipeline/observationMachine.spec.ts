@@ -8,11 +8,11 @@ import { observationMachine } from './observationMachine';
 type OpenOut = (OpenedFile & { source: 'local' | 'aws'; s3Key?: string })[];
 // parseFile now parses each picked file into its own independent entry (see observationMachine.ts).
 type ParseFileOut = {
-	entries: { observation: Observation; fileName: string }[];
+	entries: { observation: Observation; fileName: string; formatId?: string }[];
 	recentFiles: RecentFileEntry[];
 };
 // parseVolumeFile/parseAccumulateFile still merge, unlike parseFile above.
-type ParseOut = { observation: Observation; recentFiles: RecentFileEntry[] };
+type ParseOut = { observation: Observation; formatId?: string; recentFiles: RecentFileEntry[] };
 type ResolveOut = { fileName: string; bytes: Uint8Array; source: 'local' | 'aws'; s3Key?: string };
 
 const fakeObs: Observation = {

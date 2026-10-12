@@ -9,7 +9,8 @@
 		"edit": "Editar",
 		"delete": "Eliminar",
 		"errorGeneric": "No se pudo abrir el archivo.",
-		"showTechnicalDetail": "Ver detalle técnico"
+		"showTechnicalDetail": "Ver detalle técnico",
+		"close": "Cerrar"
 	},
 	"menu": {
 		"file": {
@@ -249,7 +250,9 @@
 		"emptyStats": "Traza un rectángulo en el mapa de origen para ver estadísticas.",
 		"exportCsv": "Exportar CSV",
 		"exportTxt": "Exportar TXT",
-		"observationInfoTitle": "Información de la observación"
+		"observationInfoTitle": "Información de la observación",
+		"restoreNamed": "Restaurar {title}",
+		"noneOpen": "Sin ventanas abiertas"
 	},
 	"observationInfo": {
 		"listTitle": "Observaciones cargadas",

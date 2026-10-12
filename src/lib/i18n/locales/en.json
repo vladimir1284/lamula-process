@@ -9,7 +9,8 @@
 		"edit": "Edit",
 		"delete": "Delete",
 		"errorGeneric": "Couldn't open the file.",
-		"showTechnicalDetail": "Show technical detail"
+		"showTechnicalDetail": "Show technical detail",
+		"close": "Close"
 	},
 	"menu": {
 		"file": {
@@ -249,7 +250,9 @@
 		"emptyStats": "Draw a rectangle on the source map to see statistics.",
 		"exportCsv": "Export CSV",
 		"exportTxt": "Export TXT",
-		"observationInfoTitle": "Observation info"
+		"observationInfoTitle": "Observation info",
+		"restoreNamed": "Restore {title}",
+		"noneOpen": "No windows open"
 	},
 	"observationInfo": {
 		"listTitle": "Loaded observations",

@@ -1,15 +1,26 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { _ } from '$lib/i18n';
 
 	interface Props {
 		open: boolean;
 		title?: string;
+		/** Material symbol shown next to the title. The location pin is what every modal used
+		 * before this was a prop, so it stays the default. */
+		icon?: string;
 		maxWidthClass?: string;
 		onclose: () => void;
 		children: Snippet;
 	}
 
-	let { open, title, maxWidthClass = 'max-w-2xl', onclose, children }: Props = $props();
+	let {
+		open,
+		title,
+		icon = 'edit_location',
+		maxWidthClass = 'max-w-2xl',
+		onclose,
+		children
+	}: Props = $props();
 
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
@@ -23,7 +34,7 @@
 		<button
 			class="absolute inset-0 cursor-default border-0 bg-black/60 backdrop-blur-sm"
 			onclick={onclose}
-			aria-label="Cerrar"
+			aria-label={$_('common.close')}
 		></button>
 		<div
 			class="glass-panel relative max-h-[90vh] w-full {maxWidthClass} overflow-auto rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -38,15 +49,13 @@
 					<span
 						class="flex items-center gap-2 font-mono text-label-mono tracking-tight text-on-surface-variant uppercase"
 					>
-						<span class="material-symbols-outlined text-[18px] text-primary-container"
-							>edit_location</span
-						>
+						<span class="material-symbols-outlined text-[18px] text-primary-container">{icon}</span>
 						{title}
 					</span>
 					<button
 						class="text-on-surface-variant transition-colors hover:text-primary-container"
 						onclick={onclose}
-						aria-label="Cerrar"
+						aria-label={$_('common.close')}
 					>
 						<span class="material-symbols-outlined text-[20px]">close</span>
 					</button>

@@ -7,7 +7,7 @@ import {
 	type RecentFileEntry
 } from '$lib/platform';
 import { fetchVolumeScanBytes } from '$lib/aws-explorer/nexradS3';
-import { parseObservation } from '$lib/parsers';
+import { detectParsers, parseObservation } from '$lib/parsers';
 import { mergeSweeps, createTimeSpan, type TimeSpan } from '$lib/domain';
 import type { Observation } from '$lib/domain/types';
 
@@ -35,6 +35,14 @@ interface Picked {
 export interface ObservationEntry {
 	observation: Observation;
 	fileName: string;
+	/** Parser that read it ('insmet', 'nexrad-l2', …). Diagnostics only: the feedback context
+	 * reports the format, never the file name (see lib/feedback/context.ts). */
+	formatId?: string;
+}
+
+/** First descriptor whose `canParse` matched -- the same order `parseObservation` tries. */
+function detectFormatId(picked: Picked): string | undefined {
+	return detectParsers(picked)[0]?.id;
 }
 
 interface Ctx {
@@ -113,40 +121,58 @@ export const observationMachine = setup({
 		}),
 		// Parses each picked file as its own, independent Observation (unlike parseVolumeFile, which
 		// merges same-volume sweep files into one) and records each in the recent-files list.
-		parseFile: fromPromise(async ({ input }: { input: Picked[] }) => {
-			const observations = await Promise.all(input.map((picked) => parseObservation(picked)));
-			const entries = observations.map((observation, i) => ({
-				observation,
-				fileName: input[i].fileName
-			}));
-			let recentFiles: RecentFileEntry[] = [];
-			for (const picked of input) {
-				const config = await addRecentFile({
-					label: picked.fileName,
-					source: picked.source,
-					s3Key: picked.s3Key
-				});
-				recentFiles = config.recentFiles;
+		parseFile: fromPromise(
+			async ({
+				input
+			}: {
+				input: Picked[];
+			}): Promise<{ entries: ObservationEntry[]; recentFiles: RecentFileEntry[] }> => {
+				const observations = await Promise.all(input.map((picked) => parseObservation(picked)));
+				const entries = observations.map((observation, i) => ({
+					observation,
+					fileName: input[i].fileName,
+					formatId: detectFormatId(input[i])
+				}));
+				let recentFiles: RecentFileEntry[] = [];
+				for (const picked of input) {
+					const config = await addRecentFile({
+						label: picked.fileName,
+						source: picked.source,
+						s3Key: picked.s3Key
+					});
+					recentFiles = config.recentFiles;
+				}
+				return { entries, recentFiles };
 			}
-			return { entries, recentFiles };
-		}),
+		),
 		// Parses each single-sweep file and stitches them into one multi-tilt Observation (see
 		// domain/mergeSweeps.ts) -- feeds both the AWS-volume-grouping and local-multi-file-open
 		// paths, both of which only ever apply to Sigmet/IRIS RAW or NetCDF CfRadial (the two
 		// one-sweep-per-file formats). The recent-files entry represents just the first file
 		// (re-opening a merged volume later re-opens that one sweep, not the whole volume --
 		// exact volume re-open would need a RecentFileEntry shape carrying multiple keys, deferred).
-		parseVolumeFile: fromPromise(async ({ input }: { input: Picked[] }) => {
-			const parsed = await Promise.all(input.map((picked) => parseObservation(picked)));
-			const { observation } = mergeSweeps(parsed);
-			const first = input[0];
-			const config = await addRecentFile({
-				label: first.fileName,
-				source: first.source,
-				s3Key: first.s3Key
-			});
-			return { observation, recentFiles: config.recentFiles };
-		}),
+		parseVolumeFile: fromPromise(
+			async ({
+				input
+			}: {
+				input: Picked[];
+			}): Promise<{
+				observation: Observation;
+				formatId?: string;
+				recentFiles: RecentFileEntry[];
+			}> => {
+				const parsed = await Promise.all(input.map((picked) => parseObservation(picked)));
+				const { observation } = mergeSweeps(parsed);
+				const first = input[0];
+				const formatId = detectFormatId(first);
+				const config = await addRecentFile({
+					label: first.fileName,
+					source: first.source,
+					s3Key: first.s3Key
+				});
+				return { observation, formatId, recentFiles: config.recentFiles };
+			}
+		),
 		resolveRecent: fromPromise(async ({ input }: { input: RecentFileEntry }) =>
 			resolveRecentFile(input)
 		),
@@ -346,7 +372,8 @@ export const observationMachine = setup({
 						observations: ({ context, event }) =>
 							upsertObservationEntry(context.observations, {
 								observation: event.output.observation,
-								fileName: context.pickedVolume?.[0]?.fileName ?? event.output.observation.id
+								fileName: context.pickedVolume?.[0]?.fileName ?? event.output.observation.id,
+								formatId: event.output.formatId
 							}),
 						activeObservationId: ({ event }) => event.output.observation.id
 					})

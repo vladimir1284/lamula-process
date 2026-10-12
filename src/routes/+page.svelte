@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { useMachine } from '@xstate/svelte';
 	import { observationMachine } from '$lib/pipeline/observationMachine';
 	import {
@@ -15,6 +15,12 @@
 	import { VadModal, ScaleEditor, Modal, SiteLocationEditor } from '$lib/viewer';
 	import { computeVadProfile } from '$lib/products/vadProfile';
 	import AwsExplorer from '$lib/aws-explorer/AwsExplorer.svelte';
+	import {
+		feedbackStore,
+		FeedbackDialog,
+		FeedbackNudge,
+		type FeedbackContextInput
+	} from '$lib/feedback';
 	import { MenuBar, type MenuDef, type MenuItem } from '$lib/nav';
 	import { loadConfig, type RecentFileEntry } from '$lib/platform';
 	import {
@@ -377,7 +383,49 @@
 		}
 	}
 
+	// Diagnostic snapshot attached to a feedback message. Deliberately NARROW: the opened file's
+	// name and path never leave the machine (INSMET/IDEAM operational files) -- `lib/feedback/
+	// context.ts` only copies the fields it knows, and `context.spec.ts` guards that.
+	function feedbackContext(): FeedbackContextInput {
+		const focused = windowStore.focusedId ? windowStore.find(windowStore.focusedId) : undefined;
+		const payload = focused?.payload as { elevationDeg?: number; product?: string } | undefined;
+		const entry = $snapshot.context.observations.find(
+			(e) => e.observation.id === activeObservationId
+		);
+
+		const productsOpen = [
+			...new Set(
+				windowStore.windows.map((w) => {
+					const p = (w.payload as { product?: string } | undefined)?.product;
+					return w.type === 'map' && p ? `map:${p}` : w.type;
+				})
+			)
+		];
+
+		return {
+			format: entry?.formatId ?? null,
+			siteCode: observation?.site.code ?? null,
+			elevationDeg: payload?.elevationDeg ?? null,
+			productsOpen,
+			filtersActive: settings.speckleDistanceM > 0 ? ['speckle'] : [],
+			locale: $locale
+		};
+	}
+
+	// The nudge fires when the user CLOSES a product window: this app gives value when something
+	// is processed, not when a map is looked at (see lib/feedback/nudge.ts). A drop in the window
+	// count is the close signal -- minimize/restore don't change it.
+	let lastWindowCount = $state(0);
+	$effect(() => {
+		const count = windowStore.windows.length;
+		const previous = untrack(() => lastWindowCount);
+		lastWindowCount = count;
+		if (count < previous) void feedbackStore.onProductWindowClosed();
+	});
+
 	onMount(async () => {
+		feedbackStore.setContextProvider(feedbackContext);
+		void feedbackStore.init();
 		sidebarCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
 		toolRailCollapsed = localStorage.getItem(TOOL_RAIL_COLLAPSED_KEY) !== 'false';
 		knownSitesLoaded = isKnownSitesSeedLoaded();
@@ -640,7 +688,28 @@
 							}))
 						: [{ label: $_('menu.window.noWindows'), disabled: true }])()
 			]
-		}
+		},
+		// Third menu, and only when the feedback API is configured at build time: with
+		// PUBLIC_FEEDBACK_API empty there is nowhere to send to, so the whole feature stays dark.
+		...(feedbackStore.enabled
+			? [
+					{
+						label: $_('feedback.menu.label'),
+						items: [
+							{
+								label: $_('feedback.menu.send'),
+								icon: 'feedback',
+								onclick: () => feedbackStore.openDialog('send')
+							},
+							{
+								label: $_('feedback.menu.mine'),
+								icon: 'forum',
+								onclick: () => feedbackStore.openDialog('mine')
+							}
+						]
+					}
+				]
+			: [])
 	]);
 </script>
 
@@ -794,6 +863,9 @@
 				windows just show their own empty state) -- the onboarding panel below is an overlay on
 				top of it, shown only while the desktop is genuinely empty and no file has been opened. -->
 			<div class="relative flex min-h-0 flex-1 flex-col">
+				{#if feedbackStore.enabled}
+					<FeedbackNudge />
+				{/if}
 				{#if !observation && windowStore.windows.length === 0}
 					<div
 						class="glass-panel absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 rounded-xl px-6 text-center"
@@ -1001,6 +1073,10 @@
 		bind:this={layoutFileInput}
 		onchange={onImportLayoutFile}
 	/>
+
+	{#if feedbackStore.enabled}
+		<FeedbackDialog />
+	{/if}
 
 	<Modal
 		open={showAwsExplorer}
