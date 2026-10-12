@@ -25,5 +25,6 @@ código base.
 - [Formatos soportados](formatos.md)
 - [Stack tecnológico](stack.md)
 - [Plan de implementación](plan-implementacion.md)
+- [Plan de feedback de usuarios](plan-feedback.md)
 - [Estrategia de pruebas](pruebas.md)
 - [CI/CD](ci-cd.md)
