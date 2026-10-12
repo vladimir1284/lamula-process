@@ -26,5 +26,6 @@ código base.
 - [Stack tecnológico](stack.md)
 - [Plan de implementación](plan-implementacion.md)
 - [Plan de feedback de usuarios](plan-feedback.md)
+- [Feedback de usuarios](feedback.md) — qué se recoge, qué no, y cómo se apaga
 - [Estrategia de pruebas](pruebas.md)
 - [CI/CD](ci-cd.md)

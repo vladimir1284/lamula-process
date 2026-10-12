@@ -39,4 +39,15 @@ npm run build
 
 You can preview the production build with `npm run preview`.
 
+### Build-time variables
+
+Two constants are baked in at build time (vite `define`, see `vite.config.ts`) — the app is a
+static bundle, there is no server to read them at runtime:
+
+- `PUBLIC_FEEDBACK_API` — base URL of the shared feedback API. **Empty (the default) turns the
+  whole feedback feature off**: no Help menu, no nudge, no requests.
+- `GIT_SHA` — reported as `buildId` with each feedback message. Falls back to `dev`.
+
+See `docs/feedback.md`.
+
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
