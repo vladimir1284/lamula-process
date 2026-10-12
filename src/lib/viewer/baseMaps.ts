@@ -31,6 +31,8 @@ export function isDarkBaseMap(id: BaseMapId): boolean {
 	return id === 'off' || id === 'carto-dark';
 }
 
+const CARTO_API_KEY = 'cb1_4iib_1_1dfa4e98cff8bebc4902181e';
+
 const CARTO_ATTRIBUTION =
 	'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
@@ -49,7 +51,7 @@ function cartoSource(style: string): XYZ {
 	// OL no expande el token {r} de CARTO — resolver @2x aquí una vez
 	const retina = typeof devicePixelRatio !== 'undefined' && devicePixelRatio > 1;
 	return new XYZ({
-		url: `https://{a-d}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}${retina ? '@2x' : ''}.png`,
+		url: `https://{a-d}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}${retina ? '@2x' : ''}.png?api_key=${CARTO_API_KEY}`,
 		tilePixelRatio: retina ? 2 : 1,
 		attributions: CARTO_ATTRIBUTION,
 		crossOrigin: 'anonymous'
