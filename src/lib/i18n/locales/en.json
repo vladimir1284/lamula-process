@@ -337,5 +337,93 @@
 			"rhi": "RHI",
 			"stats": "Statistics"
 		}
+	},
+	"feedback": {
+		"menu": {
+			"label": "Help",
+			"send": "Send feedback",
+			"mine": "My messages"
+		},
+		"dialog": {
+			"title": "Send feedback",
+			"tabSend": "Send",
+			"tabMine": "My messages",
+			"intro": "Tell us what is broken or missing. We read all of it.",
+			"submit": "Send",
+			"sending": "Sending…",
+			"sent": "Thanks. Message sent.",
+			"queued": "You are offline. The message was saved and will be sent on its own.",
+			"contact": "Contact details (optional)",
+			"privacy": "We never send the name or path of the files you open, nor any data samples. Only the format, site, elevation and which windows you had open.",
+			"close": "Close"
+		},
+		"form": {
+			"role": "Occupation",
+			"rolePlaceholder": "Pick your occupation",
+			"roleOther": "Tell us your occupation",
+			"kind": "Type",
+			"rating": "Rating",
+			"ratingNone": "Not rated",
+			"message": "Message",
+			"messagePlaceholder": "Describe what happened and what you expected.",
+			"displayName": "Name",
+			"email": "Email",
+			"organization": "Institution",
+			"country": "Country",
+			"charsLeft": "{count} characters left"
+		},
+		"roles": {
+			"profesor": "Teacher",
+			"meteorologo": "Meteorologist",
+			"investigador": "Researcher",
+			"estudiante": "Student",
+			"aficionado": "Enthusiast",
+			"otro": "Other"
+		},
+		"kinds": {
+			"mejora": "Improvement",
+			"bug": "Bug",
+			"dato": "Data or file",
+			"otro": "Other"
+		},
+		"nudge": {
+			"title": "Care to leave feedback?",
+			"body": "One minute. It tells us what to fix first.",
+			"accept": "Leave feedback",
+			"later": "Later",
+			"never": "No, thanks"
+		},
+		"thread": {
+			"empty": "You have not sent any messages yet.",
+			"loading": "Loading messages…",
+			"error": "Could not load your messages.",
+			"replies": "Replies",
+			"noReplies": "No reply yet.",
+			"unread": "You have unread replies",
+			"badge": "Messages",
+			"sentAt": "Sent: {value}",
+			"status": {
+				"nuevo": "New",
+				"leido": "Read",
+				"respondido": "Answered",
+				"cerrado": "Closed"
+			}
+		},
+		"errors": {
+			"roleRequired": "Tell us your occupation.",
+			"roleOtherRequired": "Write what your occupation is.",
+			"kindRequired": "Pick the kind of feedback.",
+			"messageRequired": "The message cannot be empty.",
+			"messageTooLong": "The message is too long.",
+			"ratingRange": "Rating goes from 1 to 5.",
+			"emailInvalid": "That email does not look valid.",
+			"rejected": "The server rejected the submission ({detail})",
+			"generic": "Could not send the message."
+		},
+		"queue": {
+			"pending": "Waiting to be sent: {count}",
+			"flushing": "Sending what is pending…",
+			"dropped": "Too many saved messages; the oldest one was dropped."
+		}
 	}
 }

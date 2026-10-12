@@ -337,5 +337,93 @@
 			"rhi": "RHI",
 			"stats": "Estadísticas"
 		}
+	},
+	"feedback": {
+		"menu": {
+			"label": "Ayuda",
+			"send": "Enviar comentario",
+			"mine": "Mis mensajes"
+		},
+		"dialog": {
+			"title": "Enviar comentario",
+			"tabSend": "Enviar",
+			"tabMine": "Mis mensajes",
+			"intro": "Cuéntanos qué falla o qué falta. Lo leemos todo.",
+			"submit": "Enviar",
+			"sending": "Enviando…",
+			"sent": "Gracias. Mensaje enviado.",
+			"queued": "Sin conexión. El mensaje quedó guardado y se enviará solo.",
+			"contact": "Datos de contacto (opcional)",
+			"privacy": "No se envía el nombre ni la ruta de los archivos abiertos, ni muestras de datos. Solo el formato, el sitio, la elevación y qué ventanas tenías abiertas.",
+			"close": "Cerrar"
+		},
+		"form": {
+			"role": "Ocupación",
+			"rolePlaceholder": "Selecciona tu ocupación",
+			"roleOther": "Especifica tu ocupación",
+			"kind": "Tipo",
+			"rating": "Valoración",
+			"ratingNone": "Sin valorar",
+			"message": "Mensaje",
+			"messagePlaceholder": "Describe qué pasó y qué esperabas que pasara.",
+			"displayName": "Nombre",
+			"email": "Correo",
+			"organization": "Institución",
+			"country": "País",
+			"charsLeft": "Quedan {count} caracteres"
+		},
+		"roles": {
+			"profesor": "Profesor",
+			"meteorologo": "Meteorólogo",
+			"investigador": "Investigador",
+			"estudiante": "Estudiante",
+			"aficionado": "Aficionado",
+			"otro": "Otro"
+		},
+		"kinds": {
+			"mejora": "Mejora",
+			"bug": "Fallo",
+			"dato": "Dato o archivo",
+			"otro": "Otro"
+		},
+		"nudge": {
+			"title": "¿Nos dejas un comentario?",
+			"body": "Un minuto. Nos dice qué arreglar primero.",
+			"accept": "Dejar comentario",
+			"later": "Más tarde",
+			"never": "No, gracias"
+		},
+		"thread": {
+			"empty": "Todavía no has enviado ningún mensaje.",
+			"loading": "Cargando mensajes…",
+			"error": "No se pudieron cargar tus mensajes.",
+			"replies": "Respuestas",
+			"noReplies": "Sin respuesta todavía.",
+			"unread": "Tienes respuestas sin leer",
+			"badge": "Mensajes",
+			"sentAt": "Enviado: {value}",
+			"status": {
+				"nuevo": "Nuevo",
+				"leido": "Leído",
+				"respondido": "Respondido",
+				"cerrado": "Cerrado"
+			}
+		},
+		"errors": {
+			"roleRequired": "Indica tu ocupación.",
+			"roleOtherRequired": "Escribe cuál es tu ocupación.",
+			"kindRequired": "Indica el tipo de comentario.",
+			"messageRequired": "El mensaje no puede estar vacío.",
+			"messageTooLong": "El mensaje es demasiado largo.",
+			"ratingRange": "La valoración va de 1 a 5.",
+			"emailInvalid": "Ese correo no parece válido.",
+			"rejected": "El servidor rechazó el envío ({detail})",
+			"generic": "No se pudo enviar el mensaje."
+		},
+		"queue": {
+			"pending": "Pendientes de enviar: {count}",
+			"flushing": "Enviando lo pendiente…",
+			"dropped": "Había demasiados mensajes guardados; se descartó el más antiguo."
+		}
 	}
 }
