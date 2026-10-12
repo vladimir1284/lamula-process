@@ -459,7 +459,12 @@ justo lo que este plan hace. No hay Playwright en este repo; no se añade.
 
 1. **Env en el Swarm**: `NUXT_CORS_ORIGINS=https://process.ladetec.com` (solo producción, decidido
    por el usuario; los previews de Pages quedan fuera).
-2. Desplegar el webviewer antes de que lo de acá sirva de algo.
+2. **Dominio propio de Process**: `process.ladetec.com` no está configurado en ningún sitio de
+   este repo — `wrangler.toml` solo declara `name = "lamula-process"`, así que hoy la app sale en
+   `lamula-process.pages.dev`. Hay que darlo de alta como _custom domain_ del proyecto Pages
+   (panel de Cloudflare) **antes** de que el CORS del Swarm sirva de algo: si la app no se sirve
+   desde ese host, el `Origin` no coincide con la allowlist.
+3. Desplegar el webviewer antes de que lo de acá sirva de algo.
 
 (Turnstile ya no hace falta: ver D51. No hay hostname que dar de alta ni site key que pasar.)
 
