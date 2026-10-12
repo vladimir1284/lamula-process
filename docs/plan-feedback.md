@@ -381,12 +381,14 @@ detecta**, así que la disciplina no es opcional.
   commit.
 - **`FeedbackNudge.svelte`**: tarjeta abajo-derecha, por encima de la `StatusBar`. Tres acciones:
   _Dejar feedback_ / _Más tarde_ / _No, gracias_.
-- **Turnstile**: el servidor del webviewer **falla cerrado** en producción
-  (`server/utils/turnstile.ts:14-21`: sin `turnstileSecret` y con `NODE_ENV=production` lanza 503).
-  Así que Process **tiene que** montar el widget: script de `challenges.cloudflare.com` cargado
-  perezosamente **solo al abrir el diálogo** (no en el arranque: es la única dependencia de red
-  externa de la app y no debe pagarla quien nunca abre el feedback). El hostname de Process hay que
-  darlo de alta en el widget Turnstile existente (acción manual, ver abajo).
+- **Sin Turnstile** (decisión del usuario, D51 del webviewer). Process no monta el widget y no
+  carga nada de `challenges.cloudflare.com`: sería su única dependencia de red externa y en un
+  puesto sin salida a internet general el captcha no resolvería nunca. El servidor exime del
+  captcha a `app: 'process'` (`server/utils/feedback-policy.ts`) y a cambio aplica un cubo de
+  rate-limit por IP (`noCaptcha:${ip}`, 30/h) además del de `${ip}:${token}`. El cliente de acá no
+  manda `turnstileToken` y no hay nada que dar de alta en Cloudflare.
+  Riesgo asumido y registrado en D51: cualquiera puede mandar `app: 'process'` y entrar sin
+  captcha. El daño techo es spam en una bandeja interna.
 - **i18n**: grupo nuevo `feedback.*` en `src/lib/i18n/locales/{es,en}.json` (341 líneas cada uno
   hoy, misma estructura en ambos). Subgrupos: `feedback.menu`, `feedback.dialog`, `feedback.form`,
   `feedback.roles`, `feedback.kinds`, `feedback.nudge`, `feedback.thread`, `feedback.errors`,
@@ -451,10 +453,10 @@ justo lo que este plan hace. No hay Playwright en este repo; no se añade.
 
 ## Acciones manuales fuera del código (del usuario)
 
-1. **Turnstile**: añadir el hostname de Process (`lamula-process.pages.dev` y el dominio propio si
-   lo hay) al widget existente, y pasar la site key a este repo como variable de build.
-2. **Env en el Swarm**: `NUXT_CORS_ORIGINS` con los orígenes de Process.
-3. Desplegar el webviewer antes de que lo de acá sirva de algo.
+1. **Env en el Swarm**: `NUXT_CORS_ORIGINS` con los orígenes de Process.
+2. Desplegar el webviewer antes de que lo de acá sirva de algo.
+
+(Turnstile ya no hace falta: ver D51. No hay hostname que dar de alta ni site key que pasar.)
 
 ## Riesgos abiertos
 
@@ -464,5 +466,9 @@ justo lo que este plan hace. No hay Playwright en este repo; no se añade.
 - **Drift del contrato entre repos**: dos copias a mano de los mismos enums. No hay paquete
   compartido ni monorepo. Mitigación: comentario de cabecera que nombre el fichero fuente, y los
   enums son estables (no han cambiado desde la decisión 39).
+- **Camino sin captcha abierto a cualquiera (D51)**: el `app: 'process'` lo declara el cliente, así
+  que un script puede usarlo para saltarse Turnstile. Única barrera: el cubo por IP de 30/h. Si
+  aparece spam real, lo siguiente es bajar ese límite o exigir un encabezado firmado emitido por el
+  propio Swarm. Depende de que el contenedor solo sea alcanzable a través del proxy.
 - **Acoplamiento de uptime**: el feedback de Process depende del Swarm del webviewer. Aceptado a
   cambio de una sola bandeja; el fallo es suave por diseño.
