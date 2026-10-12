@@ -92,7 +92,12 @@ class FeedbackStore {
 		this.pending = state.queue.length;
 
 		await this.flush();
-		void this.refreshThread();
+
+		// Only ask the server for a thread if this browser has ever written to us. Someone who
+		// never sent feedback has nothing to read, and would be paying a request on every boot.
+		if (state.nudge.submitted || state.queue.length > 0) {
+			void this.refreshThread();
+		}
 
 		if (typeof window !== 'undefined') {
 			window.addEventListener('online', () => void this.flush());

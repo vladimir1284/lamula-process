@@ -432,6 +432,12 @@ justo lo que este plan hace. No hay Playwright en este repo; no se añade.
 
 ## Orden de ejecución y puertas
 
+> **Estado al 2026-10-11.** Fases 0 a 7 implementadas. Pendiente solo lo que no es código: el
+> despliegue del webviewer al Swarm con `NUXT_CORS_ORIGINS`, el dominio `process.ladetec.com` en
+> Cloudflare Pages y la variable de repo `PUBLIC_FEEDBACK_API`. Mientras falten, la feature queda
+> apagada en el build y los envíos que se hagan en local quedan encolados — verificado en
+> navegador, no inferido.
+
 | #   | Qué                                            | Puerta                                                                                                                                                                                                                      |
 | --- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Fase 0 completa en `lamula-webviewer`          | `pnpm lint && pnpm typecheck && pnpm test` verdes. `bash scripts/check-contract-drift.sh` pasa **sin cambios** (prueba de que el contrato del pipeline no se tocó). `tests/unit/dal.spec.ts` intacto.                       |
