@@ -464,7 +464,11 @@ justo lo que este plan hace. No hay Playwright en este repo; no se añade.
    `lamula-process.pages.dev`. Hay que darlo de alta como _custom domain_ del proyecto Pages
    (panel de Cloudflare) **antes** de que el CORS del Swarm sirva de algo: si la app no se sirve
    desde ese host, el `Origin` no coincide con la allowlist.
-3. Desplegar el webviewer antes de que lo de acá sirva de algo.
+3. **Variable de repo en GitHub**: `PUBLIC_FEEDBACK_API=https://webviewer.ladetec.com/api`
+   (Settings → Secrets and variables → Actions → Variables). Es variable, no secreto: es una URL
+   pública. Sin ella el build sale con la feature apagada, que es el comportamiento querido
+   mientras el webviewer no esté desplegado.
+4. Desplegar el webviewer antes de que lo de acá sirva de algo.
 
 (Turnstile ya no hace falta: ver D51. No hay hostname que dar de alta ni site key que pasar.)
 

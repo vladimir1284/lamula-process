@@ -46,6 +46,12 @@ jobs:
 
       - name: Build (cloudflare-pages)
         run: pnpm build
+        env:
+          # Build-time constants (vite `define`). GIT_SHA lands in the feedback context so a
+          # report maps to a build. PUBLIC_FEEDBACK_API is a repo VARIABLE, not a secret: it is
+          # a public URL. Unset = empty = the feedback feature stays off, which is deliberate.
+          GIT_SHA: ${{ github.sha }}
+          PUBLIC_FEEDBACK_API: ${{ vars.PUBLIC_FEEDBACK_API }}
 
       - uses: actions/upload-artifact@v4
         with:
