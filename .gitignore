@@ -27,3 +27,6 @@ vite.config.ts.timestamp-*
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# Volcados de Playwright MCP
+.playwright-mcp/
