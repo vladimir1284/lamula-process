@@ -51,7 +51,7 @@ function cartoSource(style: string): XYZ {
 	// OL no expande el token {r} de CARTO — resolver @2x aquí una vez
 	const retina = typeof devicePixelRatio !== 'undefined' && devicePixelRatio > 1;
 	return new XYZ({
-		url: `https://{a-d}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}${retina ? '@2x' : ''}.png?api_key=${CARTO_API_KEY}`,
+		url: `https://{a-d}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}${retina ? '@2x' : ''}.png?key=${CARTO_API_KEY}`,
 		tilePixelRatio: retina ? 2 : 1,
 		attributions: CARTO_ATTRIBUTION,
 		crossOrigin: 'anonymous'

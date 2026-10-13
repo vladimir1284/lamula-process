@@ -15,7 +15,7 @@ describe('createBaseMapSources', () => {
 		expect(sources.labels).toBeNull();
 	});
 
-	it('includes api_key in CARTO tile URLs', () => {
+	it('includes key in CARTO tile URLs', () => {
 		for (const cartoId of ['carto-voyager', 'carto-positron', 'carto-dark'] as const) {
 			const sources = createBaseMapSources(cartoId);
 			expect(sources.base).toBeInstanceOf(XYZ);
@@ -24,8 +24,8 @@ describe('createBaseMapSources', () => {
 			const baseUrl = (sources.base as XYZ).getUrls()?.[0] ?? '';
 			const labelsUrl = (sources.labels as XYZ).getUrls()?.[0] ?? '';
 
-			expect(baseUrl).toContain('api_key=cb1_4iib_1_1dfa4e98cff8bebc4902181e');
-			expect(labelsUrl).toContain('api_key=cb1_4iib_1_1dfa4e98cff8bebc4902181e');
+			expect(baseUrl).toContain('key=cb1_4iib_1_1dfa4e98cff8bebc4902181e');
+			expect(labelsUrl).toContain('key=cb1_4iib_1_1dfa4e98cff8bebc4902181e');
 		}
 	});
 });
